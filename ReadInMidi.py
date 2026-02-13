@@ -1,7 +1,7 @@
 import mido
 
 # Load a MIDI file
-mid = mido.MidiFile('basic_pitch_transcription.mid')
+mid = mido.MidiFile('MusicBotOfficial/basic_pitch_transcription.mid')
 
 # Basic file info
 print(f"Type: {mid.type}")
@@ -13,3 +13,4 @@ for i, track in enumerate(mid.tracks):
     print(f"\nTrack {i}: {track.name}")
     for msg in track:
         print(msg)
+        
