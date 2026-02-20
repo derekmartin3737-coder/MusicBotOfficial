@@ -1,6 +1,7 @@
 import json
 import mido
 from mido import MidiFile
+from pathlib import Path
 
 # ----------------------------
 # Config: your 61-key mapping
@@ -13,6 +14,10 @@ LOWEST_MIDI_NOTE = 36
 HIGHEST_MIDI_NOTE = LOWEST_MIDI_NOTE + (NUM_KEYS - 1)
 
 MIDI_PATH = "MusicBotOfficial/basic_pitch_transcription.mid"
+midi_path = Path(MIDI_PATH)
+song_title = midi_path.stem
+safe_title = song_title.replace(" ", "_")  # <-- the one-liner that fixes spaces
+H_PATH = midi_path.with_name(f"{safe_title}.h")
 
 # ----------------------------
 # Load MIDI
@@ -99,5 +104,55 @@ for e in events[:10]:
 
 with open("actuator_events.json", "w") as f:
     json.dump(events, f, indent=2)
+# ----------------------------
+# Also write Arduino header (.h) with dt_ms + key on/off
+# ----------------------------
+
+# 1) Expand note events into ON/OFF timeline using absolute times (ms)
+timeline = []  # each: (time_ms, key, on, vel)
+for e in events:
+    start = int(e["t_ms"])
+    end = int(e["t_ms"] + e["dur_ms"])
+    key = int(e["key"])
+    vel = int(e["vel"])
+
+    timeline.append((start, key, 1, vel))   # ON
+    timeline.append((end,   key, 0, 0))     # OFF (vel unused)
+
+# Sort by absolute time; if same time, process OFF before ON to avoid stuck notes
+timeline.sort(key=lambda x: (x[0], x[2]))  # on=0(off) comes before on=1(on)
+
+# 2) Convert absolute times -> delta times (dt_ms)
+dt_events = []
+prev_t = 0
+for t, key, on, vel in timeline:
+    dt = max(0, t - prev_t)
+    dt_events.append((dt, key, on, vel))
+    prev_t = t
+
+# 3) Write header with an Arduino-safe filename (H_PATH created earlier)
+with open(H_PATH, "w") as f:
+    f.write("#pragma once\n")
+    f.write("#include <Arduino.h>\n")
+    f.write("#include <avr/pgmspace.h>\n\n")
+
+    f.write(f"// Auto-generated from: {midi_path.name}\n")
+    f.write(f"// 61-key mapping: MIDI {LOWEST_MIDI_NOTE}..{HIGHEST_MIDI_NOTE} => key 0..{NUM_KEYS-1}\n\n")
+
+    f.write("typedef struct {\n")
+    f.write("  uint32_t dt_ms;  // delay BEFORE this event\n")
+    f.write("  uint8_t  key;    // 0..60 (actuator index)\n")
+    f.write("  uint8_t  on;     // 1=ON, 0=OFF\n")
+    f.write("  uint8_t  vel;    // 0..127 (only meaningful for ON)\n")
+    f.write("} ActEvent;\n\n")
+
+    f.write("const ActEvent SONG[] PROGMEM = {\n")
+    for dt, key, on, vel in dt_events:
+        f.write(f"  {{ {dt}u, {key}u, {on}u, {vel}u }},\n")
+    f.write("};\n\n")
+
+    f.write("const uint32_t SONG_LEN = sizeof(SONG) / sizeof(SONG[0]);\n")
+
+print(f"Wrote Arduino header: {H_PATH}")
 
 print("\nWrote actuator_events.json")
