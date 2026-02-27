@@ -2,20 +2,24 @@
 #include <Arduino.h>
 #include <avr/pgmspace.h>
 
-/*
-  Auto-generated from: Mary Had a Little Lamb.mid
+// Auto-generated from: Mary Had a Little Lamb.mid
+// Base tempo: 55.00 BPM
+// Tempo override: original timing
+// Effective output tempo: 55.00 BPM
+// Forced retriggers: 0
+// Unmapped note_on events skipped: 0
+// Unmatched note_off events ignored: 0
 
-  Note -> LED mapping (MIDI note numbers):
-  - RED(D2)  <- MIDI note 48
-  - GREEN(D3)  <- MIDI note 50
-  - BLUE(D4)  <- MIDI note 52
-  - WHITE(D5)  <- MIDI note 55
-*/
+// Note -> pin mapping used for this file:
+//   RED(D2) <- MIDI note 48
+//   GREEN(D3) <- MIDI note 50
+//   BLUE(D4) <- MIDI note 52
+//   WHITE(D5) <- MIDI note 55
 
 typedef struct {
-  uint16_t dt_ms;  // delay BEFORE this event
-  uint8_t  pin;    // Arduino digital pin (2,3,4,5)
-  uint8_t  on;     // 1=LED ON, 0=LED OFF
+  uint32_t dt_ms;  // delay BEFORE this event
+  uint8_t  pin;    // Arduino digital pin
+  uint8_t  on;     // 1=ON, 0=OFF
 } LedEvent;
 
 const LedEvent SONG[] PROGMEM = {

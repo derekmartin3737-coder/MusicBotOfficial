@@ -1,0 +1,202 @@
+{
+  "source_midi": "Hot Cross Buns.mid",
+  "output_header": "Hot_Cross_Buns.h",
+  "events": [
+    {
+      "dt_ms": 35,
+      "pin": 4,
+      "on": 1
+    },
+    {
+      "dt_ms": 510,
+      "pin": 4,
+      "on": 0
+    },
+    {
+      "dt_ms": 35,
+      "pin": 3,
+      "on": 1
+    },
+    {
+      "dt_ms": 510,
+      "pin": 3,
+      "on": 0
+    },
+    {
+      "dt_ms": 0,
+      "pin": 2,
+      "on": 0
+    },
+    {
+      "dt_ms": 35,
+      "pin": 2,
+      "on": 1
+    },
+    {
+      "dt_ms": 0,
+      "pin": 2,
+      "on": 1
+    },
+    {
+      "dt_ms": 510,
+      "pin": 2,
+      "on": 0
+    },
+    {
+      "dt_ms": 545,
+      "pin": 4,
+      "on": 1
+    },
+    {
+      "dt_ms": 545,
+      "pin": 4,
+      "on": 0
+    },
+    {
+      "dt_ms": 0,
+      "pin": 3,
+      "on": 1
+    },
+    {
+      "dt_ms": 545,
+      "pin": 3,
+      "on": 0
+    },
+    {
+      "dt_ms": 0,
+      "pin": 2,
+      "on": 1
+    },
+    {
+      "dt_ms": 545,
+      "pin": 2,
+      "on": 0
+    },
+    {
+      "dt_ms": 545,
+      "pin": 2,
+      "on": 1
+    },
+    {
+      "dt_ms": 136,
+      "pin": 2,
+      "on": 0
+    },
+    {
+      "dt_ms": 136,
+      "pin": 2,
+      "on": 1
+    },
+    {
+      "dt_ms": 136,
+      "pin": 2,
+      "on": 0
+    },
+    {
+      "dt_ms": 136,
+      "pin": 2,
+      "on": 1
+    },
+    {
+      "dt_ms": 136,
+      "pin": 2,
+      "on": 0
+    },
+    {
+      "dt_ms": 136,
+      "pin": 2,
+      "on": 1
+    },
+    {
+      "dt_ms": 136,
+      "pin": 2,
+      "on": 0
+    },
+    {
+      "dt_ms": 136,
+      "pin": 3,
+      "on": 1
+    },
+    {
+      "dt_ms": 136,
+      "pin": 3,
+      "on": 0
+    },
+    {
+      "dt_ms": 136,
+      "pin": 3,
+      "on": 1
+    },
+    {
+      "dt_ms": 136,
+      "pin": 3,
+      "on": 0
+    },
+    {
+      "dt_ms": 136,
+      "pin": 3,
+      "on": 1
+    },
+    {
+      "dt_ms": 136,
+      "pin": 3,
+      "on": 0
+    },
+    {
+      "dt_ms": 136,
+      "pin": 3,
+      "on": 1
+    },
+    {
+      "dt_ms": 136,
+      "pin": 3,
+      "on": 0
+    },
+    {
+      "dt_ms": 136,
+      "pin": 4,
+      "on": 1
+    },
+    {
+      "dt_ms": 545,
+      "pin": 4,
+      "on": 0
+    },
+    {
+      "dt_ms": 0,
+      "pin": 3,
+      "on": 1
+    },
+    {
+      "dt_ms": 545,
+      "pin": 3,
+      "on": 0
+    },
+    {
+      "dt_ms": 0,
+      "pin": 2,
+      "on": 1
+    },
+    {
+      "dt_ms": 545,
+      "pin": 2,
+      "on": 0
+    }
+  ],
+  "metadata": {
+    "output_version_label": "base",
+    "original_bpm": 110.00011000011,
+    "tempo_label": "original timing",
+    "effective_bpm": 110.00011000011,
+    "forced_retriggers": 1,
+    "min_distinct_note_gap_ms": 35,
+    "skipped_note_ons": 0,
+    "unmatched_note_offs": 1,
+    "mapping_lines": [
+      "RED(D2) <- MIDI note 48",
+      "GREEN(D3) <- MIDI note 50",
+      "BLUE(D4) <- MIDI note 52"
+    ],
+    "truncated": false
+  }
+}

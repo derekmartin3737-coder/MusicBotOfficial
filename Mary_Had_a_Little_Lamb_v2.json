@@ -1,0 +1,273 @@
+{
+  "source_midi": "Mary Had a Little Lamb.mid",
+  "output_header": "Mary_Had_a_Little_Lamb_v2.h",
+  "events": [
+    {
+      "dt_ms": 35,
+      "pin": 4,
+      "on": 1
+    },
+    {
+      "dt_ms": 238,
+      "pin": 4,
+      "on": 0
+    },
+    {
+      "dt_ms": 35,
+      "pin": 3,
+      "on": 1
+    },
+    {
+      "dt_ms": 238,
+      "pin": 3,
+      "on": 0
+    },
+    {
+      "dt_ms": 35,
+      "pin": 2,
+      "on": 1
+    },
+    {
+      "dt_ms": 238,
+      "pin": 2,
+      "on": 0
+    },
+    {
+      "dt_ms": 0,
+      "pin": 3,
+      "on": 1
+    },
+    {
+      "dt_ms": 273,
+      "pin": 3,
+      "on": 0
+    },
+    {
+      "dt_ms": 0,
+      "pin": 4,
+      "on": 1
+    },
+    {
+      "dt_ms": 273,
+      "pin": 4,
+      "on": 0
+    },
+    {
+      "dt_ms": 35,
+      "pin": 4,
+      "on": 1
+    },
+    {
+      "dt_ms": 238,
+      "pin": 4,
+      "on": 0
+    },
+    {
+      "dt_ms": 35,
+      "pin": 4,
+      "on": 1
+    },
+    {
+      "dt_ms": 238,
+      "pin": 4,
+      "on": 0
+    },
+    {
+      "dt_ms": 273,
+      "pin": 3,
+      "on": 1
+    },
+    {
+      "dt_ms": 273,
+      "pin": 3,
+      "on": 0
+    },
+    {
+      "dt_ms": 35,
+      "pin": 3,
+      "on": 1
+    },
+    {
+      "dt_ms": 238,
+      "pin": 3,
+      "on": 0
+    },
+    {
+      "dt_ms": 35,
+      "pin": 3,
+      "on": 1
+    },
+    {
+      "dt_ms": 238,
+      "pin": 3,
+      "on": 0
+    },
+    {
+      "dt_ms": 273,
+      "pin": 4,
+      "on": 1
+    },
+    {
+      "dt_ms": 273,
+      "pin": 4,
+      "on": 0
+    },
+    {
+      "dt_ms": 35,
+      "pin": 5,
+      "on": 1
+    },
+    {
+      "dt_ms": 238,
+      "pin": 5,
+      "on": 0
+    },
+    {
+      "dt_ms": 35,
+      "pin": 5,
+      "on": 1
+    },
+    {
+      "dt_ms": 238,
+      "pin": 5,
+      "on": 0
+    },
+    {
+      "dt_ms": 273,
+      "pin": 4,
+      "on": 1
+    },
+    {
+      "dt_ms": 273,
+      "pin": 4,
+      "on": 0
+    },
+    {
+      "dt_ms": 0,
+      "pin": 3,
+      "on": 1
+    },
+    {
+      "dt_ms": 273,
+      "pin": 3,
+      "on": 0
+    },
+    {
+      "dt_ms": 0,
+      "pin": 2,
+      "on": 1
+    },
+    {
+      "dt_ms": 273,
+      "pin": 2,
+      "on": 0
+    },
+    {
+      "dt_ms": 0,
+      "pin": 3,
+      "on": 1
+    },
+    {
+      "dt_ms": 273,
+      "pin": 3,
+      "on": 0
+    },
+    {
+      "dt_ms": 0,
+      "pin": 4,
+      "on": 1
+    },
+    {
+      "dt_ms": 273,
+      "pin": 4,
+      "on": 0
+    },
+    {
+      "dt_ms": 35,
+      "pin": 4,
+      "on": 1
+    },
+    {
+      "dt_ms": 238,
+      "pin": 4,
+      "on": 0
+    },
+    {
+      "dt_ms": 35,
+      "pin": 4,
+      "on": 1
+    },
+    {
+      "dt_ms": 238,
+      "pin": 4,
+      "on": 0
+    },
+    {
+      "dt_ms": 273,
+      "pin": 3,
+      "on": 1
+    },
+    {
+      "dt_ms": 273,
+      "pin": 3,
+      "on": 0
+    },
+    {
+      "dt_ms": 35,
+      "pin": 3,
+      "on": 1
+    },
+    {
+      "dt_ms": 238,
+      "pin": 3,
+      "on": 0
+    },
+    {
+      "dt_ms": 0,
+      "pin": 4,
+      "on": 1
+    },
+    {
+      "dt_ms": 273,
+      "pin": 4,
+      "on": 0
+    },
+    {
+      "dt_ms": 0,
+      "pin": 3,
+      "on": 1
+    },
+    {
+      "dt_ms": 273,
+      "pin": 3,
+      "on": 0
+    },
+    {
+      "dt_ms": 0,
+      "pin": 2,
+      "on": 1
+    },
+    {
+      "dt_ms": 273,
+      "pin": 2,
+      "on": 0
+    }
+  ],
+  "metadata": {
+    "output_version_label": "v2",
+    "original_bpm": 55.00000458333371,
+    "tempo_label": "original timing",
+    "effective_bpm": 55.00000458333371,
+    "forced_retriggers": 0,
+    "min_distinct_note_gap_ms": 35,
+    "skipped_note_ons": 0,
+    "unmatched_note_offs": 0,
+    "mapping_lines": [
+      "RED(D2) <- MIDI note 48",
+      "GREEN(D3) <- MIDI note 50",
+      "BLUE(D4) <- MIDI note 52",
+      "WHITE(D5) <- MIDI note 55"
+    ],
+    "truncated": false
+  }
+}
