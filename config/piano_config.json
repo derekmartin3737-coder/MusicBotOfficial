@@ -1,0 +1,52 @@
+{
+  "project_mode": "three_solenoid_cde_test",
+  "pca9685": {
+    "i2c_address": 64,
+    "pwm_frequency_hz": 250
+  },
+  "mapping": {
+    "mode": "explicit_note_map",
+    "note_to_channel": {
+      "48": 0,
+      "50": 1,
+      "52": 2
+    },
+    "note_labels": {
+      "48": "C3",
+      "50": "D3",
+      "52": "E3"
+    },
+    "channel_labels": {
+      "0": "C3 key solenoid (25N)",
+      "1": "D3 key solenoid (5N)",
+      "2": "E3 key solenoid (5N)"
+    }
+  },
+  "actuation": {
+    "strike_min_pwm": 2300,
+    "strike_max_pwm": 3600,
+    "strike_ms": 35,
+    "hold_min_pwm": 1300,
+    "hold_max_pwm": 2200,
+    "hold_ratio": 0.58,
+    "release_delay_ms": 6,
+    "minimum_rearm_gap_ms": 25,
+    "retrigger_gap_ms": 16,
+    "channel_overrides": {
+      "0": {
+        "strike_min_pwm": 3000,
+        "strike_max_pwm": 4095,
+        "hold_min_pwm": 1800,
+        "hold_max_pwm": 2800,
+        "hold_ratio": 0.62
+      }
+    }
+  },
+  "notes": {
+    "current_setup": "Three-note piano test map. C3, D3, and E3 route to PCA9685 channels 0, 1, and 2. All other notes are skipped.",
+    "channel_0": "25N solenoid on C3",
+    "channel_1": "5N solenoid on D3",
+    "channel_2": "5N solenoid on E3",
+    "future_setup": "Expand to more keys by adding note_to_channel entries and channel-specific tuning."
+  }
+}
