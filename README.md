@@ -1,29 +1,62 @@
 # Autonomous Piano Player
 
-This project converts MIDI songs into PCA9685-driven solenoid playback data for an autonomous piano player.
+This project plays MIDI files on a piano using an Arduino Uno, a PCA9685 PWM driver, and solenoid actuators.
 
-The repo now supports two practical test modes:
+The current software flow is:
 
-- `SingleSolenoidBenchTest`: one 5N solenoid on PCA9685 channel `0`
-- `three_solenoid_cde_test`: three mapped piano notes using channels `0`, `1`, and `2`
+1. Upload the fixed Arduino runtime once
+2. Run the Python converter/sender on a MIDI file
+3. Python scans the MIDI, asks a few prompts, converts it into timed PWM events, and sends those events over USB serial
+4. The Arduino receives the event stream and drives the solenoids through the PCA9685
 
-Current three-solenoid mapping:
+For normal playback, users should not need to edit Arduino code for each song.
 
-- Channel `0`: `C3` on the 25N solenoid
-- Channel `1`: `D3` on a 5N solenoid
-- Channel `2`: `E3` on a 5N solenoid
-- Notes outside `C3/D3/E3` are skipped by the converter
+## Current project status
 
-## Project layout
+The repo currently targets a 3-note test setup:
+
+- PCA9685 channel `0` -> `C3` -> 25N solenoid
+- PCA9685 channel `1` -> `D3` -> 5N solenoid
+- PCA9685 channel `2` -> `E3` -> 5N solenoid
+- notes outside `C3/D3/E3` are skipped unless octave transposition helps them fit
+
+Important current limitation:
+
+- the Arduino runtime currently buffers up to `160` playback events at once
+- that means very long or dense songs may fail even if the timing logic is otherwise correct
+
+## How it works
+
+There are two main pieces:
+
+- [scripts/convert_midi.py](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/scripts/convert_midi.py)
+  - chooses a MIDI file
+  - scans the MIDI note range
+  - asks whether to keep pitches strict, transpose by octave, or cancel
+  - converts notes into piano-style `strike`, `hold`, and `release` PWM events
+  - sends the converted event list to the Arduino over USB serial
+  - also writes debug/export artifacts to the repo
+
+- [arduino/MusicBotOfficial/MusicBotOfficial.ino](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/arduino/MusicBotOfficial/MusicBotOfficial.ino)
+  - is the fixed playback runtime
+  - receives serial commands from Python
+  - loads the event list into memory
+  - plays those events on the PCA9685
+
+The active hardware and tuning configuration lives in [config/piano_config.json](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/config/piano_config.json).
+
+## Repo layout
 
 ```text
 Music bot official directory/
 |-- arduino/
 |   |-- MusicBotOfficial/
 |   |-- SingleSolenoidBenchTest/
-|   `-- ThreeSolenoidBenchTest/
+|   |-- ThreeSolenoidBenchTest/
+|   `-- HeaderPlaybackFallback/
 |-- config/
-|   `-- piano_config.json
+|   |-- piano_config.json
+|   `-- deployment_paths.json
 |-- scripts/
 |   |-- convert_midi.py
 |   `-- legacy/
@@ -35,138 +68,273 @@ Music bot official directory/
 `-- README.md
 ```
 
-## Supported workflow
+## Prerequisites
 
-- `scripts/convert_midi.py` is the active exporter.
-- `config/piano_config.json` controls PCA9685 settings, note mapping, and per-channel strike/hold tuning.
-- `arduino/MusicBotOfficial/MusicBotOfficial.ino` is the full playback sketch.
-- `arduino/MusicBotOfficial/generated/current_song.h` is the active generated playback file.
+Software:
 
-Each exported note becomes a piano-style actuation pattern:
+- Python 3
+- Arduino IDE
+- Python packages from [requirements.txt](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/requirements.txt)
+- Arduino library:
+  - `Adafruit PWM Servo Driver Library`
 
-- `strike`: a short stronger pulse
-- `hold`: a lower sustained PWM level for longer notes
-- `release`: PWM back to `0`
+Hardware:
 
-MIDI velocity affects strike strength, and simultaneous notes are emitted as same-timestamp events so chords like `C + E` play together.
+- Arduino Uno
+- PCA9685 PWM driver
+- MOSFET driver stage for the solenoids
+- external solenoid power supply
+- one flyback diode per solenoid
+- common ground between Arduino, PCA9685, MOSFET board, and power supply
 
-## Quick start
+## Wiring assumptions
 
-1. Install Python dependencies:
+Current code assumes:
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+- Arduino `A4` -> PCA9685 `SDA`
+- Arduino `A5` -> PCA9685 `SCL`
+- PCA9685 address `0x40`
+- PCA9685 PWM frequency `250 Hz`
 
-2. Confirm the Arduino IDE has the Adafruit PCA9685 library installed:
+Important:
 
-   - `Adafruit PWM Servo Driver Library`
+- the PCA9685 does not power solenoids directly
+- the MOSFET stage must switch the solenoid power
+- each solenoid needs flyback protection
 
-3. Put MIDI files in `songs/midi/`.
+## First-time setup
 
-4. Run the converter from the repository root:
+### 1. Clone the repo
 
-   ```bash
-   python scripts/convert_midi.py
-   ```
+Clone the GitHub repo and open it locally.
 
-5. Follow the prompts:
+### 2. Install Python dependencies
 
-   - optionally keep the saved key mapping or enter a contiguous playable range like `C4-B4` or `60-71`
-   - review the detected MIDI note range
-   - choose:
-     - `strict`: keep original pitches and skip out-of-range notes
-     - `transpose`: shift the whole song by octaves to fit more notes, then skip the rest
-     - `cancel`: stop without converting
-   - optionally choose a tempo override
+From the repo root, run:
 
-6. Open `arduino/MusicBotOfficial/MusicBotOfficial.ino` in the Arduino IDE and upload it.
+```bash
+pip install -r requirements.txt
+```
 
-## Bench tests
+### 3. Install the Arduino library
 
-### One-solenoid bench test
+In Arduino IDE, install:
 
-Upload:
+- `Adafruit PWM Servo Driver Library`
 
-- `arduino/SingleSolenoidBenchTest/SingleSolenoidBenchTest.ino`
+### 4. Upload the fixed Arduino runtime once
 
-Use this first to validate a single 5N solenoid on channel `0`.
+Open this sketch in Arduino IDE:
 
-### Three-solenoid sync bench test
+- [arduino/MusicBotOfficial/MusicBotOfficial.ino](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/arduino/MusicBotOfficial/MusicBotOfficial.ino)
 
-Upload:
+Then:
 
-- `arduino/ThreeSolenoidBenchTest/ThreeSolenoidBenchTest.ino`
+1. Plug in the Arduino by USB
+2. Select `Arduino Uno`
+3. Select the correct COM port
+4. Click `Upload`
 
-This sketch tests:
+This only needs to be done again if the Arduino runtime changes.
 
-- single-note strikes on `C`, `D`, and `E`
-- mixed actuator strengths across the 25N and 5N solenoids
-- a simultaneous `C + E` chord
-- repeated dynamics and short phrase playback
+### 5. Decide whether to use deployment path syncing
 
-## Sample MIDI files
+[config/deployment_paths.json](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/config/deployment_paths.json) currently contains a machine-specific Arduino sketchbook path from the original development machine.
 
-These are good first tests for the current `C3/D3/E3` mapping:
+If you are just testing the repo directly, you can ignore that file.
 
-- `Hot Cross Buns.mid`
-- `CDE_Sync_Showcase.mid`
-- `CDE_Dynamics_Etude.mid`
+If you want Python to mirror generated files into your own Arduino sketchbook folder, update the `arduino_ide_sync.sketch_path` value on your machine.
 
-`Hot Cross Buns.mid` is the cleanest real-song fit because it already uses just `C3`, `D3`, and `E3`.
+## Quick test paths
 
-The two custom showcase MIDIs demonstrate:
+### Option A: Bench-test the actuators first
 
-- velocity changes
-- repeated notes
-- `C + E` chord hits
-- more dramatic rhythmic phrasing than the nursery-rhyme samples
+Use these sketches before trying MIDI playback if you want to validate the hardware:
 
-## Generated outputs
+- [arduino/SingleSolenoidBenchTest/SingleSolenoidBenchTest.ino](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/arduino/SingleSolenoidBenchTest/SingleSolenoidBenchTest.ino)
+- [arduino/ThreeSolenoidBenchTest/ThreeSolenoidBenchTest.ino](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/arduino/ThreeSolenoidBenchTest/ThreeSolenoidBenchTest.ino)
 
-The converter writes:
+What they are for:
 
-- a versioned header in `arduino/MusicBotOfficial/generated/`
-- a stable active header at `arduino/MusicBotOfficial/generated/current_song.h`
-- matching metadata JSON in `songs/metadata/`
+- `SingleSolenoidBenchTest`: verify one solenoid moves with soft/medium/hard strikes
+- `ThreeSolenoidBenchTest`: verify channels `0`, `1`, and `2` fire correctly, including a `C + E` chord
 
-The metadata includes:
+### Option B: Test full MIDI playback
 
-- generated PWM events
-- scheduled strike/hold/release notes
-- the config snapshot used for that export
-- note-to-channel mapping and actuation details
+Recommended first test files:
 
-## Range fitting
+- [songs/midi/Hot Cross Buns.mid](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/songs/midi/Hot%20Cross%20Buns.mid)
+- [songs/midi/CDE_Sync_Showcase.mid](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/songs/midi/CDE_Sync_Showcase.mid)
+- [songs/midi/CDE_Dynamics_Etude.mid](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/songs/midi/CDE_Dynamics_Etude.mid)
 
-Before conversion, the Python tool scans the MIDI and reports:
+`Hot Cross Buns.mid` is the safest first musical test because it already fits the current `C3/D3/E3` mapping very well.
 
-- the detected pitched-note range of the file
-- how many note events are playable with the current layout
-- the same playability count as a percentage of the total
+## Daily playback workflow
 
-The coverage is shown in the form:
+After the Arduino runtime has been uploaded once, normal testing looks like this:
 
-- `X of Y note events playable (Z%)`
+1. Plug the Arduino into USB
+2. Power the solenoids
+3. Put a MIDI file in your Windows Downloads folder, or use one already in [songs/midi](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/songs/midi)
+4. From the repo root, run:
 
-If your physical keys cover one continuous span, you can override the playable range directly in the prompt with:
+```bash
+python scripts/convert_midi.py
+```
 
-- note names, like `C4-B4`
-- MIDI note numbers, like `60-71`
+5. Answer the prompts
+6. Python sends the song to the Arduino
+7. The Arduino plays it
 
-This contiguous range override assumes every note in that span is wired. If your layout skips keys, keep the saved explicit mapping instead.
+## What the Python prompts mean
 
-## Hardware notes
+### Song selection
 
-- The PCA9685 is only generating control PWM. It is not powering the solenoids directly.
-- The MOSFET stage must handle the solenoid power.
-- Flyback protection is required for each solenoid because the MOSFET board does not include it.
-- Arduino ground, PCA9685 ground, MOSFET board ground, and supply ground must all be common.
-- Channel `0` currently assumes the stronger 25N actuator and uses a stronger starting PWM profile than channels `1` and `2`.
+The script first looks for the newest `.mid` or `.midi` file in your Windows Downloads folder.
 
-## Expansion path
+You can:
 
-- Add more notes by editing `config/piano_config.json`
-- Add more solenoids and assign each to a piano key
-- Retune strike/hold values per channel
-- Add more showcase MIDIs or export your own songs that fit the mapped notes
+- press Enter to use the newest download
+- type `project` to pick a MIDI already in `songs/midi`
+- type a full path to another MIDI file
+
+### Playable range override
+
+The script can keep the saved note mapping, or let you temporarily enter a contiguous playable range such as:
+
+- `C4-B4`
+- `60-71`
+
+Use that only if your current physical solenoids cover every note in that span.
+
+If your solenoids are mapped to specific scattered notes, keep the saved mapping instead.
+
+### MIDI range and fit mode
+
+Before conversion, the script scans the MIDI and reports:
+
+- detected MIDI note range
+- strict playability
+- transpose-by-octave playability
+
+Coverage is shown like this:
+
+- `23 of 25 note events playable (92.0%)`
+
+Then it asks you to choose:
+
+- `strict`
+  - keep original pitches
+  - skip notes outside the current playable layout
+- `transpose`
+  - shift the whole song by octaves to fit more notes
+  - still skip any notes that remain out of range
+- `cancel`
+  - stop without converting or sending anything
+
+Percussion on MIDI channel 10 is ignored during this scan.
+
+### Tempo override
+
+You can:
+
+- press Enter to keep the original timing
+- enter a BPM value such as `140`
+- enter a multiplier such as `0.85x`
+
+## What gets generated
+
+Even though playback now uses serial, the script still writes export/debug files:
+
+- versioned headers in [arduino/MusicBotOfficial/generated](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/arduino/MusicBotOfficial/generated)
+- active header in [arduino/MusicBotOfficial/generated/current_song.h](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/arduino/MusicBotOfficial/generated/current_song.h)
+- versioned metadata JSON in [songs/metadata](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/songs/metadata)
+- active metadata in [songs/metadata/current_song.json](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/songs/metadata/current_song.json)
+
+The JSON metadata is useful for debugging because it records:
+
+- the source MIDI
+- the selected fit mode
+- the effective note mapping
+- the generated event list
+- per-note scheduling details
+
+## Current configuration
+
+The active project configuration is in [config/piano_config.json](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/config/piano_config.json).
+
+Right now it defines:
+
+- `project_mode: three_solenoid_cde_test`
+- PCA9685 address `0x40`
+- PWM frequency `250`
+- note mapping:
+  - `48 (C3) -> channel 0`
+  - `50 (D3) -> channel 1`
+  - `52 (E3) -> channel 2`
+- stronger strike/hold tuning on channel `0` for the 25N solenoid
+
+## Troubleshooting
+
+### Python says no serial devices were found
+
+- make sure the Arduino is plugged in by USB
+- make sure the board is powered and recognized by the computer
+- close the Arduino Serial Monitor if it is open
+
+### Python asks you to choose a COM port
+
+That means multiple serial devices were detected. Pick the port that belongs to the Arduino Uno.
+
+### The song converts but nothing moves
+
+Check:
+
+- Arduino runtime was uploaded successfully
+- Arduino and Python are using the same board over USB
+- PCA9685 wiring on `A4/A5`
+- MOSFET board wiring
+- common ground
+- external solenoid power supply
+- flyback diode polarity
+
+### The bench test works but a downloaded MIDI sounds incomplete
+
+That is expected if:
+
+- the MIDI uses notes outside the mapped range
+- the fit mode skips many notes
+- the file is too dense for the current runtime buffer
+
+### The converter reports permission problems syncing Arduino IDE files
+
+That usually means `deployment_paths.json` points to a path that only exists on another machine, or a local Arduino sketch file is currently locked.
+
+This does not matter for serial playback if you already uploaded the runtime from the repo directly.
+
+## Known limitations
+
+- current runtime buffer limit: `160` events
+- current default note mapping is only `C3/D3/E3`
+- the calibration/debugger workflow for mapping channels to physical keys is not finished yet
+- a contiguous bottom-note/top-note range only works if every note in that span is actually wired
+
+## Recommended first test for engineering partners
+
+If you are opening this project for the first time, use this order:
+
+1. Upload [arduino/SingleSolenoidBenchTest/SingleSolenoidBenchTest.ino](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/arduino/SingleSolenoidBenchTest/SingleSolenoidBenchTest.ino) if you want to verify one actuator
+2. Upload [arduino/ThreeSolenoidBenchTest/ThreeSolenoidBenchTest.ino](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/arduino/ThreeSolenoidBenchTest/ThreeSolenoidBenchTest.ino) if you want to verify the 3-channel hardware
+3. Upload [arduino/MusicBotOfficial/MusicBotOfficial.ino](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/arduino/MusicBotOfficial/MusicBotOfficial.ino) once as the fixed runtime
+4. Run:
+
+```bash
+python scripts/convert_midi.py
+```
+
+5. Choose [songs/midi/Hot Cross Buns.mid](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/songs/midi/Hot%20Cross%20Buns.mid)
+6. Keep the saved mapping
+7. Choose `strict`
+8. Keep the original tempo
+
+That is the most reliable end-to-end test currently in the repo.
