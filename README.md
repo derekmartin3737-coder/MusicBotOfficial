@@ -70,7 +70,15 @@ MIDI velocity affects strike strength, and simultaneous notes are emitted as sam
    python scripts/convert_midi.py
    ```
 
-5. Choose a song and optionally choose a tempo override.
+5. Follow the prompts:
+
+   - optionally keep the saved key mapping or enter a contiguous playable range like `C4-B4` or `60-71`
+   - review the detected MIDI note range
+   - choose:
+     - `strict`: keep original pitches and skip out-of-range notes
+     - `transpose`: shift the whole song by octaves to fit more notes, then skip the rest
+     - `cancel`: stop without converting
+   - optionally choose a tempo override
 
 6. Open `arduino/MusicBotOfficial/MusicBotOfficial.ino` in the Arduino IDE and upload it.
 
@@ -128,6 +136,25 @@ The metadata includes:
 - scheduled strike/hold/release notes
 - the config snapshot used for that export
 - note-to-channel mapping and actuation details
+
+## Range fitting
+
+Before conversion, the Python tool scans the MIDI and reports:
+
+- the detected pitched-note range of the file
+- how many note events are playable with the current layout
+- the same playability count as a percentage of the total
+
+The coverage is shown in the form:
+
+- `X of Y note events playable (Z%)`
+
+If your physical keys cover one continuous span, you can override the playable range directly in the prompt with:
+
+- note names, like `C4-B4`
+- MIDI note numbers, like `60-71`
+
+This contiguous range override assumes every note in that span is wired. If your layout skips keys, keep the saved explicit mapping instead.
 
 ## Hardware notes
 

@@ -85,6 +85,14 @@ The repo remains the authoring source, but the converter syncs the active sketch
 - Mixed 25N / 5N channel tuning exists
 - Same-time events are grouped for better chord timing
 - The converter is configured to sync the active sketch and header to the Arduino IDE sketchbook folder
+- The converter scans each MIDI and reports its detected note range before conversion
+- Playability is shown as `X of Y note events playable (Z%)`
+- The converter now offers:
+  - `strict`
+  - `transpose by octave`
+  - `cancel`
+- The converter now accepts a user-entered contiguous playable range like `C4-B4` or `60-71`
+- Percussion note events on MIDI channel 10 are ignored during pitch-range analysis and conversion
 
 ## What is still missing for the real user logistics
 
@@ -177,6 +185,7 @@ That is still useful because:
   - channel
   - PWM value
 - [ ] Support chunked transfer so large songs do not require full in-RAM storage
+- [ ] Remove the current single-song event ceiling so long or dense songs do not fail on runtime buffer limits
 
 ### Phase 3: Build the Python sender
 
@@ -219,6 +228,7 @@ That is still useful because:
   - explicit MIDI filename
   - explicit filepath
   - tempo override
+  - playable range override like `C4-B4`
   - dry run
   - export-only mode
 - [ ] Prompt the user in plain language instead of technical terms where possible
@@ -228,10 +238,26 @@ That is still useful because:
 
 - [ ] Handle "no MIDI found in Downloads" with a simple recovery message
 - [ ] Handle invalid or corrupted MIDI files gracefully
-- [ ] Handle songs with unsupported notes by warning clearly and offering to continue
+- [ ] Improve unsupported-note reporting beyond raw note-event counts:
+  - show which notes are out of range most often
+  - show whether the song still sounds recognizable
+- [ ] Treat percussion/drum content intentionally:
+  - ignore MIDI channel 10 by default
+  - or prompt the user if a file is mostly percussion
+  - avoid accidentally playing drum notes that happen to use mapped note numbers
 - [ ] Handle accidental ZIP downloads clearly
 - [ ] Show the user exactly which file was chosen and why
 - [ ] Confirm the Arduino is connected before attempting playback
+
+### Phase 6.5: Add calibration and mapping debug tools
+
+- [ ] Add a calibration/debug mode that can fire one PCA9685 channel on command
+- [ ] Add a sweep mode that plays channels one-by-one so the user can see which physical key each solenoid moves
+- [ ] Print or save a clear `channel -> key -> MIDI note` mapping report after calibration
+- [ ] Add a user-safe way to choose the active octave range without editing source code
+- [ ] Save the calibrated octave map into configuration rather than hardcoding it in `.ino`
+- [ ] Support transposing incoming MIDI into the chosen octave when needed
+- [ ] Add a simple per-solenoid strike/hold tuning test so each channel can be calibrated on the real piano action
 
 ### Phase 7: Preserve a fallback path
 
@@ -255,8 +281,12 @@ That is still useful because:
 ## Things to watch out for
 
 - The Arduino has limited RAM, so large songs may need chunked streaming instead of full buffering
+- The current runtime still has a finite event buffer, so a short but dense song can fail even if total playback time is small
 - Serial playback must be robust enough not to corrupt timing or partially load songs
 - Downloaded MIDI files may use notes outside `C3/D3/E3`
+- With only one octave of solenoids, note mapping and octave choice become part of normal setup, not just development
+- Percussion on MIDI channel 10 is now ignored, but multi-track files may still need clearer user-facing summaries
+- A contiguous bottom-note to top-note range only works when every key in between is actually wired
 - Songs with dense chords or very fast repeated notes may need more scheduling or queue tuning
 - The Python-to-Arduino serial path needs a stable COM port selection strategy
 - The fixed runtime and the repo source must stay in sync

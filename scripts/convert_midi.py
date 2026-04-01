@@ -21,6 +21,9 @@ ACTIVE_HEADER_NAME = "current_song.h"
 ACTIVE_METADATA_NAME = "current_song.json"
 
 VERSION_RE = re.compile(r"^(?P<name>.+?)(?:_v(?P<version>\d+))?$")
+NOTE_TOKEN_RE = re.compile(r"^\s*([A-Ga-g])([#b]?)(-?\d+)\s*$")
+NUMERIC_RANGE_RE = re.compile(r"^\s*(-?\d+)\s*-\s*(-?\d+)\s*$")
+NOTE_RANGE_RE = re.compile(r"^\s*([A-Ga-g][#b]?-?\d+)\s*-\s*([A-Ga-g][#b]?-?\d+)\s*$")
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = REPO_ROOT / "config" / "piano_config.json"
@@ -42,6 +45,68 @@ def midi_note_name(note: int):
     names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
     octave = (note // 12) - 1
     return f"{names[note % 12]}{octave}"
+
+
+def parse_note_token(token: str):
+    match = NOTE_TOKEN_RE.match(token)
+    if not match:
+        raise ValueError(
+            "Invalid note format. Use note names like C4, F#3, Bb2, or MIDI numbers in a range like 60-71."
+        )
+
+    note_name = match.group(1).upper()
+    accidental = match.group(2)
+    octave = int(match.group(3))
+
+    semitone_lookup = {
+        "C": 0,
+        "D": 2,
+        "E": 4,
+        "F": 5,
+        "G": 7,
+        "A": 9,
+        "B": 11,
+    }
+    semitone = semitone_lookup[note_name]
+    if accidental == "#":
+        semitone += 1
+    elif accidental == "b":
+        semitone -= 1
+
+    midi_note = (octave + 1) * 12 + semitone
+    if not 0 <= midi_note <= 127:
+        raise ValueError("MIDI note values must stay between 0 and 127.")
+    return midi_note
+
+
+def parse_inclusive_note_range(raw: str):
+    numeric_match = NUMERIC_RANGE_RE.match(raw)
+    if numeric_match:
+        bottom_note = int(numeric_match.group(1))
+        top_note = int(numeric_match.group(2))
+    else:
+        note_match = NOTE_RANGE_RE.match(raw)
+        if not note_match:
+            raise ValueError(
+                "Use an inclusive range like C4-B4 or 60-71."
+            )
+        bottom_note = parse_note_token(note_match.group(1))
+        top_note = parse_note_token(note_match.group(2))
+
+    if not (0 <= bottom_note <= 127 and 0 <= top_note <= 127):
+        raise ValueError("Playable range notes must stay between 0 and 127.")
+    if bottom_note > top_note:
+        raise ValueError("The bottom note must be lower than or equal to the top note.")
+    return bottom_note, top_note
+
+
+def format_note_range(bottom_note: int, top_note: int):
+    return f"{midi_note_name(bottom_note)} to {midi_note_name(top_note)}"
+
+
+def format_playable_count(playable_count: int, total_count: int):
+    percentage = 0.0 if total_count == 0 else (playable_count / total_count) * 100.0
+    return f"{playable_count} of {total_count} note events playable ({percentage:.1f}%)"
 
 
 def sanitize_name(name: str) -> str:
@@ -266,6 +331,7 @@ def extract_note_intervals(mid: MidiFile):
     active_notes = defaultdict(list)
     note_intervals = []
     unmatched_note_offs = 0
+    percussion_events_skipped = 0
 
     for msg in merged:
         if msg.time:
@@ -280,37 +346,49 @@ def extract_note_intervals(mid: MidiFile):
             continue
 
         note = int(msg.note)
+        channel = int(getattr(msg, "channel", -1))
+        if channel == 9:
+            percussion_events_skipped += 1
+            continue
+
         velocity = int(getattr(msg, "velocity", 0))
         is_note_on = msg.type == "note_on" and velocity > 0
         is_note_off = msg.type == "note_off" or (msg.type == "note_on" and velocity == 0)
+        note_key = (channel, note)
 
         if is_note_on:
-            active_notes[note].append({"start_ms": current_ms, "velocity": velocity})
+            active_notes[note_key].append(
+                {"start_ms": current_ms, "velocity": velocity, "source_channel": channel}
+            )
             continue
 
         if is_note_off:
-            if active_notes[note]:
-                pending_note = active_notes[note].pop(0)
+            if active_notes[note_key]:
+                pending_note = active_notes[note_key].pop(0)
                 note_intervals.append(
                     {
                         "note": note,
+                        "source_note": note,
                         "velocity": pending_note["velocity"],
                         "start_ms": pending_note["start_ms"],
                         "end_ms": max(current_ms, pending_note["start_ms"] + 1),
+                        "source_channel": pending_note["source_channel"],
                     }
                 )
             else:
                 unmatched_note_offs += 1
 
     dangling_note_ons = 0
-    for note, pending_notes in active_notes.items():
+    for (_, note), pending_notes in active_notes.items():
         for pending_note in pending_notes:
             note_intervals.append(
                 {
                     "note": note,
+                    "source_note": note,
                     "velocity": pending_note["velocity"],
                     "start_ms": pending_note["start_ms"],
                     "end_ms": max(current_ms, pending_note["start_ms"] + 1),
+                    "source_channel": pending_note["source_channel"],
                 }
             )
             dangling_note_ons += 1
@@ -319,6 +397,266 @@ def extract_note_intervals(mid: MidiFile):
     return note_intervals, {
         "unmatched_note_offs": unmatched_note_offs,
         "dangling_note_ons_closed": dangling_note_ons,
+        "percussion_events_skipped": percussion_events_skipped,
+    }
+
+
+def get_mapping_channel_order(mapping_config):
+    channel_sequence = mapping_config.get("channel_sequence")
+    if channel_sequence:
+        return [int(channel) for channel in channel_sequence]
+
+    mode = mapping_config["mode"]
+    if mode == "collapse_all_notes_to_single_channel":
+        return [int(mapping_config["single_channel"])]
+
+    if mode == "explicit_note_map":
+        ordered_pairs = sorted(
+            ((int(note), int(channel)) for note, channel in mapping_config.get("note_to_channel", {}).items()),
+            key=lambda item: item[0],
+        )
+        seen_channels = set()
+        channel_order = []
+        for _, channel in ordered_pairs:
+            if channel not in seen_channels:
+                channel_order.append(channel)
+                seen_channels.add(channel)
+        return channel_order
+
+    raise ValueError(f"Unsupported mapping mode: {mode}")
+
+
+def get_mapping_note_numbers(mapping_config):
+    if mapping_config["mode"] == "explicit_note_map":
+        return sorted(int(note) for note in mapping_config.get("note_to_channel", {}))
+    return []
+
+
+def summarize_playable_layout(mapping_config):
+    if mapping_config["mode"] == "collapse_all_notes_to_single_channel":
+        channel = int(mapping_config["single_channel"])
+        return {
+            "label": f"All notes collapse to PCA9685 channel {channel}",
+            "bottom_note": None,
+            "top_note": None,
+            "note_count": None,
+            "is_contiguous": True,
+        }
+
+    note_numbers = get_mapping_note_numbers(mapping_config)
+    if not note_numbers:
+        return {
+            "label": "No mapped notes",
+            "bottom_note": None,
+            "top_note": None,
+            "note_count": 0,
+            "is_contiguous": False,
+        }
+
+    bottom_note = note_numbers[0]
+    top_note = note_numbers[-1]
+    is_contiguous = note_numbers == list(range(bottom_note, top_note + 1))
+    if is_contiguous:
+        label = (
+            f"{len(note_numbers)} mapped notes from {midi_note_name(bottom_note)} "
+            f"to {midi_note_name(top_note)}"
+        )
+    else:
+        label = (
+            f"{len(note_numbers)} mapped notes from {midi_note_name(bottom_note)} "
+            f"to {midi_note_name(top_note)} (non-contiguous)"
+        )
+
+    return {
+        "label": label,
+        "bottom_note": bottom_note,
+        "top_note": top_note,
+        "note_count": len(note_numbers),
+        "is_contiguous": is_contiguous,
+    }
+
+
+def build_contiguous_mapping(mapping_config, bottom_note: int, top_note: int):
+    channel_order = get_mapping_channel_order(mapping_config)
+    note_count = top_note - bottom_note + 1
+    if note_count != len(channel_order):
+        raise ValueError(
+            f"That range covers {note_count} notes, but the current hardware mapping exposes {len(channel_order)} channels."
+        )
+
+    note_to_channel = {}
+    note_labels = {}
+    for offset, note in enumerate(range(bottom_note, top_note + 1)):
+        channel = channel_order[offset]
+        note_to_channel[str(note)] = channel
+        note_labels[str(note)] = midi_note_name(note)
+
+    return {
+        "mode": "explicit_note_map",
+        "note_to_channel": note_to_channel,
+        "note_labels": note_labels,
+        "channel_labels": dict(mapping_config.get("channel_labels", {})),
+        "channel_sequence": channel_order,
+    }
+
+
+def prompt_for_playable_range(mapping_config):
+    channel_order = get_mapping_channel_order(mapping_config)
+    if len(channel_order) <= 1:
+        return mapping_config, summarize_playable_layout(mapping_config), False
+
+    layout_summary = summarize_playable_layout(mapping_config)
+    print("\nKeyboard range setup:")
+    print(f"Saved playable layout: {layout_summary['label']}")
+    print("Press Enter to keep the saved mapping.")
+    print(
+        "Or enter an inclusive contiguous range like C4-B4 or 60-71 if your solenoids cover every note in that span."
+    )
+    print(
+        f"That range must contain exactly {len(channel_order)} notes because {len(channel_order)} channels are currently active."
+    )
+
+    while True:
+        raw = input("Playable range override: ").strip()
+        if not raw:
+            return mapping_config, layout_summary, False
+
+        try:
+            bottom_note, top_note = parse_inclusive_note_range(raw)
+            override_mapping = build_contiguous_mapping(mapping_config, bottom_note, top_note)
+        except ValueError as error:
+            print(error)
+            continue
+
+        override_summary = summarize_playable_layout(override_mapping)
+        print(f"Using override layout: {override_summary['label']}")
+        return override_mapping, override_summary, True
+
+
+def analyze_note_range(note_intervals):
+    if not note_intervals:
+        return {
+            "bottom_note": None,
+            "top_note": None,
+            "range_label": "No pitched note events found",
+            "unique_note_count": 0,
+        }
+
+    note_numbers = sorted(interval["note"] for interval in note_intervals)
+    bottom_note = note_numbers[0]
+    top_note = note_numbers[-1]
+    return {
+        "bottom_note": bottom_note,
+        "top_note": top_note,
+        "range_label": format_note_range(bottom_note, top_note),
+        "unique_note_count": len(set(note_numbers)),
+    }
+
+
+def count_playable_intervals(note_intervals, mapping_config, semitone_shift=0):
+    playable_count = 0
+    for interval in note_intervals:
+        shifted_note = interval["note"] + semitone_shift
+        if not 0 <= shifted_note <= 127:
+            continue
+        if map_note_to_channel(shifted_note, mapping_config) is not None:
+            playable_count += 1
+    return playable_count
+
+
+def find_best_octave_shift(note_intervals, mapping_config):
+    if mapping_config["mode"] == "collapse_all_notes_to_single_channel":
+        return 0, len(note_intervals)
+
+    supported_notes = get_mapping_note_numbers(mapping_config)
+    if not supported_notes or not note_intervals:
+        return 0, 0
+
+    source_notes = [interval["note"] for interval in note_intervals]
+    min_octave_shift = ((supported_notes[0] - max(source_notes)) // 12) - 1
+    max_octave_shift = ((supported_notes[-1] - min(source_notes)) // 12) + 1
+
+    best_shift = 0
+    best_count = -1
+    for octave_shift in range(min_octave_shift, max_octave_shift + 1):
+        semitone_shift = octave_shift * 12
+        playable_count = count_playable_intervals(note_intervals, mapping_config, semitone_shift)
+        if playable_count > best_count or (
+            playable_count == best_count and abs(semitone_shift) < abs(best_shift)
+        ):
+            best_shift = semitone_shift
+            best_count = playable_count
+
+    return best_shift, best_count
+
+
+def transpose_note_intervals(note_intervals, semitone_shift):
+    if semitone_shift == 0:
+        return [dict(interval) for interval in note_intervals]
+
+    transposed = []
+    for interval in note_intervals:
+        transposed.append(
+            {
+                **interval,
+                "source_note": interval.get("source_note", interval["note"]),
+                "note": interval["note"] + semitone_shift,
+            }
+        )
+    return transposed
+
+
+def prompt_for_fit_mode(note_intervals, mapping_config):
+    range_info = analyze_note_range(note_intervals)
+    total_note_count = len(note_intervals)
+    strict_playable_count = count_playable_intervals(note_intervals, mapping_config, 0)
+    best_shift, transposed_playable_count = find_best_octave_shift(note_intervals, mapping_config)
+    layout_summary = summarize_playable_layout(mapping_config)
+
+    print("\nMIDI pitch scan:")
+    print(f"Detected MIDI note range: {range_info['range_label']}")
+    print(f"Active playable layout: {layout_summary['label']}")
+    print(
+        f"Strict: {format_playable_count(strict_playable_count, total_note_count)}"
+    )
+    print("  Keeps the original pitches and skips anything outside your playable layout.")
+    print(
+        f"Transpose by octave: {format_playable_count(transposed_playable_count, total_note_count)}"
+    )
+    if best_shift == 0:
+        print("  Keeps the song where it is because that already fits best.")
+    else:
+        direction = "up" if best_shift > 0 else "down"
+        print(
+            f"  Shifts the whole song {direction} {abs(best_shift) // 12} octave(s) to fit more notes, then skips the rest."
+        )
+    print("Cancel: stop here without converting or sending anything.")
+
+    recommended_mode = "transpose" if transposed_playable_count > strict_playable_count else "strict"
+    while True:
+        choice = input(f"Choose strict, transpose, or cancel [{recommended_mode}]: ").strip().lower()
+        if not choice:
+            choice = recommended_mode
+        if choice not in {"strict", "transpose", "cancel"}:
+            print("Enter strict, transpose, or cancel.")
+            continue
+        if choice == "strict" and strict_playable_count == 0:
+            print("Strict would play 0 notes with the current layout. Choose transpose, another range, or cancel.")
+            continue
+        if choice == "transpose" and transposed_playable_count == 0:
+            print("Transpose would still play 0 notes with the current layout. Choose another range or cancel.")
+            continue
+        break
+
+    return {
+        "mode": choice,
+        "source_range": range_info,
+        "layout_summary": layout_summary,
+        "strict_playable_count": strict_playable_count,
+        "strict_summary": format_playable_count(strict_playable_count, total_note_count),
+        "transpose_playable_count": transposed_playable_count,
+        "transpose_summary": format_playable_count(transposed_playable_count, total_note_count),
+        "best_octave_shift": best_shift,
     }
 
 
@@ -489,10 +827,13 @@ def build_playback_events(scheduled_notes, config):
 
         scheduled_note_metadata.append(
             {
+                "source_note": note_event.get("source_note", note_event["note"]),
+                "source_note_label": midi_note_name(note_event.get("source_note", note_event["note"])),
                 "input_note": note_event["note"],
                 "note_label": midi_note_name(note_event["note"]),
                 "velocity": note_event["velocity"],
                 "channel": note_event["channel"],
+                "source_channel": note_event.get("source_channel"),
                 "original_start_ms": note_event["original_start_ms"],
                 "original_end_ms": note_event["original_end_ms"],
                 "scheduled_start_ms": note_event["start_ms"],
@@ -554,12 +895,18 @@ def render_header_text(selected_midi, delta_events, metadata, config):
         f"// Base tempo: {metadata['original_bpm']:.2f} BPM",
         f"// Tempo override: {metadata['tempo_label']}",
         f"// Effective output tempo: {metadata['effective_bpm']:.2f} BPM",
+        f"// Detected MIDI note range: {metadata['source_range_label']}",
+        f"// Active playable layout: {metadata['playable_layout_label']}",
+        f"// Fit mode: {metadata['fit_mode_label']}",
+        f"// Strict coverage: {metadata['strict_playable_summary']}",
+        f"// Octave transpose coverage: {metadata['transpose_playable_summary']}",
         f"// Mapping mode: {config['mapping']['mode']}",
         f"// Forced retriggers: {metadata['forced_retriggers']}",
         f"// Delayed notes: {metadata['delayed_notes']}",
         f"// Unmapped notes skipped: {metadata['unmapped_notes']}",
         f"// Unmatched note_off events ignored: {metadata['unmatched_note_offs']}",
         f"// Dangling note_on events auto-closed: {metadata['dangling_note_ons_closed']}",
+        f"// Percussion note events ignored: {metadata['percussion_events_skipped']}",
         "",
         "// Piano actuator mapping used for this file:",
     ]
@@ -877,19 +1224,47 @@ def main():
     if not note_intervals:
         raise ValueError("No note_on events were found in the selected MIDI file.")
 
+    effective_mapping, playable_layout_summary, mapping_overridden = prompt_for_playable_range(
+        config["mapping"]
+    )
+    effective_config = dict(config)
+    effective_config["mapping"] = effective_mapping
+
+    fit_selection = prompt_for_fit_mode(note_intervals, effective_mapping)
+    if fit_selection["mode"] == "cancel":
+        print("Cancelled before conversion.")
+        return
+
+    applied_octave_shift = 0 if fit_selection["mode"] == "strict" else fit_selection["best_octave_shift"]
+    shifted_intervals = transpose_note_intervals(note_intervals, applied_octave_shift)
     tempo_override = prompt_for_tempo_override(tempo_info["first_bpm"])
-    scaled_intervals = scale_intervals(note_intervals, tempo_override["scale"])
-    scheduled_notes, scheduling_stats = schedule_notes(scaled_intervals, config)
+    scaled_intervals = scale_intervals(shifted_intervals, tempo_override["scale"])
+    scheduled_notes, scheduling_stats = schedule_notes(scaled_intervals, effective_config)
+    if not scheduled_notes:
+        raise ValueError(
+            "No playable notes remained after applying the selected fit mode. Try transpose, a different playable range, or another song."
+        )
     timeline, scheduled_note_metadata, playback_stats = build_playback_events(
-        scheduled_notes, config
+        scheduled_notes, effective_config
     )
     delta_events = convert_to_delta_events(timeline)
 
     header_path, output_version = next_header_path(HEADER_DIR, selected_midi)
     output_version_label = "base" if output_version == 0 else f"v{output_version}"
-    mapping_lines = describe_mapping(config["mapping"])
-    channel_lines = build_channel_lines(scheduling_stats["channels_used"], config["mapping"])
-    actuation_lines = build_actuation_lines(scheduling_stats["channels_used"], config)
+    mapping_lines = describe_mapping(effective_config["mapping"])
+    channel_lines = build_channel_lines(scheduling_stats["channels_used"], effective_config["mapping"])
+    actuation_lines = build_actuation_lines(scheduling_stats["channels_used"], effective_config)
+
+    if fit_selection["mode"] == "strict":
+        fit_mode_label = "strict (original pitches, skip out-of-range notes)"
+    elif applied_octave_shift == 0:
+        fit_mode_label = "transpose by octave (best shift was 0 semitones)"
+    else:
+        direction = "up" if applied_octave_shift > 0 else "down"
+        fit_mode_label = (
+            f"transpose by octave ({direction} {abs(applied_octave_shift) // 12} octave(s), "
+            f"{applied_octave_shift:+d} semitones)"
+        )
 
     metadata = {
         "project_mode": config["project_mode"],
@@ -898,6 +1273,16 @@ def main():
         "tempo_label": tempo_override["label"],
         "effective_bpm": tempo_override["target_bpm"],
         "tempo_change_count": tempo_info["tempo_change_count"],
+        "source_range_label": fit_selection["source_range"]["range_label"],
+        "playable_layout_label": playable_layout_summary["label"],
+        "fit_mode": fit_selection["mode"],
+        "fit_mode_label": fit_mode_label,
+        "transpose_semitones": applied_octave_shift,
+        "strict_playable_count": fit_selection["strict_playable_count"],
+        "strict_playable_summary": fit_selection["strict_summary"],
+        "transpose_playable_count": fit_selection["transpose_playable_count"],
+        "transpose_playable_summary": fit_selection["transpose_summary"],
+        "mapping_override_used": mapping_overridden,
         "source_note_count": len(note_intervals),
         "scheduled_note_count": len(scheduled_notes),
         "event_count": len(delta_events),
@@ -906,6 +1291,7 @@ def main():
         "unmapped_notes": scheduling_stats["unmapped_notes"],
         "unmatched_note_offs": interval_stats["unmatched_note_offs"],
         "dangling_note_ons_closed": interval_stats["dangling_note_ons_closed"],
+        "percussion_events_skipped": interval_stats["percussion_events_skipped"],
         "hold_events": playback_stats["hold_events"],
         "strike_only_notes": playback_stats["strike_only_notes"],
         "mapping_lines": mapping_lines,
@@ -919,7 +1305,7 @@ def main():
         header_path,
         delta_events,
         metadata,
-        config,
+        effective_config,
         scheduled_note_metadata,
         deployment_config,
     )
@@ -936,6 +1322,12 @@ def main():
     print(f"Ticks per beat: {mid.ticks_per_beat}")
     print(f"Number of tracks: {len(mid.tracks)}")
     print(f"Tempo events found: {tempo_info['tempo_change_count']}")
+    print(f"Detected MIDI note range: {fit_selection['source_range']['range_label']}")
+    print(f"Playable layout: {playable_layout_summary['label']}")
+    print(f"Strict coverage: {fit_selection['strict_summary']}")
+    print(f"Transpose coverage: {fit_selection['transpose_summary']}")
+    print(f"Fit mode used: {fit_mode_label}")
+    print(f"Range override used: {'yes' if mapping_overridden else 'no'}")
     print("Mapping summary:")
     for line in mapping_lines:
         print(f"  {line}")
@@ -970,6 +1362,7 @@ def main():
     print(f"Unmapped notes skipped: {scheduling_stats['unmapped_notes']}")
     print(f"Unmatched note_off events ignored: {interval_stats['unmatched_note_offs']}")
     print(f"Dangling note_on events auto-closed: {interval_stats['dangling_note_ons_closed']}")
+    print(f"Percussion note events ignored: {interval_stats['percussion_events_skipped']}")
 
 
 if __name__ == "__main__":
