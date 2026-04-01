@@ -1,8 +1,8 @@
 {
   "source_midi": "CDE_Dynamics_Etude.mid",
   "source_midi_path": "songs\\midi\\CDE_Dynamics_Etude.mid",
-  "output_header": "CDE_Dynamics_Etude_v2.h",
-  "output_header_path": "arduino\\MusicBotOfficial\\generated\\CDE_Dynamics_Etude_v2.h",
+  "output_header": "CDE_Dynamics_Etude_v1.h",
+  "output_header_path": "arduino\\MusicBotOfficial\\generated\\CDE_Dynamics_Etude_v1.h",
   "active_header": "current_song.h",
   "active_header_path": "arduino\\MusicBotOfficial\\generated\\current_song.h",
   "config_path": "config\\piano_config.json",
@@ -1932,7 +1932,7 @@
   ],
   "metadata": {
     "project_mode": "three_solenoid_cde_test",
-    "output_version_label": "v2",
+    "output_version_label": "v1",
     "original_bpm": 126.000126000126,
     "tempo_label": "original timing",
     "effective_bpm": 126.000126000126,

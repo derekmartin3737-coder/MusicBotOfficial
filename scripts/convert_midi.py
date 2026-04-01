@@ -1,10 +1,20 @@
+import argparse
 import json
 import re
+import shutil
+import time
 from collections import defaultdict
 from pathlib import Path
 
 import mido
 from mido import MidiFile
+
+try:
+    import serial
+    from serial.tools import list_ports
+except ImportError:
+    serial = None
+    list_ports = None
 
 DEFAULT_TEMPO_US_PER_BEAT = 500000
 ACTIVE_HEADER_NAME = "current_song.h"
@@ -14,10 +24,14 @@ VERSION_RE = re.compile(r"^(?P<name>.+?)(?:_v(?P<version>\d+))?$")
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = REPO_ROOT / "config" / "piano_config.json"
+DEPLOYMENT_CONFIG_PATH = REPO_ROOT / "config" / "deployment_paths.json"
 MIDI_DIR = REPO_ROOT / "songs" / "midi"
 METADATA_DIR = REPO_ROOT / "songs" / "metadata"
 ARDUINO_PROJECT_DIR = REPO_ROOT / "arduino" / "MusicBotOfficial"
 HEADER_DIR = ARDUINO_PROJECT_DIR / "generated"
+REPO_RUNTIME_SKETCH_PATH = ARDUINO_PROJECT_DIR / "MusicBotOfficial.ino"
+DOWNLOADS_DIR = Path.home() / "Downloads"
+STREAM_MANIFEST_PATH = METADATA_DIR / "last_streamed_song.json"
 
 
 def clamp(value, minimum, maximum):
@@ -48,6 +62,90 @@ def load_config():
 
     with CONFIG_PATH.open("r", encoding="utf-8") as handle:
         return json.load(handle)
+
+
+def load_deployment_config():
+    if not DEPLOYMENT_CONFIG_PATH.exists():
+        return {
+            "arduino_ide_sync": {"enabled": False},
+            "serial_runtime": {
+                "enabled": False,
+                "baud_rate": 115200,
+                "preferred_port": "",
+                "auto_detect": True,
+                "startup_wait_ms": 2500,
+            },
+        }
+
+    with DEPLOYMENT_CONFIG_PATH.open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def collect_download_midis(directory: Path):
+    midi_paths = list(directory.glob("*.mid")) + list(directory.glob("*.midi"))
+    return sorted(midi_paths, key=lambda path: path.stat().st_mtime, reverse=True)
+
+
+def next_library_midi_path(source_path: Path):
+    base_path = MIDI_DIR / source_path.name
+    if not base_path.exists():
+        return base_path
+
+    stem = source_path.stem
+    suffix = source_path.suffix
+    version = 1
+    while True:
+        candidate = MIDI_DIR / f"{stem}_imported_v{version}{suffix}"
+        if not candidate.exists():
+            return candidate
+        version += 1
+
+
+def import_midi_to_library(source_path: Path):
+    source_path = source_path.resolve()
+    if source_path.parent == MIDI_DIR.resolve():
+        return source_path, False
+
+    MIDI_DIR.mkdir(parents=True, exist_ok=True)
+    target_path = next_library_midi_path(source_path)
+    shutil.copy2(source_path, target_path)
+    return target_path, True
+
+
+def choose_input_midi(args):
+    if args.song:
+        chosen_path = Path(args.song).expanduser()
+        if not chosen_path.exists():
+            raise FileNotFoundError(f"Specified MIDI path does not exist: {chosen_path}")
+        return chosen_path
+
+    if args.project_song:
+        chosen_path = MIDI_DIR / args.project_song
+        if not chosen_path.exists():
+            raise FileNotFoundError(f"Project MIDI not found: {chosen_path}")
+        return chosen_path
+
+    download_midis = collect_download_midis(DOWNLOADS_DIR)
+    if download_midis:
+        newest_download = download_midis[0]
+        print(f"Newest downloaded MIDI: {newest_download.name}")
+        print(f"Location: {newest_download}")
+        choice = input(
+            "Press Enter to use it, type 'project' to choose from the project library, "
+            "or enter a full path to another MIDI: "
+        ).strip()
+        if not choice:
+            return newest_download
+        if choice.lower() == "project":
+            return prompt_for_song(collect_midis(MIDI_DIR))
+
+        manual_path = Path(choice).expanduser()
+        if not manual_path.exists():
+            raise FileNotFoundError(f"Specified MIDI path does not exist: {manual_path}")
+        return manual_path
+
+    print(f"No downloaded MIDI files found in {DOWNLOADS_DIR}.")
+    return prompt_for_song(collect_midis(MIDI_DIR))
 
 
 def collect_midis(directory: Path):
@@ -557,7 +655,164 @@ def build_actuation_lines(channels_used, config):
     return lines
 
 
-def write_outputs(selected_midi, header_path, delta_events, metadata, config, scheduled_notes):
+def build_manifest_payload(selected_midi, metadata, config):
+    return {
+        "source_midi": selected_midi.name,
+        "source_midi_path": str(selected_midi),
+        "project_mode": metadata["project_mode"],
+        "effective_bpm": metadata["effective_bpm"],
+        "channels_used": metadata["channels_used"],
+        "mapping_lines": metadata["mapping_lines"],
+        "config_path": str(CONFIG_PATH),
+    }
+
+
+def choose_serial_port(serial_config):
+    preferred_port = serial_config.get("preferred_port", "").strip()
+    if preferred_port:
+        return preferred_port
+
+    if serial is None or list_ports is None:
+        raise RuntimeError(
+            "pyserial is not installed. Install it with 'pip install pyserial' to use USB playback."
+        )
+
+    ports = list(list_ports.comports())
+    if not ports:
+        raise RuntimeError("No serial devices were found. Connect the Arduino over USB and try again.")
+
+    if len(ports) == 1:
+        return ports[0].device
+
+    candidate_ports = []
+    for port in ports:
+        descriptor = " ".join(
+            filter(
+                None,
+                [
+                    port.device,
+                    getattr(port, "description", ""),
+                    getattr(port, "manufacturer", ""),
+                    getattr(port, "hwid", ""),
+                ],
+            )
+        ).lower()
+        if any(token in descriptor for token in ("arduino", "wch", "ch340", "usb serial", "uno")):
+            candidate_ports.append(port)
+
+    if len(candidate_ports) == 1:
+        return candidate_ports[0].device
+
+    print("Multiple serial ports were found:")
+    choices = candidate_ports or ports
+    for index, port in enumerate(choices, start=1):
+        description = getattr(port, "description", "")
+        print(f"  {index}. {port.device} - {description}")
+
+    while True:
+        raw = input("Choose the Arduino COM port number: ").strip()
+        if raw.isdigit():
+            selected_index = int(raw)
+            if 1 <= selected_index <= len(choices):
+                return choices[selected_index - 1].device
+        print("Enter a valid port number.")
+
+
+def read_serial_response(connection, deadline):
+    while time.time() < deadline:
+        raw_line = connection.readline()
+        if not raw_line:
+            continue
+        line = raw_line.decode("utf-8", errors="replace").strip()
+        if not line:
+            continue
+        return line
+    raise TimeoutError("Timed out waiting for a response from the Arduino runtime.")
+
+
+def send_serial_command(connection, command, expected_prefixes, timeout_seconds=3.0):
+    connection.write((command + "\n").encode("ascii"))
+    connection.flush()
+    deadline = time.time() + timeout_seconds
+    while True:
+        response = read_serial_response(connection, deadline)
+        if any(response.startswith(prefix) for prefix in expected_prefixes):
+            return response
+
+
+def stream_song_to_arduino(payload, deployment_config):
+    serial_config = deployment_config.get("serial_runtime", {})
+    if not serial_config.get("enabled", True):
+        return None
+
+    port = choose_serial_port(serial_config)
+    baud_rate = int(serial_config.get("baud_rate", 115200))
+    startup_wait_ms = int(serial_config.get("startup_wait_ms", 2500))
+    events = payload["events"]
+
+    with serial.Serial(port=port, baudrate=baud_rate, timeout=0.5) as connection:
+        time.sleep(startup_wait_ms / 1000.0)
+        connection.reset_input_buffer()
+        connection.reset_output_buffer()
+
+        send_serial_command(connection, "HELLO", ("READY",), timeout_seconds=4.0)
+        send_serial_command(connection, "STOP", ("OK STOPPED",), timeout_seconds=2.0)
+        send_serial_command(connection, "CLEAR", ("OK CLEARED",), timeout_seconds=2.0)
+        send_serial_command(connection, f"BEGIN {len(events)}", ("OK BEGIN",), timeout_seconds=2.0)
+
+        for event in events:
+            command = f"EVENT {event['dt_ms']} {event['channel']} {event['pwm']}"
+            connection.write((command + "\n").encode("ascii"))
+
+        connection.flush()
+        load_response = read_serial_response(connection, time.time() + 4.0)
+        if not load_response.startswith("OK SONG_LOADED"):
+            raise RuntimeError(f"Unexpected response while loading the song: {load_response}")
+
+        play_response = send_serial_command(connection, "PLAY", ("OK PLAYING",), timeout_seconds=2.0)
+
+    manifest_payload = {
+        "port": port,
+        "baud_rate": baud_rate,
+        "source_midi": payload["source_midi"],
+        "output_header": payload["output_header"],
+        "stream_response": play_response,
+    }
+    STREAM_MANIFEST_PATH.write_text(json.dumps(manifest_payload, indent=2), encoding="utf-8")
+
+    return manifest_payload
+
+
+def sync_arduino_ide_runtime(header_text, deployment_config):
+    sync_config = deployment_config.get("arduino_ide_sync", {})
+    if not sync_config.get("enabled", False):
+        return None
+
+    sketch_path = Path(sync_config["sketch_path"])
+    generated_dir_name = sync_config.get("generated_dir_name", "generated")
+    generated_dir = sketch_path.parent / generated_dir_name
+
+    runtime_text = REPO_RUNTIME_SKETCH_PATH.read_text(encoding="utf-8")
+    generated_dir.mkdir(parents=True, exist_ok=True)
+    deployed_header_path = generated_dir / ACTIVE_HEADER_NAME
+
+    try:
+        sketch_path.write_text(runtime_text, encoding="utf-8")
+        deployed_header_path.write_text(header_text, encoding="utf-8")
+    except PermissionError as error:
+        return {
+            "sketch_path": sketch_path,
+            "active_header_path": deployed_header_path,
+            "sync_error": str(error),
+        }
+
+    return {
+        "sketch_path": sketch_path,
+        "active_header_path": deployed_header_path,
+    }
+
+
+def write_outputs(selected_midi, header_path, delta_events, metadata, config, scheduled_notes, deployment_config):
     HEADER_DIR.mkdir(parents=True, exist_ok=True)
     METADATA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -590,13 +845,31 @@ def write_outputs(selected_midi, header_path, delta_events, metadata, config, sc
     active_json_path = METADATA_DIR / ACTIVE_METADATA_NAME
     active_json_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
-    return json_path, active_header_path, active_json_path
+    deployment_paths = sync_arduino_ide_runtime(header_text, deployment_config)
+
+    return json_path, active_header_path, active_json_path, deployment_paths, payload
+
+
+def build_arg_parser():
+    parser = argparse.ArgumentParser(
+        description="Convert a MIDI file for the autonomous piano player and optionally send it over USB."
+    )
+    parser.add_argument("--song", help="Full path to a MIDI file to use.")
+    parser.add_argument("--project-song", help="Filename of a MIDI already in songs/midi.")
+    parser.add_argument(
+        "--export-only",
+        action="store_true",
+        help="Convert and write files, but do not send the song over USB.",
+    )
+    return parser
 
 
 def main():
+    args = build_arg_parser().parse_args()
     config = load_config()
-    midi_files = collect_midis(MIDI_DIR)
-    selected_midi = prompt_for_song(midi_files)
+    deployment_config = load_deployment_config()
+    selected_midi_source = choose_input_midi(args)
+    selected_midi, was_imported = import_midi_to_library(selected_midi_source)
 
     mid = MidiFile(str(selected_midi))
     tempo_info = scan_tempo_info(mid)
@@ -641,16 +914,24 @@ def main():
         "channels_used": scheduling_stats["channels_used"],
     }
 
-    json_path, active_header_path, active_json_path = write_outputs(
+    json_path, active_header_path, active_json_path, deployment_paths, payload = write_outputs(
         selected_midi,
         header_path,
         delta_events,
         metadata,
         config,
         scheduled_note_metadata,
+        deployment_config,
     )
 
+    stream_manifest = None
+    if not args.export_only:
+        stream_manifest = stream_song_to_arduino(payload, deployment_config)
+
     print("\nSelected file:", selected_midi.name)
+    print(f"Original source path: {selected_midi_source}")
+    if was_imported:
+        print(f"Imported into project library: {selected_midi}")
     print(f"Type: {mid.type}")
     print(f"Ticks per beat: {mid.ticks_per_beat}")
     print(f"Number of tracks: {len(mid.tracks)}")
@@ -669,6 +950,13 @@ def main():
     print(f"Active Arduino header: {active_header_path.relative_to(REPO_ROOT)}")
     print(f"Versioned metadata: {json_path.relative_to(REPO_ROOT)}")
     print(f"Active metadata: {active_json_path.relative_to(REPO_ROOT)}")
+    if deployment_paths is not None:
+        print(f"Synced Arduino IDE sketch: {deployment_paths['sketch_path']}")
+        print(f"Synced Arduino IDE active header: {deployment_paths['active_header_path']}")
+        if "sync_error" in deployment_paths:
+            print(f"Arduino IDE sync warning: {deployment_paths['sync_error']}")
+    if stream_manifest is not None:
+        print(f"USB playback sent on port: {stream_manifest['port']}")
     print(f"Output header version: {output_version_label}")
     print(f"Base tempo: {tempo_info['first_bpm']:.2f} BPM")
     print(f"Effective output tempo: {tempo_override['target_bpm']:.2f} BPM")

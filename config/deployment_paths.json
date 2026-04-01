@@ -1,0 +1,14 @@
+{
+  "arduino_ide_sync": {
+    "enabled": true,
+    "sketch_path": "C:\\Users\\derek\\OneDrive - Oregon State University\\Documents\\Arduino\\Capstone_python_arduino_led_code\\Capstone_python_arduino_led_code.ino",
+    "generated_dir_name": "generated"
+  },
+  "serial_runtime": {
+    "enabled": true,
+    "baud_rate": 115200,
+    "preferred_port": "",
+    "auto_detect": true,
+    "startup_wait_ms": 2500
+  }
+}
