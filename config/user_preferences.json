@@ -1,0 +1,10 @@
+{
+  "playback": {
+    "auto_use_newest_download": true,
+    "default_fit_mode": "prompt",
+    "default_playable_range": "",
+    "default_tempo": "",
+    "wait_for_finish": true,
+    "show_diagnostics": true
+  }
+}

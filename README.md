@@ -5,7 +5,7 @@ This project plays MIDI files on a piano using an Arduino Uno, a PCA9685 PWM dri
 The current software flow is:
 
 1. Upload the fixed Arduino runtime once
-2. Run the Python converter/sender on a MIDI file
+2. Run the Python playback tool on a MIDI file
 3. Python scans the MIDI, asks a few prompts, converts it into timed PWM events, and sends those events over USB serial
 4. The Arduino receives the event stream and drives the solenoids through the PCA9685
 
@@ -22,25 +22,37 @@ The repo currently targets a 3-note test setup:
 
 Important current limitation:
 
-- the Arduino runtime currently buffers up to `160` playback events at once
-- that means very long or dense songs may fail even if the timing logic is otherwise correct
+- the Arduino runtime now uses a `48`-event ring buffer and chunked USB streaming
+- playback is no longer limited by a single whole-song event ceiling, but extremely dense songs can still be limited by USB timing and Uno RAM constraints
 
 ## How it works
 
 There are two main pieces:
 
-- [scripts/convert_midi.py](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/scripts/convert_midi.py)
-  - chooses a MIDI file
+- [scripts/play_piano.py](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/scripts/play_piano.py)
+  - is the user-facing playback entry point
+  - defaults to the newest MIDI in Windows Downloads
   - scans the MIDI note range
   - asks whether to keep pitches strict, transpose by octave, or cancel
   - converts notes into piano-style `strike`, `hold`, and `release` PWM events
-  - sends the converted event list to the Arduino over USB serial
+  - streams the converted event list to the Arduino over USB serial
   - also writes debug/export artifacts to the repo
+
+- [scripts/convert_midi.py](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/scripts/convert_midi.py)
+  - is the conversion engine used by `play_piano.py`
+  - can still be run directly for engineering/debug work
+
+- [scripts/piano_tools.py](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/scripts/piano_tools.py)
+  - is the calibration/debug entry point
+  - sweeps channels
+  - saves calibrated mappings
+  - fires custom tuning pulses
 
 - [arduino/MusicBotOfficial/MusicBotOfficial.ino](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/arduino/MusicBotOfficial/MusicBotOfficial.ino)
   - is the fixed playback runtime
   - receives serial commands from Python
-  - loads the event list into memory
+  - buffers incoming events in a ring buffer
+  - accepts calibration/debug commands
   - plays those events on the PCA9685
 
 The active hardware and tuning configuration lives in [config/piano_config.json](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/config/piano_config.json).
@@ -55,14 +67,25 @@ Music bot official directory/
 |   |-- ThreeSolenoidBenchTest/
 |   `-- HeaderPlaybackFallback/
 |-- config/
+|   |-- calibrated_mapping.json
 |   |-- piano_config.json
-|   `-- deployment_paths.json
+|   |-- deployment_paths.json
+|   `-- user_preferences.json
+|-- docs/
+|   |-- CALIBRATION.md
+|   |-- PLAY_A_SONG.md
+|   |-- SERIAL_PROTOCOL.md
+|   `-- SETUP.md
 |-- scripts/
+|   |-- play_piano.py
+|   |-- piano_tools.py
 |   |-- convert_midi.py
 |   `-- legacy/
 |-- songs/
 |   |-- midi/
 |   `-- metadata/
+|-- calibrate_piano.bat
+|-- play_piano.bat
 |-- TODO.md
 |-- requirements.txt
 `-- README.md
@@ -103,6 +126,13 @@ Important:
 - each solenoid needs flyback protection
 
 ## First-time setup
+
+Detailed guides:
+
+- [docs/SETUP.md](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/docs/SETUP.md)
+- [docs/PLAY_A_SONG.md](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/docs/PLAY_A_SONG.md)
+- [docs/CALIBRATION.md](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/docs/CALIBRATION.md)
+- [docs/SERIAL_PROTOCOL.md](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/docs/SERIAL_PROTOCOL.md)
 
 ### 1. Clone the repo
 
@@ -179,8 +209,12 @@ After the Arduino runtime has been uploaded once, normal testing looks like this
 4. From the repo root, run:
 
 ```bash
-python scripts/convert_midi.py
+python scripts/play_piano.py
 ```
+
+Or double-click:
+
+- [play_piano.bat](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/play_piano.bat)
 
 5. Answer the prompts
 6. Python sends the song to the Arduino
@@ -190,13 +224,13 @@ python scripts/convert_midi.py
 
 ### Song selection
 
-The script first looks for the newest `.mid` or `.midi` file in your Windows Downloads folder.
+The playback tool defaults to the newest `.mid` or `.midi` file in your Windows Downloads folder.
 
-You can:
+Optional overrides:
 
-- press Enter to use the newest download
-- type `project` to pick a MIDI already in `songs/midi`
-- type a full path to another MIDI file
+- `--project-song "Hot Cross Buns.mid"`
+- `--choose-library`
+- `--song "C:\path\to\file.mid"`
 
 ### Playable range override
 
@@ -261,7 +295,11 @@ The JSON metadata is useful for debugging because it records:
 
 ## Current configuration
 
-The active project configuration is in [config/piano_config.json](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/config/piano_config.json).
+Engineering settings live in [config/piano_config.json](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/config/piano_config.json).
+
+User-safe playback defaults live in [config/user_preferences.json](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/config/user_preferences.json).
+
+If a calibration has been saved, it lives in [config/calibrated_mapping.json](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/config/calibrated_mapping.json) and is loaded automatically.
 
 Right now it defines:
 
@@ -304,7 +342,7 @@ That is expected if:
 
 - the MIDI uses notes outside the mapped range
 - the fit mode skips many notes
-- the file is too dense for the current runtime buffer
+- the file is too dense for the current serial streaming and hardware timing
 
 ### The converter reports permission problems syncing Arduino IDE files
 
@@ -314,10 +352,10 @@ This does not matter for serial playback if you already uploaded the runtime fro
 
 ## Known limitations
 
-- current runtime buffer limit: `160` events
 - current default note mapping is only `C3/D3/E3`
-- the calibration/debugger workflow for mapping channels to physical keys is not finished yet
 - a contiguous bottom-note/top-note range only works if every note in that span is actually wired
+- calibration still depends on a human confirming which physical key moved
+- the Uno still has tight RAM and timing constraints compared with a larger microcontroller
 
 ## Recommended first test for engineering partners
 
@@ -329,12 +367,11 @@ If you are opening this project for the first time, use this order:
 4. Run:
 
 ```bash
-python scripts/convert_midi.py
+python scripts/play_piano.py --project-song "Hot Cross Buns.mid"
 ```
 
-5. Choose [songs/midi/Hot Cross Buns.mid](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/songs/midi/Hot%20Cross%20Buns.mid)
-6. Keep the saved mapping
-7. Choose `strict`
-8. Keep the original tempo
+5. Keep the saved mapping
+6. Choose `strict`
+7. Keep the original tempo
 
 That is the most reliable end-to-end test currently in the repo.

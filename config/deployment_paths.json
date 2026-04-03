@@ -9,6 +9,8 @@
     "baud_rate": 115200,
     "preferred_port": "",
     "auto_detect": true,
-    "startup_wait_ms": 2500
+    "startup_wait_ms": 2500,
+    "wait_for_finish": true,
+    "status_poll_ms": 25
   }
 }

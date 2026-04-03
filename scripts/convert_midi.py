@@ -1,4 +1,5 @@
 import argparse
+import copy
 import json
 import re
 import shutil
@@ -28,6 +29,8 @@ NOTE_RANGE_RE = re.compile(r"^\s*([A-Ga-g][#b]?-?\d+)\s*-\s*([A-Ga-g][#b]?-?\d+)
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = REPO_ROOT / "config" / "piano_config.json"
 DEPLOYMENT_CONFIG_PATH = REPO_ROOT / "config" / "deployment_paths.json"
+USER_PREFERENCES_PATH = REPO_ROOT / "config" / "user_preferences.json"
+CALIBRATED_MAPPING_PATH = REPO_ROOT / "config" / "calibrated_mapping.json"
 MIDI_DIR = REPO_ROOT / "songs" / "midi"
 METADATA_DIR = REPO_ROOT / "songs" / "metadata"
 ARDUINO_PROJECT_DIR = REPO_ROOT / "arduino" / "MusicBotOfficial"
@@ -35,6 +38,17 @@ HEADER_DIR = ARDUINO_PROJECT_DIR / "generated"
 REPO_RUNTIME_SKETCH_PATH = ARDUINO_PROJECT_DIR / "MusicBotOfficial.ino"
 DOWNLOADS_DIR = Path.home() / "Downloads"
 STREAM_MANIFEST_PATH = METADATA_DIR / "last_streamed_song.json"
+
+DEFAULT_USER_PREFERENCES = {
+    "playback": {
+        "auto_use_newest_download": True,
+        "default_fit_mode": "prompt",
+        "default_playable_range": "",
+        "default_tempo": "",
+        "wait_for_finish": True,
+        "show_diagnostics": True,
+    }
+}
 
 
 def clamp(value, minimum, maximum):
@@ -126,7 +140,34 @@ def load_config():
         raise FileNotFoundError(f"Missing config file: {CONFIG_PATH}")
 
     with CONFIG_PATH.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
+        config = json.load(handle)
+
+    if CALIBRATED_MAPPING_PATH.exists():
+        with CALIBRATED_MAPPING_PATH.open("r", encoding="utf-8") as handle:
+            calibrated_payload = json.load(handle)
+
+        calibrated_mapping = calibrated_payload.get("mapping", calibrated_payload)
+        if isinstance(calibrated_mapping, dict) and calibrated_mapping:
+            config["mapping"] = calibrated_mapping
+            config.setdefault("notes", {})
+            config["notes"]["calibrated_mapping_path"] = str(CALIBRATED_MAPPING_PATH.relative_to(REPO_ROOT))
+
+    return config
+
+
+def load_user_preferences():
+    preferences = copy.deepcopy(DEFAULT_USER_PREFERENCES)
+    if not USER_PREFERENCES_PATH.exists():
+        return preferences
+
+    with USER_PREFERENCES_PATH.open("r", encoding="utf-8") as handle:
+        loaded_preferences = json.load(handle)
+
+    for section, defaults in preferences.items():
+        loaded_section = loaded_preferences.get(section, {})
+        if isinstance(loaded_section, dict):
+            defaults.update(loaded_section)
+    return preferences
 
 
 def load_deployment_config():
@@ -146,9 +187,29 @@ def load_deployment_config():
         return json.load(handle)
 
 
+def collect_download_files(directory: Path):
+    if not directory.exists():
+        return []
+    return sorted(
+        [path for path in directory.iterdir() if path.is_file()],
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+
+
 def collect_download_midis(directory: Path):
-    midi_paths = list(directory.glob("*.mid")) + list(directory.glob("*.midi"))
-    return sorted(midi_paths, key=lambda path: path.stat().st_mtime, reverse=True)
+    return [
+        path
+        for path in collect_download_files(directory)
+        if path.suffix.lower() in {".mid", ".midi"}
+    ]
+
+
+def find_latest_download_zip(directory: Path):
+    for path in collect_download_files(directory):
+        if path.suffix.lower() == ".zip":
+            return path
+    return None
 
 
 def next_library_midi_path(source_path: Path):
@@ -177,40 +238,45 @@ def import_midi_to_library(source_path: Path):
     return target_path, True
 
 
-def choose_input_midi(args):
+def choose_input_midi(args, user_preferences):
     if args.song:
         chosen_path = Path(args.song).expanduser()
         if not chosen_path.exists():
             raise FileNotFoundError(f"Specified MIDI path does not exist: {chosen_path}")
-        return chosen_path
+        return chosen_path, "explicit MIDI path provided by the user"
 
     if args.project_song:
         chosen_path = MIDI_DIR / args.project_song
         if not chosen_path.exists():
             raise FileNotFoundError(f"Project MIDI not found: {chosen_path}")
-        return chosen_path
+        return chosen_path, "explicit project library selection"
+
+    if args.choose_library:
+        return prompt_for_song(collect_midis(MIDI_DIR)), "manual project library selection"
 
     download_midis = collect_download_midis(DOWNLOADS_DIR)
+    auto_use_latest = bool(user_preferences["playback"].get("auto_use_newest_download", True))
     if download_midis:
         newest_download = download_midis[0]
-        print(f"Newest downloaded MIDI: {newest_download.name}")
-        print(f"Location: {newest_download}")
-        choice = input(
-            "Press Enter to use it, type 'project' to choose from the project library, "
-            "or enter a full path to another MIDI: "
-        ).strip()
-        if not choice:
-            return newest_download
-        if choice.lower() == "project":
-            return prompt_for_song(collect_midis(MIDI_DIR))
+        if auto_use_latest or args.play_latest:
+            print(f"Using newest downloaded MIDI automatically: {newest_download.name}")
+            print(f"Location: {newest_download}")
+            return newest_download, "newest downloaded MIDI in Windows Downloads"
 
-        manual_path = Path(choice).expanduser()
-        if not manual_path.exists():
-            raise FileNotFoundError(f"Specified MIDI path does not exist: {manual_path}")
-        return manual_path
+    latest_zip = find_latest_download_zip(DOWNLOADS_DIR)
+    if latest_zip and not download_midis:
+        print(f"No MIDI files were found in {DOWNLOADS_DIR}.")
+        print(f"The newest likely download is a ZIP file: {latest_zip.name}")
+        print("If your MIDI came in a ZIP archive, unzip it first and rerun this command.")
 
-    print(f"No downloaded MIDI files found in {DOWNLOADS_DIR}.")
-    return prompt_for_song(collect_midis(MIDI_DIR))
+    project_midis = collect_midis(MIDI_DIR)
+    if project_midis:
+        print(f"Falling back to the project MIDI library because no downloaded MIDI was auto-selected.")
+        return prompt_for_song(project_midis), "fallback to the project MIDI library"
+
+    raise FileNotFoundError(
+        f"No MIDI files were found in {DOWNLOADS_DIR} or {MIDI_DIR}. Download a .mid file and try again."
+    )
 
 
 def collect_midis(directory: Path):
@@ -254,7 +320,45 @@ def scan_tempo_info(mid: MidiFile):
     }
 
 
-def prompt_for_tempo_override(original_bpm: float):
+def parse_tempo_override_input(raw, original_bpm: float):
+    raw = str(raw).strip().lower()
+    if not raw:
+        return {
+            "mode": "original",
+            "target_bpm": original_bpm,
+            "scale": 1.0,
+            "label": "original timing",
+        }
+
+    if raw.endswith("x"):
+        multiplier = float(raw[:-1])
+        if multiplier <= 0:
+            raise ValueError("Multiplier must be greater than zero.")
+
+        target_bpm = original_bpm * multiplier
+        return {
+            "mode": "multiplier",
+            "target_bpm": target_bpm,
+            "scale": 1.0 / multiplier,
+            "label": f"{multiplier:.3f}x",
+        }
+
+    target_bpm = float(raw)
+    if target_bpm <= 0:
+        raise ValueError("BPM must be greater than zero.")
+
+    return {
+        "mode": "bpm",
+        "target_bpm": target_bpm,
+        "scale": original_bpm / target_bpm,
+        "label": f"{target_bpm:.2f} BPM",
+    }
+
+
+def prompt_for_tempo_override(original_bpm: float, preset=None):
+    if preset not in (None, ""):
+        return parse_tempo_override_input(preset, original_bpm)
+
     print(f"\nOriginal/base tempo: {original_bpm:.2f} BPM")
     print("Tempo override options:")
     print("  Press Enter to keep the original timing")
@@ -263,49 +367,10 @@ def prompt_for_tempo_override(original_bpm: float):
 
     while True:
         raw = input("Tempo override: ").strip().lower()
-        if not raw:
-            return {
-                "mode": "original",
-                "target_bpm": original_bpm,
-                "scale": 1.0,
-                "label": "original timing",
-            }
-
-        if raw.endswith("x"):
-            try:
-                multiplier = float(raw[:-1])
-            except ValueError:
-                print("Invalid multiplier.")
-                continue
-
-            if multiplier <= 0:
-                print("Multiplier must be greater than zero.")
-                continue
-
-            target_bpm = original_bpm * multiplier
-            return {
-                "mode": "multiplier",
-                "target_bpm": target_bpm,
-                "scale": 1.0 / multiplier,
-                "label": f"{multiplier:.3f}x",
-            }
-
         try:
-            target_bpm = float(raw)
-        except ValueError:
-            print("Invalid BPM.")
-            continue
-
-        if target_bpm <= 0:
-            print("BPM must be greater than zero.")
-            continue
-
-        return {
-            "mode": "bpm",
-            "target_bpm": target_bpm,
-            "scale": original_bpm / target_bpm,
-            "label": f"{target_bpm:.2f} BPM",
-        }
+            return parse_tempo_override_input(raw, original_bpm)
+        except ValueError as error:
+            print(error)
 
 
 def scale_intervals(note_intervals, scale: float):
@@ -500,10 +565,16 @@ def build_contiguous_mapping(mapping_config, bottom_note: int, top_note: int):
     }
 
 
-def prompt_for_playable_range(mapping_config):
+def prompt_for_playable_range(mapping_config, preset=None):
     channel_order = get_mapping_channel_order(mapping_config)
     if len(channel_order) <= 1:
         return mapping_config, summarize_playable_layout(mapping_config), False
+
+    if preset not in (None, ""):
+        bottom_note, top_note = parse_inclusive_note_range(str(preset))
+        override_mapping = build_contiguous_mapping(mapping_config, bottom_note, top_note)
+        override_summary = summarize_playable_layout(override_mapping)
+        return override_mapping, override_summary, True
 
     layout_summary = summarize_playable_layout(mapping_config)
     print("\nKeyboard range setup:")
@@ -564,6 +635,20 @@ def count_playable_intervals(note_intervals, mapping_config, semitone_shift=0):
     return playable_count
 
 
+def describe_recognizability(playable_count, total_count):
+    if total_count <= 0:
+        return "no pitched note events were found"
+
+    ratio = playable_count / total_count
+    if ratio >= 0.9:
+        return "very likely recognizable"
+    if ratio >= 0.7:
+        return "likely recognizable, but simplified"
+    if ratio >= 0.4:
+        return "partially recognizable"
+    return "probably fragmentary"
+
+
 def find_best_octave_shift(note_intervals, mapping_config):
     if mapping_config["mode"] == "collapse_all_notes_to_single_channel":
         return 0, len(note_intervals)
@@ -606,12 +691,14 @@ def transpose_note_intervals(note_intervals, semitone_shift):
     return transposed
 
 
-def prompt_for_fit_mode(note_intervals, mapping_config):
+def prompt_for_fit_mode(note_intervals, mapping_config, preset=None):
     range_info = analyze_note_range(note_intervals)
     total_note_count = len(note_intervals)
     strict_playable_count = count_playable_intervals(note_intervals, mapping_config, 0)
     best_shift, transposed_playable_count = find_best_octave_shift(note_intervals, mapping_config)
     layout_summary = summarize_playable_layout(mapping_config)
+    strict_recognizability = describe_recognizability(strict_playable_count, total_note_count)
+    transpose_recognizability = describe_recognizability(transposed_playable_count, total_note_count)
 
     print("\nMIDI pitch scan:")
     print(f"Detected MIDI note range: {range_info['range_label']}")
@@ -619,32 +706,44 @@ def prompt_for_fit_mode(note_intervals, mapping_config):
     print(
         f"Strict: {format_playable_count(strict_playable_count, total_note_count)}"
     )
-    print("  Keeps the original pitches and skips anything outside your playable layout.")
+    print(f"  Keeps the original pitches and skips anything outside your playable layout. Result: {strict_recognizability}.")
     print(
         f"Transpose by octave: {format_playable_count(transposed_playable_count, total_note_count)}"
     )
     if best_shift == 0:
-        print("  Keeps the song where it is because that already fits best.")
+        print(f"  Keeps the song where it is because that already fits best. Result: {transpose_recognizability}.")
     else:
         direction = "up" if best_shift > 0 else "down"
         print(
-            f"  Shifts the whole song {direction} {abs(best_shift) // 12} octave(s) to fit more notes, then skips the rest."
+            f"  Shifts the whole song {direction} {abs(best_shift) // 12} octave(s) to fit more notes, then skips the rest. Result: {transpose_recognizability}."
         )
     print("Cancel: stop here without converting or sending anything.")
 
     recommended_mode = "transpose" if transposed_playable_count > strict_playable_count else "strict"
+    if preset in {"strict", "transpose", "cancel"}:
+        choice = preset
+        if choice == "strict" and strict_playable_count == 0:
+            raise ValueError("Strict playback would result in 0 playable notes with the current layout.")
+        if choice == "transpose" and transposed_playable_count == 0:
+            raise ValueError("Transpose playback would still result in 0 playable notes with the current layout.")
+    else:
+        choice = None
     while True:
-        choice = input(f"Choose strict, transpose, or cancel [{recommended_mode}]: ").strip().lower()
+        if choice is None:
+            choice = input(f"Choose strict, transpose, or cancel [{recommended_mode}]: ").strip().lower()
         if not choice:
             choice = recommended_mode
         if choice not in {"strict", "transpose", "cancel"}:
             print("Enter strict, transpose, or cancel.")
+            choice = None
             continue
         if choice == "strict" and strict_playable_count == 0:
             print("Strict would play 0 notes with the current layout. Choose transpose, another range, or cancel.")
+            choice = None
             continue
         if choice == "transpose" and transposed_playable_count == 0:
             print("Transpose would still play 0 notes with the current layout. Choose another range or cancel.")
+            choice = None
             continue
         break
 
@@ -654,8 +753,10 @@ def prompt_for_fit_mode(note_intervals, mapping_config):
         "layout_summary": layout_summary,
         "strict_playable_count": strict_playable_count,
         "strict_summary": format_playable_count(strict_playable_count, total_note_count),
+        "strict_recognizability": strict_recognizability,
         "transpose_playable_count": transposed_playable_count,
         "transpose_summary": format_playable_count(transposed_playable_count, total_note_count),
+        "transpose_recognizability": transpose_recognizability,
         "best_octave_shift": best_shift,
     }
 
@@ -682,6 +783,13 @@ def describe_mapping(mapping_config):
         lines.append(
             f"MIDI note {note} ({note_label}) -> PCA9685 channel {channel} ({label})"
         )
+    return lines
+
+
+def build_unmapped_note_lines(unmapped_note_counts, limit=8):
+    lines = []
+    for note, count in sorted(unmapped_note_counts.items(), key=lambda item: (-item[1], item[0]))[:limit]:
+        lines.append(f"{midi_note_name(note)} ({note}): {count}")
     return lines
 
 
@@ -713,11 +821,13 @@ def schedule_notes(note_intervals, config):
 
     notes_by_channel = defaultdict(list)
     unmapped_notes = 0
+    unmapped_note_counts = defaultdict(int)
 
     for interval in note_intervals:
         channel = map_note_to_channel(interval["note"], mapping_config)
         if channel is None:
             unmapped_notes += 1
+            unmapped_note_counts[int(interval["note"])] += 1
             continue
 
         notes_by_channel[channel].append({**interval, "channel": channel})
@@ -777,6 +887,7 @@ def schedule_notes(note_intervals, config):
         "forced_retriggers": forced_retriggers,
         "delayed_notes": delayed_notes,
         "unmapped_notes": unmapped_notes,
+        "unmapped_note_counts": {str(note): count for note, count in sorted(unmapped_note_counts.items())},
         "channels_used": sorted(notes_by_channel),
     }
 
@@ -898,6 +1009,7 @@ def render_header_text(selected_midi, delta_events, metadata, config):
         f"// Detected MIDI note range: {metadata['source_range_label']}",
         f"// Active playable layout: {metadata['playable_layout_label']}",
         f"// Fit mode: {metadata['fit_mode_label']}",
+        f"// Recognizability estimate: {metadata['recognizability_summary']}",
         f"// Strict coverage: {metadata['strict_playable_summary']}",
         f"// Octave transpose coverage: {metadata['transpose_playable_summary']}",
         f"// Mapping mode: {config['mapping']['mode']}",
@@ -933,6 +1045,16 @@ def render_header_text(selected_midi, delta_events, metadata, config):
 
     for line in metadata["actuation_lines"]:
         lines.append(f"//   {line}")
+
+    if metadata["unmapped_note_lines"]:
+        lines.extend(
+            [
+                "",
+                "// Most skipped notes in this export:",
+            ]
+        )
+        for line in metadata["unmapped_note_lines"]:
+            lines.append(f"//   {line}")
 
     lines.extend(
         [
@@ -1065,6 +1187,55 @@ def choose_serial_port(serial_config):
         print("Enter a valid port number.")
 
 
+def list_serial_ports():
+    if serial is None or list_ports is None:
+        raise RuntimeError("pyserial is not installed. Install it with 'pip install pyserial'.")
+
+    ports = list(list_ports.comports())
+    if not ports:
+        print("No serial devices were found.")
+        return
+
+    print("Available serial ports:")
+    for port in ports:
+        description = getattr(port, "description", "")
+        manufacturer = getattr(port, "manufacturer", "")
+        print(f"  {port.device} - {description} {manufacturer}".strip())
+
+
+def parse_ready_response(response):
+    match = re.match(r"^READY\s+(?P<version>\d+)\s+BUFFER\s+(?P<capacity>\d+)$", response.strip())
+    if not match:
+        raise RuntimeError(f"Unexpected Arduino handshake: {response}")
+    return {
+        "protocol_version": int(match.group("version")),
+        "buffer_capacity": int(match.group("capacity")),
+    }
+
+
+def parse_runtime_key_values(response):
+    fields = {}
+    for token in response.strip().split():
+        if "=" not in token:
+            continue
+        key, value = token.split("=", 1)
+        fields[key] = value
+    return fields
+
+
+def parse_status_response(response):
+    parts = response.strip().split()
+    if len(parts) < 2 or parts[0] != "STATUS":
+        raise RuntimeError(f"Unexpected STATUS response: {response}")
+
+    fields = parse_runtime_key_values(response)
+    fields["state"] = parts[1]
+    for key in ("recv", "played", "buffered", "free", "total"):
+        if key in fields:
+            fields[key] = int(fields[key])
+    return fields
+
+
 def read_serial_response(connection, deadline):
     while time.time() < deadline:
         raw_line = connection.readline()
@@ -1083,7 +1254,28 @@ def send_serial_command(connection, command, expected_prefixes, timeout_seconds=
     deadline = time.time() + timeout_seconds
     while True:
         response = read_serial_response(connection, deadline)
+        if response.startswith("ERROR "):
+            raise RuntimeError(f"Arduino runtime returned an error for '{command}': {response}")
         if any(response.startswith(prefix) for prefix in expected_prefixes):
+            return response
+
+
+def send_event_chunk(connection, events, start_index, chunk_size):
+    end_index = min(len(events), start_index + chunk_size)
+    for event in events[start_index:end_index]:
+        command = f"EVENT {event['dt_ms']} {event['channel']} {event['pwm']}"
+        connection.write((command + "\n").encode("ascii"))
+    connection.flush()
+    return end_index
+
+
+def wait_for_playback_done(connection, timeout_seconds):
+    deadline = time.time() + timeout_seconds
+    while True:
+        response = read_serial_response(connection, deadline)
+        if response.startswith("ERROR "):
+            raise RuntimeError(f"Arduino runtime returned an error while waiting for playback completion: {response}")
+        if response.startswith("OK PLAYBACK_DONE"):
             return response
 
 
@@ -1095,6 +1287,8 @@ def stream_song_to_arduino(payload, deployment_config):
     port = choose_serial_port(serial_config)
     baud_rate = int(serial_config.get("baud_rate", 115200))
     startup_wait_ms = int(serial_config.get("startup_wait_ms", 2500))
+    wait_for_finish = bool(serial_config.get("wait_for_finish", True))
+    status_poll_ms = int(serial_config.get("status_poll_ms", 25))
     events = payload["events"]
 
     with serial.Serial(port=port, baudrate=baud_rate, timeout=0.5) as connection:
@@ -1102,28 +1296,50 @@ def stream_song_to_arduino(payload, deployment_config):
         connection.reset_input_buffer()
         connection.reset_output_buffer()
 
-        send_serial_command(connection, "HELLO", ("READY",), timeout_seconds=4.0)
+        ready_response = send_serial_command(connection, "HELLO", ("READY",), timeout_seconds=4.0)
+        ready_info = parse_ready_response(ready_response)
         send_serial_command(connection, "STOP", ("OK STOPPED",), timeout_seconds=2.0)
         send_serial_command(connection, "CLEAR", ("OK CLEARED",), timeout_seconds=2.0)
-        send_serial_command(connection, f"BEGIN {len(events)}", ("OK BEGIN",), timeout_seconds=2.0)
+        begin_response = send_serial_command(connection, f"BEGIN {len(events)}", ("OK BEGIN",), timeout_seconds=2.0)
+        begin_fields = parse_runtime_key_values(begin_response)
+        buffer_capacity = int(begin_fields.get("capacity", ready_info["buffer_capacity"]))
 
-        for event in events:
-            command = f"EVENT {event['dt_ms']} {event['channel']} {event['pwm']}"
-            connection.write((command + "\n").encode("ascii"))
-
-        connection.flush()
-        load_response = read_serial_response(connection, time.time() + 4.0)
-        if not load_response.startswith("OK SONG_LOADED"):
-            raise RuntimeError(f"Unexpected response while loading the song: {load_response}")
+        sent_event_count = 0
+        if events:
+            sent_event_count = send_event_chunk(connection, events, sent_event_count, buffer_capacity)
+            send_serial_command(connection, "COMMIT", ("OK ACCEPTED",), timeout_seconds=2.0)
 
         play_response = send_serial_command(connection, "PLAY", ("OK PLAYING",), timeout_seconds=2.0)
+
+        while sent_event_count < len(events):
+            status_response = send_serial_command(connection, "STATUS", ("STATUS",), timeout_seconds=2.0)
+            status_fields = parse_status_response(status_response)
+            free_slots = int(status_fields.get("free", 0))
+            if free_slots <= 0:
+                time.sleep(status_poll_ms / 1000.0)
+                continue
+
+            sent_event_count = send_event_chunk(connection, events, sent_event_count, free_slots)
+            send_serial_command(connection, "COMMIT", ("OK ACCEPTED",), timeout_seconds=2.0)
+
+        playback_done_response = None
+        if wait_for_finish:
+            total_runtime_seconds = sum(event["dt_ms"] for event in events) / 1000.0
+            playback_done_response = wait_for_playback_done(
+                connection,
+                timeout_seconds=max(10.0, total_runtime_seconds + 15.0),
+            )
 
     manifest_payload = {
         "port": port,
         "baud_rate": baud_rate,
         "source_midi": payload["source_midi"],
         "output_header": payload["output_header"],
+        "protocol_version": ready_info["protocol_version"],
+        "buffer_capacity": buffer_capacity,
+        "sent_event_count": sent_event_count,
         "stream_response": play_response,
+        "playback_done_response": playback_done_response,
     }
     STREAM_MANIFEST_PATH.write_text(json.dumps(manifest_payload, indent=2), encoding="utf-8")
 
@@ -1135,9 +1351,22 @@ def sync_arduino_ide_runtime(header_text, deployment_config):
     if not sync_config.get("enabled", False):
         return None
 
-    sketch_path = Path(sync_config["sketch_path"])
+    sketch_path_raw = str(sync_config.get("sketch_path", "")).strip()
+    if not sketch_path_raw:
+        return {
+            "sync_skipped": "No Arduino IDE sketch path is configured.",
+        }
+
+    sketch_path = Path(sketch_path_raw)
     generated_dir_name = sync_config.get("generated_dir_name", "generated")
     generated_dir = sketch_path.parent / generated_dir_name
+
+    if not sketch_path.parent.exists():
+        return {
+            "sketch_path": sketch_path,
+            "active_header_path": generated_dir / ACTIVE_HEADER_NAME,
+            "sync_skipped": "Configured Arduino IDE sketch folder does not exist on this machine.",
+        }
 
     runtime_text = REPO_RUNTIME_SKETCH_PATH.read_text(encoding="utf-8")
     generated_dir.mkdir(parents=True, exist_ok=True)
@@ -1204,6 +1433,44 @@ def build_arg_parser():
     parser.add_argument("--song", help="Full path to a MIDI file to use.")
     parser.add_argument("--project-song", help="Filename of a MIDI already in songs/midi.")
     parser.add_argument(
+        "--choose-library",
+        action="store_true",
+        help="Choose a MIDI from songs/midi instead of auto-using the newest download.",
+    )
+    parser.add_argument(
+        "--play-latest",
+        action="store_true",
+        help="Explicitly use the newest .mid/.midi file in the Windows Downloads folder.",
+    )
+    parser.add_argument(
+        "--fit-mode",
+        choices=("strict", "transpose", "cancel"),
+        help="Choose how out-of-range notes are handled without prompting.",
+    )
+    parser.add_argument(
+        "--range",
+        dest="playable_range",
+        help="Override the playable note range with an inclusive range such as C4-B4 or 60-71.",
+    )
+    parser.add_argument(
+        "--tempo",
+        help="Override the tempo without prompting. Use a BPM like 140 or a multiplier like 0.85x.",
+    )
+    parser.add_argument(
+        "--port",
+        help="Use a specific serial port such as COM4 instead of auto-detecting the Arduino.",
+    )
+    parser.add_argument(
+        "--list-ports",
+        action="store_true",
+        help="List detected serial ports and exit.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Analyze the MIDI and print the plan, but do not write output files or send USB playback.",
+    )
+    parser.add_argument(
         "--export-only",
         action="store_true",
         help="Convert and write files, but do not send the song over USB.",
@@ -1213,31 +1480,59 @@ def build_arg_parser():
 
 def main():
     args = build_arg_parser().parse_args()
+    if args.list_ports:
+        list_serial_ports()
+        return
+
     config = load_config()
+    user_preferences = load_user_preferences()
     deployment_config = load_deployment_config()
-    selected_midi_source = choose_input_midi(args)
+    if args.port:
+        deployment_config.setdefault("serial_runtime", {})
+        deployment_config["serial_runtime"]["preferred_port"] = args.port
+
+    selected_midi_source, selection_reason = choose_input_midi(args, user_preferences)
     selected_midi, was_imported = import_midi_to_library(selected_midi_source)
 
-    mid = MidiFile(str(selected_midi))
+    try:
+        mid = MidiFile(str(selected_midi))
+    except Exception as error:
+        raise RuntimeError(
+            f"'{selected_midi.name}' could not be read as a MIDI file. If it came from a ZIP download, unzip it first."
+        ) from error
+
     tempo_info = scan_tempo_info(mid)
     note_intervals, interval_stats = extract_note_intervals(mid)
     if not note_intervals:
         raise ValueError("No note_on events were found in the selected MIDI file.")
 
+    preferred_range = args.playable_range
+    if preferred_range is None:
+        preferred_range = user_preferences["playback"].get("default_playable_range", "")
     effective_mapping, playable_layout_summary, mapping_overridden = prompt_for_playable_range(
-        config["mapping"]
+        config["mapping"],
+        preset=preferred_range,
     )
     effective_config = dict(config)
     effective_config["mapping"] = effective_mapping
 
-    fit_selection = prompt_for_fit_mode(note_intervals, effective_mapping)
+    preferred_fit_mode = args.fit_mode
+    if preferred_fit_mode is None:
+        preferred_fit_mode = user_preferences["playback"].get("default_fit_mode", "prompt")
+        if preferred_fit_mode == "prompt":
+            preferred_fit_mode = None
+    fit_selection = prompt_for_fit_mode(note_intervals, effective_mapping, preset=preferred_fit_mode)
     if fit_selection["mode"] == "cancel":
         print("Cancelled before conversion.")
         return
 
     applied_octave_shift = 0 if fit_selection["mode"] == "strict" else fit_selection["best_octave_shift"]
     shifted_intervals = transpose_note_intervals(note_intervals, applied_octave_shift)
-    tempo_override = prompt_for_tempo_override(tempo_info["first_bpm"])
+
+    preferred_tempo = args.tempo
+    if preferred_tempo is None:
+        preferred_tempo = user_preferences["playback"].get("default_tempo", "")
+    tempo_override = prompt_for_tempo_override(tempo_info["first_bpm"], preset=preferred_tempo)
     scaled_intervals = scale_intervals(shifted_intervals, tempo_override["scale"])
     scheduled_notes, scheduling_stats = schedule_notes(scaled_intervals, effective_config)
     if not scheduled_notes:
@@ -1248,6 +1543,11 @@ def main():
         scheduled_notes, effective_config
     )
     delta_events = convert_to_delta_events(timeline)
+    unmapped_note_lines = build_unmapped_note_lines(
+        {int(note): count for note, count in scheduling_stats["unmapped_note_counts"].items()}
+    )
+    selected_playable_count = len(scheduled_notes)
+    recognizability_summary = describe_recognizability(selected_playable_count, len(note_intervals))
 
     header_path, output_version = next_header_path(HEADER_DIR, selected_midi)
     output_version_label = "base" if output_version == 0 else f"v{output_version}"
@@ -1283,12 +1583,16 @@ def main():
         "transpose_playable_count": fit_selection["transpose_playable_count"],
         "transpose_playable_summary": fit_selection["transpose_summary"],
         "mapping_override_used": mapping_overridden,
+        "selection_reason": selection_reason,
+        "recognizability_summary": recognizability_summary,
+        "unmapped_note_lines": unmapped_note_lines,
         "source_note_count": len(note_intervals),
         "scheduled_note_count": len(scheduled_notes),
         "event_count": len(delta_events),
         "forced_retriggers": scheduling_stats["forced_retriggers"],
         "delayed_notes": scheduling_stats["delayed_notes"],
         "unmapped_notes": scheduling_stats["unmapped_notes"],
+        "unmapped_note_counts": scheduling_stats["unmapped_note_counts"],
         "unmatched_note_offs": interval_stats["unmatched_note_offs"],
         "dangling_note_ons_closed": interval_stats["dangling_note_ons_closed"],
         "percussion_events_skipped": interval_stats["percussion_events_skipped"],
@@ -1299,6 +1603,42 @@ def main():
         "actuation_lines": actuation_lines,
         "channels_used": scheduling_stats["channels_used"],
     }
+
+    print("\nSelected file:", selected_midi.name)
+    print(f"Chosen because: {selection_reason}")
+    print(f"Original source path: {selected_midi_source}")
+    if was_imported:
+        print(f"Imported into project library: {selected_midi}")
+    print(f"Type: {mid.type}")
+    print(f"Ticks per beat: {mid.ticks_per_beat}")
+    print(f"Number of tracks: {len(mid.tracks)}")
+    print(f"Tempo events found: {tempo_info['tempo_change_count']}")
+    print(f"Detected MIDI note range: {fit_selection['source_range']['range_label']}")
+    print(f"Playable layout: {playable_layout_summary['label']}")
+    print(f"Strict coverage: {fit_selection['strict_summary']}")
+    print(f"Transpose coverage: {fit_selection['transpose_summary']}")
+    print(f"Fit mode used: {fit_mode_label}")
+    print(f"Recognizability estimate: {recognizability_summary}")
+    print(f"Range override used: {'yes' if mapping_overridden else 'no'}")
+    if interval_stats["percussion_events_skipped"] > len(note_intervals):
+        print("Percussion warning: this file appears to contain more percussion events than pitched note events.")
+    print("Mapping summary:")
+    for line in mapping_lines:
+        print(f"  {line}")
+    print("Channel summary:")
+    for line in channel_lines:
+        print(f"  {line}")
+    print("Actuation summary:")
+    for line in actuation_lines:
+        print(f"  {line}")
+    if unmapped_note_lines:
+        print("Most skipped notes:")
+        for line in unmapped_note_lines:
+            print(f"  {line}")
+
+    if args.dry_run:
+        print("\nDry run complete. No files were written and nothing was sent over USB.")
+        return
 
     json_path, active_header_path, active_json_path, deployment_paths, payload = write_outputs(
         selected_midi,
@@ -1314,41 +1654,26 @@ def main():
     if not args.export_only:
         stream_manifest = stream_song_to_arduino(payload, deployment_config)
 
-    print("\nSelected file:", selected_midi.name)
-    print(f"Original source path: {selected_midi_source}")
-    if was_imported:
-        print(f"Imported into project library: {selected_midi}")
-    print(f"Type: {mid.type}")
-    print(f"Ticks per beat: {mid.ticks_per_beat}")
-    print(f"Number of tracks: {len(mid.tracks)}")
-    print(f"Tempo events found: {tempo_info['tempo_change_count']}")
-    print(f"Detected MIDI note range: {fit_selection['source_range']['range_label']}")
-    print(f"Playable layout: {playable_layout_summary['label']}")
-    print(f"Strict coverage: {fit_selection['strict_summary']}")
-    print(f"Transpose coverage: {fit_selection['transpose_summary']}")
-    print(f"Fit mode used: {fit_mode_label}")
-    print(f"Range override used: {'yes' if mapping_overridden else 'no'}")
-    print("Mapping summary:")
-    for line in mapping_lines:
-        print(f"  {line}")
-    print("Channel summary:")
-    for line in channel_lines:
-        print(f"  {line}")
-    print("Actuation summary:")
-    for line in actuation_lines:
-        print(f"  {line}")
     print("\nConversion complete.")
     print(f"Versioned header: {header_path.relative_to(REPO_ROOT)}")
     print(f"Active Arduino header: {active_header_path.relative_to(REPO_ROOT)}")
     print(f"Versioned metadata: {json_path.relative_to(REPO_ROOT)}")
     print(f"Active metadata: {active_json_path.relative_to(REPO_ROOT)}")
     if deployment_paths is not None:
-        print(f"Synced Arduino IDE sketch: {deployment_paths['sketch_path']}")
-        print(f"Synced Arduino IDE active header: {deployment_paths['active_header_path']}")
+        if "sketch_path" in deployment_paths:
+            print(f"Synced Arduino IDE sketch: {deployment_paths['sketch_path']}")
+        if "active_header_path" in deployment_paths:
+            print(f"Synced Arduino IDE active header: {deployment_paths['active_header_path']}")
+        if "sync_skipped" in deployment_paths:
+            print(f"Arduino IDE sync skipped: {deployment_paths['sync_skipped']}")
         if "sync_error" in deployment_paths:
             print(f"Arduino IDE sync warning: {deployment_paths['sync_error']}")
     if stream_manifest is not None:
         print(f"USB playback sent on port: {stream_manifest['port']}")
+        print(
+            f"Streamed {stream_manifest['sent_event_count']} events with runtime protocol "
+            f"v{stream_manifest['protocol_version']} using a buffer capacity of {stream_manifest['buffer_capacity']}."
+        )
     print(f"Output header version: {output_version_label}")
     print(f"Base tempo: {tempo_info['first_bpm']:.2f} BPM")
     print(f"Effective output tempo: {tempo_override['target_bpm']:.2f} BPM")
@@ -1366,4 +1691,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (EOFError, FileNotFoundError, RuntimeError, TimeoutError, ValueError, OSError) as error:
+        print(f"\nUnable to continue: {error}")
+        raise SystemExit(1)

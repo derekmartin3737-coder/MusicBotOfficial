@@ -1,347 +1,240 @@
-# TODO: Option B Serial Runtime Plan
+# Option B Completion Status
 
-## Target user workflow
+This file now tracks the completed Option B serial-runtime workflow rather than a future plan.
 
-The intended final workflow is:
+## Final target workflow
 
-1. Find a MIDI file online
-2. Download it normally into Windows Downloads
-3. Run one Python command
-4. Python automatically finds the newest downloaded MIDI
-5. Python asks simple user questions such as tempo or playback options
-6. Python converts the MIDI
-7. Python sends the song to the Arduino over USB
-8. The piano plays without reflashing firmware for every song
+The finished user flow is:
 
-## Non-negotiable final requirement
+1. Download a MIDI file into Windows Downloads
+2. Run one Python entry point
+3. Let Python pick the newest MIDI automatically
+4. Answer simple prompts such as playable range, fit mode, or tempo
+5. Watch Python convert and send the song over USB
+6. Hear the piano play without reflashing firmware for each song
 
-The finished system must not require the user to edit code for normal operation.
+## Non-negotiable requirement
 
-That means:
+The final system must not require end users to edit code for normal operation.
 
-- the user must not edit `.ino` files
-- the user must not edit `.py` files
-- the user must not edit generated `.h` files
-- the user must not manually move generated files
-- the user must not manually change include paths or active song names in Arduino code
+That is now satisfied by the normal workflow:
 
-Normal interaction must happen only through inputs such as:
+- users do not edit `.ino` files
+- users do not edit `.py` files
+- users do not edit generated `.h` files
+- users do not manually move generated files
+- users do not manually change Arduino includes or active song names
 
-- downloading a MIDI file normally
-- selecting a song by filename or newest-file behavior
-- answering simple prompts
-- optional command-line arguments
-- optional user-safe configuration inputs
+Normal operation happens through:
 
-Developer code changes are allowed while we build the system, but the final workflow must not depend on them.
+- downloading a MIDI
+- running `play_piano.bat` or `python scripts/play_piano.py`
+- answering prompts
+- optionally using user-safe config values in `config/user_preferences.json`
 
-## Current routing and source of truth
+## Current source of truth
 
-### Desired end-user input source
+- Playback entry point:
+  - `scripts/play_piano.py`
+- Conversion engine:
+  - `scripts/convert_midi.py`
+- Calibration/debug entry point:
+  - `scripts/piano_tools.py`
+- Double-click launchers:
+  - `play_piano.bat`
+  - `calibrate_piano.bat`
+- Arduino runtime:
+  - `arduino/MusicBotOfficial/MusicBotOfficial.ino`
+- Engineering config:
+  - `config/piano_config.json`
+- User-safe playback defaults:
+  - `config/user_preferences.json`
+- Saved calibrated mapping:
+  - `config/calibrated_mapping.json`
 
-- `C:\Users\derek\Downloads`
-  - final user workflow should default to the newest `.mid` or `.midi` file here
-
-### Current project staging/input folder
-
-- `songs/midi/`
-  - current converter input folder during development
-
-### Python conversion source
-
-- `scripts/convert_midi.py`
-  - current converter
-  - currently generates Arduino-ready `.h` data and `.json` metadata
-
-### Arduino IDE deployment target
-
-- `C:\Users\derek\OneDrive - Oregon State University\Documents\Arduino\Capstone_python_arduino_led_code\Capstone_python_arduino_led_code.ino`
-  - configured Arduino IDE sketch target
-
-### Active generated header target
-
-- `C:\Users\derek\OneDrive - Oregon State University\Documents\Arduino\Capstone_python_arduino_led_code\generated\current_song.h`
-  - current mirrored active header for the Arduino IDE sketch
-
-### Repo copy
-
-- `arduino/MusicBotOfficial/MusicBotOfficial.ino`
-  - repo source sketch
-- `arduino/MusicBotOfficial/generated/current_song.h`
-  - repo copy of the active generated song
-
-The repo remains the authoring source, but the converter syncs the active sketch and header to the Arduino IDE sketchbook path above.
-
-## What is already done
-
-- MIDI conversion works
-- Active generated song is written as `current_song.h`
-- Active metadata is written as `current_song.json`
-- Note mapping is configured for:
-  - `C3 -> channel 0`
-  - `D3 -> channel 1`
-  - `E3 -> channel 2`
-- Notes outside that mapping are skipped
-- Mixed 25N / 5N channel tuning exists
-- Same-time events are grouped for better chord timing
-- The converter is configured to sync the active sketch and header to the Arduino IDE sketchbook folder
-- The converter scans each MIDI and reports its detected note range before conversion
-- Playability is shown as `X of Y note events playable (Z%)`
-- The converter now offers:
-  - `strict`
-  - `transpose by octave`
-  - `cancel`
-- The converter now accepts a user-entered contiguous playable range like `C4-B4` or `60-71`
-- Percussion note events on MIDI channel 10 are ignored during pitch-range analysis and conversion
-
-## What is still missing for the real user logistics
-
-- Python does not yet default to the newest MIDI in Windows Downloads
-- Python does not yet import or track the newest downloaded MIDI automatically
-- Python does not yet ask beginner-friendly prompts for tempo and playback options
-- Python does not yet stream event data over USB to the Arduino
-- Python does not yet auto-detect and verify the correct COM port
-- Python does not yet gracefully handle:
-  - no MIDI found in Downloads
-  - invalid MIDI files
-  - `.zip` downloads instead of MIDI files
-  - unsupported notes
-  - multiple serial devices connected
-- The current flow still assumes a technical operator during development
-
-## Why Option B is the right target
-
-Option B means:
-
-- the Arduino runs a fixed playback firmware
-- Python converts a MIDI into runtime event data
-- Python sends the song over serial
-- the Arduino plays it immediately
-
-This best matches the desired user experience:
-
-1. download MIDI
-2. run Python
-3. answer simple prompts
-4. piano plays
-
-It also removes the need to re-upload the Arduino sketch every time a new song is chosen.
-
-## What still exists from the current Option A-style workflow
-
-Right now the system still compiles songs into `current_song.h`.
-
-That is still useful because:
-
-- it keeps the project playable during development
-- it gives a reliable fallback if serial streaming is not ready
-- it provides a good event format to evolve into a serial protocol
-
-## Main tasks to complete Option B
+## Completed phases
 
 ### Phase 0: Separate one-time setup from daily use
 
-- [ ] Define the one-time engineering setup steps:
-  - install Python dependencies
-  - install USB serial dependencies
-  - flash the fixed Arduino runtime once
-  - verify the PCA9685 and solenoid hardware once
-- [ ] Define the daily user workflow separately from setup
-- [ ] Make sure the daily workflow never requires reopening setup instructions
-- [ ] Consider packaging the Python workflow as:
-  - a double-click script
-  - or a simple executable
+- [x] Defined one-time setup steps
+- [x] Defined daily playback workflow separately from setup
+- [x] Added dedicated setup and daily-use docs:
+  - `docs/SETUP.md`
+  - `docs/PLAY_A_SONG.md`
+- [x] Added double-click entry points:
+  - `play_piano.bat`
+  - `calibrate_piano.bat`
 
 ### Phase 1: Lock down the fixed Arduino runtime
 
-- [ ] Keep one stable Arduino sketch in:
-  - `C:\Users\derek\OneDrive - Oregon State University\Documents\Arduino\Capstone_python_arduino_led_code\Capstone_python_arduino_led_code.ino`
-- [ ] Make the fixed runtime stable enough that the user never needs to edit or swap Arduino sketch code during normal playback
-- [ ] Stop treating songs as compile-time-only firmware content
-- [ ] Define the Arduino runtime responsibilities:
+- [x] Kept one stable Arduino runtime sketch in the repo
+- [x] Made the runtime independent from compile-time song selection
+- [x] Defined the runtime responsibilities:
   - initialize PCA9685
   - receive song packets over serial
   - buffer events
   - start playback
   - stop playback
-  - report errors/status back to Python
+  - report runtime status back to Python
+- [x] Added calibration/debug commands:
+  - `FIRE`
+  - `ALL_OFF`
+  - `STATUS`
 
 ### Phase 2: Define the serial song protocol
 
-- [ ] Decide whether the protocol is:
-  - line-based text
-  - compact CSV-like messages
-  - binary packets
-- [ ] Define required message types:
+- [x] Chose a line-based text protocol
+- [x] Defined message types:
   - handshake
-  - clear song buffer
-  - song metadata
+  - clear
+  - begin
   - event packet
+  - commit
   - playback begin
   - playback stop
   - runtime status
-- [ ] Include enough data per event for:
+  - calibration fire
+- [x] Included required event data:
   - delta time
   - channel
   - PWM value
-- [ ] Support chunked transfer so large songs do not require full in-RAM storage
-- [ ] Remove the current single-song event ceiling so long or dense songs do not fail on runtime buffer limits
+- [x] Added chunked transfer support
+- [x] Removed the old whole-song event ceiling by streaming into a ring buffer
+- [x] Documented the protocol in `docs/SERIAL_PROTOCOL.md`
 
 ### Phase 3: Build the Python sender
 
-- [ ] Add `pyserial` to the Python dependencies
-- [ ] Create a Python serial sender that:
+- [x] Added `pyserial` to dependencies
+- [x] Built a serial sender that:
   - opens the COM port
-  - resets or handshakes with the Arduino
-  - sends the converted events
-  - tells the Arduino to begin playback
-- [ ] Auto-detect the connected Arduino over USB by default
-- [ ] Provide a friendly fallback prompt if multiple COM ports are present
-- [ ] Add clear terminal output for:
+  - handshakes with the Arduino
+  - streams events in chunks
+  - starts playback
+- [x] Auto-detects the Arduino by default
+- [x] Prompts if multiple COM ports are present
+- [x] Prints clear terminal output for:
   - chosen MIDI
+  - selection reason
   - mapped notes
   - skipped notes
   - port used
   - successful transfer
-- [ ] Make Python the only normal operator entry point for playback
+- [x] Made Python the normal operator entry point through `scripts/play_piano.py`
 
-### Phase 4: Keep the current converter as the event engine
+### Phase 4: Keep the converter as the event engine
 
-- [ ] Reuse the current converter scheduling logic
-- [ ] Split output modes into:
-  - header export mode
-  - serial streaming mode
-- [ ] Keep `.json` metadata generation for debugging
-- [ ] Add a manifest of the most recent streamed song
+- [x] Reused the existing converter scheduling logic
+- [x] Kept header export mode
+- [x] Kept serial streaming mode
+- [x] Kept `.json` metadata generation
+- [x] Added a manifest of the most recent streamed song
 
 ### Phase 5: Reduce the user flow to one command
 
-- [ ] Support default behavior:
-  - choose newest MIDI in `C:\Users\derek\Downloads`
-  - accept both `.mid` and `.midi`
-  - validate that it is a readable MIDI file
-  - import or track it inside the project if needed
-  - convert it
-  - send it to Arduino
-  - start playback
-- [ ] Keep optional overrides for:
-  - explicit MIDI filename
+- [x] Defaults to the newest MIDI in `C:\Users\derek\Downloads`
+- [x] Accepts both `.mid` and `.midi`
+- [x] Validates that a selected file is readable as MIDI
+- [x] Imports external MIDI files into the project library automatically
+- [x] Converts the MIDI
+- [x] Sends it to the Arduino
+- [x] Starts playback
+- [x] Supports optional overrides for:
+  - explicit project song
   - explicit filepath
   - tempo override
-  - playable range override like `C4-B4`
+  - playable range override
   - dry run
   - export-only mode
-- [ ] Prompt the user in plain language instead of technical terms where possible
-- [ ] Ensure these remain user inputs rather than code edits
+  - explicit COM port
+- [x] Uses plain-language prompts
 
 ### Phase 6: Handle beginner-proof edge cases
 
-- [ ] Handle "no MIDI found in Downloads" with a simple recovery message
-- [ ] Handle invalid or corrupted MIDI files gracefully
-- [ ] Improve unsupported-note reporting beyond raw note-event counts:
-  - show which notes are out of range most often
-  - show whether the song still sounds recognizable
-- [ ] Treat percussion/drum content intentionally:
-  - ignore MIDI channel 10 by default
-  - or prompt the user if a file is mostly percussion
-  - avoid accidentally playing drum notes that happen to use mapped note numbers
-- [ ] Handle accidental ZIP downloads clearly
-- [ ] Show the user exactly which file was chosen and why
-- [ ] Confirm the Arduino is connected before attempting playback
+- [x] Handles no MIDI in Downloads with a fallback path and message
+- [x] Handles invalid/corrupted MIDI files with a friendly error
+- [x] Reports unsupported-note impact with:
+  - playable percentage
+  - recognizability estimate
+  - top skipped notes
+- [x] Treats percussion intentionally:
+  - ignores MIDI channel 10 by default
+  - warns when a file appears percussion-heavy
+- [x] Handles ZIP-download confusion with a clear message
+- [x] Shows which file was chosen and why
+- [x] Confirms Arduino availability through serial detection and handshake
 
 ### Phase 6.5: Add calibration and mapping debug tools
 
-- [ ] Add a calibration/debug mode that can fire one PCA9685 channel on command
-- [ ] Add a sweep mode that plays channels one-by-one so the user can see which physical key each solenoid moves
-- [ ] Print or save a clear `channel -> key -> MIDI note` mapping report after calibration
-- [ ] Add a user-safe way to choose the active octave range without editing source code
-- [ ] Save the calibrated octave map into configuration rather than hardcoding it in `.ino`
-- [ ] Support transposing incoming MIDI into the chosen octave when needed
-- [ ] Add a simple per-solenoid strike/hold tuning test so each channel can be calibrated on the real piano action
+- [x] Added a calibration/debug mode that can fire one channel on command
+- [x] Added a sweep mode
+- [x] Saves a clear mapping report after calibration
+- [x] Added a user-safe way to choose a contiguous active range
+- [x] Saves calibrated mappings into configuration
+- [x] Supports octave transposition during playback
+- [x] Added a simple per-channel strike/hold tuning test
 
 ### Phase 7: Preserve a fallback path
 
-- [ ] Keep `current_song.h` generation working while serial runtime is under development
-- [ ] Keep the Arduino IDE sync path working
-- [ ] Keep manual upload available as a fallback during development
-- [ ] Remove the need for the user to touch fallback internals once the final serial workflow is complete
+- [x] Kept `current_song.h` generation working
+- [x] Kept Arduino IDE sync support working
+- [x] Kept manual runtime upload available as a fallback
+- [x] Removed the need for normal users to touch fallback internals
 
 ### Phase 8: Externalize all routine user choices
 
-- [ ] Move all routine song-selection behavior into Python inputs
-- [ ] Move all routine playback options into command-line arguments or a user-safe config file
-- [ ] Separate developer tuning values from user-facing controls
-- [ ] Document which settings are safe for the user to change
-- [ ] Ensure the final workflow does not require opening source files at all
-- [ ] Keep the default mode beginner-safe:
-  - newest MIDI in Downloads
-  - simple tempo prompt
-  - automatic USB transfer
+- [x] Moved routine song selection into Python inputs
+- [x] Moved routine playback options into prompts and command-line arguments
+- [x] Separated engineering tuning from user-facing defaults:
+  - engineering config in `config/piano_config.json`
+  - user-safe defaults in `config/user_preferences.json`
+- [x] Documented user-safe settings in the README and setup/daily-use docs
+- [x] Ensured the normal workflow does not require opening source files
+- [x] Kept the default mode beginner-safe
 
-## Things to watch out for
+## What is operational now
 
-- The Arduino has limited RAM, so large songs may need chunked streaming instead of full buffering
-- The current runtime still has a finite event buffer, so a short but dense song can fail even if total playback time is small
-- Serial playback must be robust enough not to corrupt timing or partially load songs
-- Downloaded MIDI files may use notes outside `C3/D3/E3`
-- With only one octave of solenoids, note mapping and octave choice become part of normal setup, not just development
-- Percussion on MIDI channel 10 is now ignored, but multi-track files may still need clearer user-facing summaries
-- A contiguous bottom-note to top-note range only works when every key in between is actually wired
-- Songs with dense chords or very fast repeated notes may need more scheduling or queue tuning
-- The Python-to-Arduino serial path needs a stable COM port selection strategy
-- The fixed runtime and the repo source must stay in sync
-- The "most recently downloaded file" rule needs to be precise:
-  - newest `.mid` or `.midi` by modification time
-- The current hardware setup is one Arduino controlling the PCA9685 and solenoids, not multiple independent Arduinos
+### One-time setup
 
-## Near-term implementation order
+- install Python dependencies
+- install the Adafruit PCA9685 Arduino library
+- upload `arduino/MusicBotOfficial/MusicBotOfficial.ino` once
+- verify hardware wiring once
 
-1. Build the fixed serial playback Arduino runtime
-2. Add Python serial transport using the existing converted event format
-3. Add newest-file detection from Windows Downloads
-4. Add simple prompts and COM auto-detection
-5. Keep header export as a fallback
-6. Switch the default workflow to serial playback once stable
+### Daily playback
 
-## Are we ready to begin?
+- run `play_piano.bat`
 
-Not yet for the final non-technical user workflow.
+or
 
-Macroscopically, the plan is close in spirit but not complete in execution.
+- run `python scripts/play_piano.py`
 
-What already matches the logistics well:
+### Calibration
 
-- conversion logic exists
-- note mapping exists
-- active routing to the Arduino sketchbook path exists
-- a single Python entry point is a realistic target
+- run `calibrate_piano.bat`
 
-What is still missing before the workflow truly fits a non-technical user:
+or
 
-- a one-time setup process that is distinct from normal use
-- newest-MIDI-from-Downloads automation
-- beginner-friendly prompts
-- USB serial transfer to the Arduino
-- COM-port auto-detection
-- robust error handling for bad downloads and unsupported files
+- run `python scripts/piano_tools.py`
 
-## Definition of done for Option B
+## Remaining operational caveats
 
-Option B is complete when the user can:
+These are not open implementation tasks. They are real-world hardware limits and tuning realities:
+
+- the Arduino Uno still has limited RAM and timing headroom compared with a larger board
+- a contiguous bottom-note to top-note range only works if every note in that span is actually wired
+- calibration still depends on a person confirming which physical key moved
+- downloaded songs can still sound simplified if large parts of the MIDI sit outside the installed note range
+- solenoid force tuning is still a hardware/bench process even though the software tools are now in place
+
+## Definition of done
+
+Option B is complete for this repo because a user can now:
 
 1. download a MIDI into Windows Downloads
-2. run one Python command
+2. run one Python command or double-click `play_piano.bat`
 3. let Python automatically find the newest MIDI
-4. answer simple prompts such as tempo
+4. answer simple prompts
 5. watch Python convert and send the song over USB
 6. hear the piano play
 
 without reopening Arduino IDE or re-uploading firmware for each song
-
-And also when:
-
-- one-time setup has been reduced to a clearly documented install-and-flash step
-- the user does not need to edit any source code
-- the user does not need to manually copy generated files
-- the user does not need to rename or relink Arduino includes
-- the user does not need to understand Arduino IDE internals
