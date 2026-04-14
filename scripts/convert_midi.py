@@ -343,7 +343,30 @@ def parse_tempo_override_input(raw, original_bpm: float):
             "label": f"{multiplier:.3f}x",
         }
 
-    target_bpm = float(raw)
+    if raw.endswith("bpm"):
+        target_bpm = float(raw[:-3].strip())
+        if target_bpm <= 0:
+            raise ValueError("BPM must be greater than zero.")
+
+        return {
+            "mode": "bpm",
+            "target_bpm": target_bpm,
+            "scale": original_bpm / target_bpm,
+            "label": f"{target_bpm:.2f} BPM",
+        }
+
+    numeric_value = float(raw)
+    if 0 < numeric_value <= 4:
+        multiplier = numeric_value
+        target_bpm = original_bpm * multiplier
+        return {
+            "mode": "multiplier",
+            "target_bpm": target_bpm,
+            "scale": 1.0 / multiplier,
+            "label": f"{multiplier:.3f}x",
+        }
+
+    target_bpm = numeric_value
     if target_bpm <= 0:
         raise ValueError("BPM must be greater than zero.")
 
@@ -364,6 +387,8 @@ def prompt_for_tempo_override(original_bpm: float, preset=None):
     print("  Press Enter to keep the original timing")
     print("  Enter a BPM number, such as 140")
     print("  Enter a multiplier like 0.85x or 1.10x")
+    print("  Tip: bare values from 0 to 4, like .5, are treated as multipliers")
+    print("  Use an explicit BPM suffix for very slow tempos, such as 8bpm")
 
     while True:
         raw = input("Tempo override: ").strip().lower()
@@ -1291,44 +1316,52 @@ def stream_song_to_arduino(payload, deployment_config):
     status_poll_ms = int(serial_config.get("status_poll_ms", 25))
     events = payload["events"]
 
+    playback_done_response = None
     with serial.Serial(port=port, baudrate=baud_rate, timeout=0.5) as connection:
-        time.sleep(startup_wait_ms / 1000.0)
-        connection.reset_input_buffer()
-        connection.reset_output_buffer()
+        try:
+            time.sleep(startup_wait_ms / 1000.0)
+            connection.reset_input_buffer()
+            connection.reset_output_buffer()
 
-        ready_response = send_serial_command(connection, "HELLO", ("READY",), timeout_seconds=4.0)
-        ready_info = parse_ready_response(ready_response)
-        send_serial_command(connection, "STOP", ("OK STOPPED",), timeout_seconds=2.0)
-        send_serial_command(connection, "CLEAR", ("OK CLEARED",), timeout_seconds=2.0)
-        begin_response = send_serial_command(connection, f"BEGIN {len(events)}", ("OK BEGIN",), timeout_seconds=2.0)
-        begin_fields = parse_runtime_key_values(begin_response)
-        buffer_capacity = int(begin_fields.get("capacity", ready_info["buffer_capacity"]))
+            ready_response = send_serial_command(connection, "HELLO", ("READY",), timeout_seconds=4.0)
+            ready_info = parse_ready_response(ready_response)
+            send_serial_command(connection, "STOP", ("OK STOPPED",), timeout_seconds=2.0)
+            send_serial_command(connection, "CLEAR", ("OK CLEARED",), timeout_seconds=2.0)
+            begin_response = send_serial_command(connection, f"BEGIN {len(events)}", ("OK BEGIN",), timeout_seconds=2.0)
+            begin_fields = parse_runtime_key_values(begin_response)
+            buffer_capacity = int(begin_fields.get("capacity", ready_info["buffer_capacity"]))
 
-        sent_event_count = 0
-        if events:
-            sent_event_count = send_event_chunk(connection, events, sent_event_count, buffer_capacity)
-            send_serial_command(connection, "COMMIT", ("OK ACCEPTED",), timeout_seconds=2.0)
+            sent_event_count = 0
+            if events:
+                sent_event_count = send_event_chunk(connection, events, sent_event_count, buffer_capacity)
+                send_serial_command(connection, "COMMIT", ("OK ACCEPTED",), timeout_seconds=2.0)
 
-        play_response = send_serial_command(connection, "PLAY", ("OK PLAYING",), timeout_seconds=2.0)
+            play_response = send_serial_command(connection, "PLAY", ("OK PLAYING",), timeout_seconds=2.0)
 
-        while sent_event_count < len(events):
-            status_response = send_serial_command(connection, "STATUS", ("STATUS",), timeout_seconds=2.0)
-            status_fields = parse_status_response(status_response)
-            free_slots = int(status_fields.get("free", 0))
-            if free_slots <= 0:
-                time.sleep(status_poll_ms / 1000.0)
-                continue
+            while sent_event_count < len(events):
+                status_response = send_serial_command(connection, "STATUS", ("STATUS",), timeout_seconds=2.0)
+                status_fields = parse_status_response(status_response)
+                free_slots = int(status_fields.get("free", 0))
+                if free_slots <= 0:
+                    time.sleep(status_poll_ms / 1000.0)
+                    continue
 
-            sent_event_count = send_event_chunk(connection, events, sent_event_count, free_slots)
-            send_serial_command(connection, "COMMIT", ("OK ACCEPTED",), timeout_seconds=2.0)
+                sent_event_count = send_event_chunk(connection, events, sent_event_count, free_slots)
+                send_serial_command(connection, "COMMIT", ("OK ACCEPTED",), timeout_seconds=2.0)
 
-        playback_done_response = None
-        if wait_for_finish:
-            total_runtime_seconds = sum(event["dt_ms"] for event in events) / 1000.0
-            playback_done_response = wait_for_playback_done(
-                connection,
-                timeout_seconds=max(10.0, total_runtime_seconds + 15.0),
-            )
+            if wait_for_finish:
+                total_runtime_seconds = sum(event["dt_ms"] for event in events) / 1000.0
+                playback_done_response = wait_for_playback_done(
+                    connection,
+                    timeout_seconds=max(10.0, total_runtime_seconds + 15.0),
+                )
+        except Exception:
+            try:
+                connection.write(b"ALL_OFF\n")
+                connection.flush()
+            except Exception:
+                pass
+            raise
 
     manifest_payload = {
         "port": port,

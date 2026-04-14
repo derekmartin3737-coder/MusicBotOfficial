@@ -1,25 +1,66 @@
 {
-  "project_mode": "three_solenoid_cde_test",
+  "project_mode": "one_octave_c3_b3",
   "pca9685": {
     "i2c_address": 64,
     "pwm_frequency_hz": 250
   },
   "mapping": {
     "mode": "explicit_note_map",
+    "channel_sequence": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
     "note_to_channel": {
       "48": 0,
-      "50": 1,
-      "52": 2
+      "49": 1,
+      "50": 2,
+      "51": 3,
+      "52": 4,
+      "53": 5,
+      "54": 6,
+      "55": 7,
+      "56": 8,
+      "57": 9,
+      "58": 10,
+      "59": 11
     },
     "note_labels": {
       "48": "C3",
+      "49": "C#3",
       "50": "D3",
-      "52": "E3"
+      "51": "D#3",
+      "52": "E3",
+      "53": "F3",
+      "54": "F#3",
+      "55": "G3",
+      "56": "G#3",
+      "57": "A3",
+      "58": "A#3",
+      "59": "B3"
     },
     "channel_labels": {
-      "0": "C3 key solenoid (25N)",
-      "1": "D3 key solenoid (5N)",
-      "2": "E3 key solenoid (5N)"
+      "0": "C3 key solenoid",
+      "1": "C#3 key solenoid",
+      "2": "D3 key solenoid",
+      "3": "D#3 key solenoid",
+      "4": "E3 key solenoid",
+      "5": "F3 key solenoid",
+      "6": "F#3 key solenoid",
+      "7": "G3 key solenoid",
+      "8": "G#3 key solenoid",
+      "9": "A3 key solenoid",
+      "10": "A#3 key solenoid",
+      "11": "B3 key solenoid"
     }
   },
   "actuation": {
@@ -32,21 +73,11 @@
     "release_delay_ms": 6,
     "minimum_rearm_gap_ms": 25,
     "retrigger_gap_ms": 16,
-    "channel_overrides": {
-      "0": {
-        "strike_min_pwm": 3000,
-        "strike_max_pwm": 4095,
-        "hold_min_pwm": 1800,
-        "hold_max_pwm": 2800,
-        "hold_ratio": 0.62
-      }
-    }
+    "channel_overrides": {}
   },
   "notes": {
-    "current_setup": "Three-note piano test map. C3, D3, and E3 route to PCA9685 channels 0, 1, and 2. All other notes are skipped.",
-    "channel_0": "25N solenoid on C3",
-    "channel_1": "5N solenoid on D3",
-    "channel_2": "5N solenoid on E3",
-    "future_setup": "Expand to more keys by adding note_to_channel entries and channel-specific tuning."
+    "current_setup": "One chromatic octave map. C3 through B3 route to PCA9685 channels 0 through 11 in ascending order.",
+    "wiring_assumption": "PCA9685 channel 0 is the first installed solenoid on C3, channel 1 is C#3, and so on through B3 on channel 11.",
+    "future_setup": "Use the calibration tool to save a calibrated_mapping.json file if the physical order changes or if the installed notes are not contiguous."
   }
 }

@@ -89,6 +89,20 @@ def build_mapping_lines(mapping):
     return lines
 
 
+def iter_mapping_in_note_order(mapping):
+    if mapping.get("mode") != "explicit_note_map":
+        for channel in engine.get_mapping_channel_order(mapping):
+            yield None, channel
+        return
+
+    note_to_channel = mapping.get("note_to_channel", {})
+    for note, channel in sorted(
+        ((int(note), int(channel)) for note, channel in note_to_channel.items()),
+        key=lambda item: item[0],
+    ):
+        yield note, channel
+
+
 def contiguous_octave_mapping(config, bottom_note):
     mapping = engine.build_contiguous_mapping(
         config["mapping"],
@@ -99,12 +113,15 @@ def contiguous_octave_mapping(config, bottom_note):
 
 
 def run_sweep(connection, config):
-    print("\nSweeping channels one by one.")
-    for channel in engine.get_mapping_channel_order(config["mapping"]):
+    print("\nSweeping mapped notes in ascending note order.")
+    for note, channel in iter_mapping_in_note_order(config["mapping"]):
         actuation = engine.resolve_channel_actuation(channel, config)
         pulse = build_calibration_pulse(actuation)
         label = config["mapping"].get("channel_labels", {}).get(str(channel), f"Channel {channel}")
-        print(f"  Firing channel {channel}: {label}")
+        if note is None:
+            print(f"  Firing channel {channel}: {label}")
+        else:
+            print(f"  Testing {engine.midi_note_name(note)} on channel {channel}: {label}")
         fire_channel(connection, channel, pulse)
         time.sleep(0.25)
 
