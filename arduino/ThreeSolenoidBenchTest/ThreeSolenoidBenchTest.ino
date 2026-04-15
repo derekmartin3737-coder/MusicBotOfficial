@@ -1,3 +1,11 @@
+/*
+  ThreeSolenoidBenchTest
+
+  Early hardware demo for C/D/E solenoids. This sketch does not use Python or
+  MIDI; it loops through simple single notes and C+E chords to prove that
+  multiple PCA9685 channels can be actuated with different strike strengths.
+*/
+
 #include <Arduino.h>
 #include <Wire.h>
 #include <Adafruit_PWMServoDriver.h>
@@ -45,6 +53,8 @@ void playSingle(uint8_t channel, uint16_t strikePwm, uint16_t holdPwm) {
 }
 
 void playChordCE(uint16_t cStrike, uint16_t eStrike, uint16_t cHold, uint16_t eHold) {
+  // Starting both channels before the delay makes the C and E strikes happen as
+  // close together as possible for a simple Arduino loop demo.
   setChannelPwm(CHANNEL_C, cStrike);
   setChannelPwm(CHANNEL_E, eStrike);
   delay(STRIKE_MS);

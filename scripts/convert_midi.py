@@ -1,3 +1,20 @@
+"""MIDI-to-solenoid conversion and playback engine.
+
+This is the main Python module for the autonomous piano player. It handles the
+full user workflow:
+
+1. Pick a MIDI file from Downloads, the project song library, or a direct path.
+2. Scan the MIDI for tempo, note range, percussion, and playable coverage.
+3. Map MIDI notes onto the configured PCA9685/MOSFET solenoid channels.
+4. Convert note timing into strike, hold, and release PWM events.
+5. Write generated Arduino/header metadata and optionally stream the song over
+   USB to the fixed Arduino runtime.
+
+Generated song files are outputs, not hand-maintained source. Most hardware
+behavior should be adjusted in config/piano_config.json instead of editing this
+module.
+"""
+
 import argparse
 import copy
 import json
@@ -10,6 +27,8 @@ from pathlib import Path
 import mido
 from mido import MidiFile
 
+# pyserial is optional for dry runs. Import lazily so classmates can still
+# analyze MIDI files without an Arduino plugged in.
 try:
     import serial
     from serial.tools import list_ports
@@ -17,6 +36,7 @@ except ImportError:
     serial = None
     list_ports = None
 
+# MIDI files may omit tempo; 500000 us/beat is the MIDI default for 120 BPM.
 DEFAULT_TEMPO_US_PER_BEAT = 500000
 ACTIVE_HEADER_NAME = "current_song.h"
 ACTIVE_METADATA_NAME = "current_song.json"
@@ -26,6 +46,8 @@ NOTE_TOKEN_RE = re.compile(r"^\s*([A-Ga-g])([#b]?)(-?\d+)\s*$")
 NUMERIC_RANGE_RE = re.compile(r"^\s*(-?\d+)\s*-\s*(-?\d+)\s*$")
 NOTE_RANGE_RE = re.compile(r"^\s*([A-Ga-g][#b]?-?\d+)\s*-\s*([A-Ga-g][#b]?-?\d+)\s*$")
 
+# All paths are rooted at the repository so the scripts work from VS Code,
+# PowerShell, or a different current working directory.
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = REPO_ROOT / "config" / "piano_config.json"
 DEPLOYMENT_CONFIG_PATH = REPO_ROOT / "config" / "deployment_paths.json"
@@ -142,6 +164,9 @@ def load_config():
     with CONFIG_PATH.open("r", encoding="utf-8") as handle:
         config = json.load(handle)
 
+    # Manual calibration writes config/calibrated_mapping.json. When that file
+    # exists, it overrides the default repo mapping without permanently editing
+    # piano_config.json. This lets each hardware build keep its own wiring map.
     if CALIBRATED_MAPPING_PATH.exists():
         with CALIBRATED_MAPPING_PATH.open("r", encoding="utf-8") as handle:
             calibrated_payload = json.load(handle)
@@ -239,6 +264,10 @@ def import_midi_to_library(source_path: Path):
 
 
 def choose_input_midi(args, user_preferences):
+    # Selection priority is deliberate:
+    # direct path > named project song > interactive library > newest download.
+    # That keeps the "just download and run" workflow simple while still giving
+    # advanced users repeatable command-line control.
     if args.song:
         chosen_path = Path(args.song).expanduser()
         if not chosen_path.exists():
@@ -356,6 +385,9 @@ def parse_tempo_override_input(raw, original_bpm: float):
         }
 
     numeric_value = float(raw)
+    # Bare values like ".5" are treated as speed multipliers because that is how
+    # users naturally request half-speed playback. Use "8bpm" for an actual
+    # extremely slow BPM value.
     if 0 < numeric_value <= 4:
         multiplier = numeric_value
         target_bpm = original_bpm * multiplier
@@ -414,6 +446,13 @@ def scale_intervals(note_intervals, scale: float):
 
 
 def extract_note_intervals(mid: MidiFile):
+    """Return note intervals in milliseconds from the merged MIDI timeline.
+
+    A note interval is the musical note-level object we use before hardware
+    scheduling: pitch, velocity, start time, end time, and source MIDI channel.
+    Percussion channel 9 is skipped because MIDI channel 10 is conventionally
+    drums, not pitched piano notes.
+    """
     merged = mido.merge_tracks(mid.tracks)
     tempo = DEFAULT_TEMPO_US_PER_BEAT
     current_ms = 0
@@ -492,6 +531,7 @@ def extract_note_intervals(mid: MidiFile):
 
 
 def get_mapping_channel_order(mapping_config):
+    """Return the hardware channels in the order calibration should visit them."""
     channel_sequence = mapping_config.get("channel_sequence")
     if channel_sequence:
         return [int(channel) for channel in channel_sequence]
@@ -591,6 +631,7 @@ def build_contiguous_mapping(mapping_config, bottom_note: int, top_note: int):
 
 
 def prompt_for_playable_range(mapping_config, preset=None):
+    """Let users keep the saved layout or temporarily fit it to another octave."""
     channel_order = get_mapping_channel_order(mapping_config)
     if len(channel_order) <= 1:
         return mapping_config, summarize_playable_layout(mapping_config), False
@@ -842,6 +883,13 @@ def resolve_channel_actuation(channel, config):
 
 
 def schedule_notes(note_intervals, config):
+    """Map notes to channels and prevent impossible overlap on each solenoid.
+
+    A real solenoid cannot play two notes at once on the same channel. If a MIDI
+    file retriggers a key before the previous actuation has released, this pass
+    shortens/rearms the previous event and delays the next event just enough for
+    the hardware to recover.
+    """
     mapping_config = config["mapping"]
 
     notes_by_channel = defaultdict(list)
@@ -936,6 +984,11 @@ def strike_to_hold_pwm(strike_pwm, actuation_config):
 
 
 def build_playback_events(scheduled_notes, config):
+    """Convert scheduled notes into low-level PWM events.
+
+    Each playable note becomes a strong strike, an optional lower-power hold,
+    and a release event that sets the PCA9685 channel back to zero.
+    """
     timeline = []
     scheduled_note_metadata = []
     hold_event_count = 0
@@ -1305,6 +1358,12 @@ def wait_for_playback_done(connection, timeout_seconds):
 
 
 def stream_song_to_arduino(payload, deployment_config):
+    """Stream generated events to the fixed Arduino runtime over serial.
+
+    The Uno cannot store a large song in RAM, so Python fills the Arduino's small
+    event buffer, starts playback, then keeps topping up the buffer while the
+    sketch plays earlier events.
+    """
     serial_config = deployment_config.get("serial_runtime", {})
     if not serial_config.get("enabled", True):
         return None
@@ -1356,6 +1415,8 @@ def stream_song_to_arduino(payload, deployment_config):
                     timeout_seconds=max(10.0, total_runtime_seconds + 15.0),
                 )
         except Exception:
+            # If Python loses the serial connection mid-song, make a best-effort
+            # stop command so a solenoid is not left energized.
             try:
                 connection.write(b"ALL_OFF\n")
                 connection.flush()
@@ -1512,6 +1573,9 @@ def build_arg_parser():
 
 
 def main():
+    # High-level pipeline:
+    # choose MIDI -> analyze/fit -> schedule hardware events -> write outputs ->
+    # optionally stream the events to the Arduino runtime.
     args = build_arg_parser().parse_args()
     if args.list_ports:
         list_serial_ports()

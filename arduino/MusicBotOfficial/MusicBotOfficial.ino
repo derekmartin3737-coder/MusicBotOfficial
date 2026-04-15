@@ -1,14 +1,37 @@
+/*
+  MusicBotOfficial Arduino runtime
+
+  This is the sketch that should stay uploaded to the Arduino Uno during normal
+  piano playback. Python sends it a stream of timestamped PCA9685 PWM events over
+  USB serial. The sketch does not understand MIDI directly; it only receives
+  already-converted commands such as BEGIN, EVENT, COMMIT, PLAY, FIRE, and
+  ALL_OFF.
+
+  Hardware path:
+    Arduino Uno A4/A5 I2C -> PCA9685 PWM board -> MOSFET driver board -> solenoids
+
+  Safety note:
+    ALL_OFF sets every PCA9685 channel to zero. Use it whenever a test is
+    stopped, a serial error occurs, or a solenoid sounds like it is being held.
+*/
+
 #include <Arduino.h>
 #include <Wire.h>
 #include <Adafruit_PWMServoDriver.h>
 
+// PCA9685 address/frequency must match config/piano_config.json on the Python side.
 static const uint8_t RUNTIME_PCA9685_I2C_ADDRESS = 0x40;
 static const uint16_t RUNTIME_PCA9685_PWM_FREQUENCY_HZ = 250;
 static const uint32_t RUNTIME_SERIAL_BAUD = 115200;
 static const uint8_t RUNTIME_PROTOCOL_VERSION = 2;
+
+// Small RAM buffer for streamed events. Python keeps refilling this while
+// playback is running so the Uno does not need to store an entire song.
 static const uint8_t EVENT_BUFFER_CAPACITY = 48;
 static const uint16_t LINE_BUFFER_SIZE = 96;
 
+// One low-level actuator event: wait dt_ms, then set one PCA9685 channel to pwm.
+// pwm = 0 releases the solenoid, higher values create strike/hold force.
 typedef struct {
   uint32_t dt_ms;
   uint8_t channel;
@@ -17,15 +40,19 @@ typedef struct {
 
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(RUNTIME_PCA9685_I2C_ADDRESS);
 
+// Circular queue used between serial loading and timed playback.
 SolenoidEvent eventBuffer[EVENT_BUFFER_CAPACITY];
 uint8_t bufferHead = 0;
 uint8_t bufferTail = 0;
 uint8_t bufferedEventCount = 0;
 
+// Counters let Python ask STATUS and decide when to send more events.
 uint32_t expectedSongEventCount = 0;
 uint32_t receivedSongEventCount = 0;
 uint32_t playedSongEventCount = 0;
 
+// transferActive means Python is still loading a song. playbackActive means
+// millis()-based timing is currently applying PWM events to the hardware.
 bool transferActive = false;
 bool playbackActive = false;
 bool dueTimeArmed = false;
@@ -41,6 +68,8 @@ uint8_t freeEventSlots() {
 }
 
 void allChannelsOff() {
+  // The PCA9685 has 16 outputs; turn all of them off, even if the current build
+  // only wires some channels. This is the safest stop state.
   for (uint8_t channel = 0; channel < 16; channel++) {
     pwm.setPWM(channel, 0, 0);
   }
@@ -68,6 +97,7 @@ void resetSongState(bool stopOutputs) {
 }
 
 bool enqueueEvent(const SolenoidEvent &eventIn) {
+  // Returns false instead of overwriting old events if Python sends too quickly.
   if (bufferedEventCount >= EVENT_BUFFER_CAPACITY) {
     return false;
   }
@@ -149,6 +179,7 @@ void sendStatus() {
 }
 
 bool parseEventLine(const char *line, SolenoidEvent *eventOut) {
+  // EVENT lines come from Python in the form: EVENT <dt_ms> <channel> <pwm>.
   unsigned long dtValue = 0;
   unsigned int channelValue = 0;
   unsigned int pwmValue = 0;
@@ -181,6 +212,8 @@ bool parseFireLine(
   unsigned int holdMsValue = 0;
   unsigned int releaseMsValue = 0;
 
+  // FIRE is a calibration-only helper used by scripts/piano_tools.py.
+  // It performs one strike/hold/release pulse without loading a song.
   int parsed = sscanf(
       line,
       "FIRE %u %u %u %u %u %u",
@@ -214,6 +247,8 @@ void performCalibrationFire(
     uint16_t strikeMs,
     uint16_t holdMs,
     uint16_t releaseMs) {
+  // A test pulse is intentionally blocking. It is only used outside playback
+  // while a person is listening/watching one channel at a time.
   pwm.setPWM(channel, 0, strikePwm);
   delay(strikeMs);
 
@@ -229,6 +264,8 @@ void performCalibrationFire(
 }
 
 void armDueTimeFromBufferedHead() {
+  // The queue stores relative delays. Once an event reaches the head of the
+  // queue, convert that delay into an absolute millis() deadline.
   if (!playbackActive || dueTimeArmed || bufferedEventCount == 0) {
     return;
   }
@@ -266,6 +303,9 @@ void beginPlayback() {
 }
 
 void handleCommand(const char *line) {
+  // Text protocol used by Python:
+  // HELLO/STATUS inspect the runtime, BEGIN/EVENT/COMMIT load events,
+  // PLAY starts timed output, and STOP/CLEAR/ALL_OFF recover to a safe state.
   if (strcmp(line, "PING") == 0) {
     Serial.println(F("PONG"));
     return;
@@ -400,6 +440,8 @@ void handleCommand(const char *line) {
 }
 
 void pollSerial() {
+  // Build one newline-terminated command at a time without using dynamic String
+  // allocation. That keeps RAM use predictable on the Uno.
   while (Serial.available() > 0) {
     char incoming = (char)Serial.read();
     if (incoming == '\r') {
@@ -425,6 +467,8 @@ void pollSerial() {
 }
 
 void servicePlayback() {
+  // Called continuously from loop(). It applies every event whose scheduled time
+  // has arrived, including multiple zero-delay events for simultaneous notes.
   if (!playbackActive) {
     return;
   }
@@ -475,6 +519,7 @@ void servicePlayback() {
 }
 
 void setup() {
+  // The runtime starts with all outputs off before it announces READY.
   Wire.begin();
   pwm.begin();
   pwm.setPWMFreq(RUNTIME_PCA9685_PWM_FREQUENCY_HZ);
@@ -489,6 +534,7 @@ void setup() {
 }
 
 void loop() {
+  // Serial loading and timed playback are both non-blocking during normal songs.
   pollSerial();
   servicePlayback();
 }

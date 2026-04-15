@@ -5,6 +5,7 @@
 // This sketch waits for serial commands from the Python reaction-time runner.
 // The runner starts a move, you tap Space when the servo reaches the target,
 // and the measured travel times are saved for pedal compensation later.
+// This is not used during normal solenoid playback yet.
 
 static const uint8_t PEDAL_SERVO_PIN = 2;
 static const uint8_t COMMAND_MARK_PIN = LED_BUILTIN;
@@ -28,6 +29,8 @@ void flashCommandMark() {
 }
 
 void moveServoAndAcknowledge(const __FlashStringHelper *label, uint8_t angleDeg) {
+  // Acknowledge immediately after commanding the move. Python measures from this
+  // command response until the user taps Space at the observed endpoint.
   flashCommandMark();
   pedalServo.write(angleDeg);
 

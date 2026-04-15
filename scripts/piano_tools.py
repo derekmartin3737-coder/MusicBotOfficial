@@ -1,3 +1,10 @@
+"""Calibration and debug tools for the solenoid keyboard.
+
+The normal player uses scripts/play_piano.py. This file is for hardware bring-up:
+checking the serial connection, firing channels safely one at a time, saving a
+note-to-channel calibration map, and tuning one channel's strike/hold values.
+"""
+
 import argparse
 import json
 import time
@@ -10,6 +17,7 @@ CALIBRATION_REPORT_TEXT_PATH = engine.METADATA_DIR / "calibration_report.txt"
 
 
 def build_calibration_pulse(actuation):
+    """Build a conservative test pulse from the configured actuation limits."""
     strike_pwm = int(round((int(actuation["strike_min_pwm"]) + int(actuation["strike_max_pwm"])) / 2))
     hold_pwm = int(round((int(actuation["hold_min_pwm"]) + int(actuation["hold_max_pwm"])) / 2))
     return {
@@ -22,6 +30,7 @@ def build_calibration_pulse(actuation):
 
 
 def open_runtime_connection(port_override=None):
+    """Connect to the already-uploaded MusicBotOfficial Arduino runtime."""
     deployment_config = engine.load_deployment_config()
     serial_config = dict(deployment_config.get("serial_runtime", {}))
     if port_override:
@@ -47,6 +56,7 @@ def open_runtime_connection(port_override=None):
 
 
 def fire_channel(connection, channel, pulse):
+    """Ask the Arduino runtime to fire one PCA9685 channel for calibration."""
     command = (
         f"FIRE {channel} {pulse['strike_pwm']} {pulse['hold_pwm']} "
         f"{pulse['strike_ms']} {pulse['hold_ms']} {pulse['release_ms']}"
@@ -55,6 +65,8 @@ def fire_channel(connection, channel, pulse):
 
 
 def save_calibrated_mapping(mapping, report_payload):
+    # The calibrated mapping is intentionally separate from piano_config.json so
+    # each machine can save its own wiring without changing the repo default.
     engine.CALIBRATED_MAPPING_PATH.write_text(
         json.dumps({"mapping": mapping, "report": report_payload}, indent=2),
         encoding="utf-8",
@@ -90,6 +102,7 @@ def build_mapping_lines(mapping):
 
 
 def iter_mapping_in_note_order(mapping):
+    """Yield configured channel tests in musical order when notes are known."""
     if mapping.get("mode") != "explicit_note_map":
         for channel in engine.get_mapping_channel_order(mapping):
             yield None, channel
@@ -113,6 +126,7 @@ def contiguous_octave_mapping(config, bottom_note):
 
 
 def run_sweep(connection, config):
+    """Fire every mapped note once so wiring/order mistakes are obvious."""
     print("\nSweeping mapped notes in ascending note order.")
     for note, channel in iter_mapping_in_note_order(config["mapping"]):
         actuation = engine.resolve_channel_actuation(channel, config)
@@ -157,6 +171,7 @@ def calibrate_contiguous_octave(connection, config, port, ready_info):
 
 
 def calibrate_manual_mapping(connection, config, port, ready_info):
+    """Build a mapping by firing each channel and asking which key moved."""
     note_to_channel = {}
     note_labels = {}
     channel_labels = dict(config["mapping"].get("channel_labels", {}))
@@ -212,6 +227,7 @@ def calibrate_manual_mapping(connection, config, port, ready_info):
 
 
 def tune_channel(connection, config, channel):
+    """Interactively test one channel's PWM and timing values."""
     actuation = engine.resolve_channel_actuation(channel, config)
     pulse = build_calibration_pulse(actuation)
 
@@ -314,6 +330,8 @@ def main():
     finally:
         if connection is not None:
             try:
+                # Always leave the MOSFET/PCA outputs off after a debug action,
+                # even if the user cancels or a command fails.
                 engine.send_serial_command(connection, "ALL_OFF", ("OK ALL_OFF",), timeout_seconds=2.0)
             except Exception:
                 pass

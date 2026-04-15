@@ -1,3 +1,12 @@
+/*
+  HeaderPlaybackFallback
+
+  Backup sketch for playing the generated current_song.h directly from Arduino
+  flash memory. The preferred workflow is the serial runtime in
+  arduino/MusicBotOfficial/MusicBotOfficial.ino, but this fallback is useful if
+  Python streaming is unavailable and a pre-generated song header already exists.
+*/
+
 #include <Arduino.h>
 #include <Wire.h>
 #include <avr/pgmspace.h>
@@ -26,6 +35,7 @@ void playSongOnce() {
 
   while (i < SONG_EVENT_COUNT) {
     SolenoidEvent e;
+    // SONG lives in flash/PROGMEM, so copy each event into RAM before using it.
     memcpy_P(&e, &SONG[i], sizeof(SolenoidEvent));
 
     delay(e.dt_ms);
@@ -35,6 +45,7 @@ void playSongOnce() {
     while (i < SONG_EVENT_COUNT) {
       SolenoidEvent simultaneousEvent;
       memcpy_P(&simultaneousEvent, &SONG[i], sizeof(SolenoidEvent));
+      // Consecutive zero-delay events are simultaneous notes/chords.
       if (simultaneousEvent.dt_ms != 0) {
         break;
       }

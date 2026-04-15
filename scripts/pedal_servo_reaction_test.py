@@ -1,3 +1,14 @@
+"""Reaction-time bench test for a sustain-pedal servo.
+
+This script pairs with arduino/PedalServoBenchTest/PedalServoBenchTest.ino. The
+Arduino moves the servo between two angles, and the user presses Space when the
+servo reaches the endpoint. The saved CSV/JSON timings estimate travel delay so
+future pedal support can trigger slightly early and land in time with the song.
+
+Important limitation: this is not closed-loop position feedback. The timing
+includes human reaction time and should be treated as an engineering estimate.
+"""
+
 import argparse
 import csv
 import json
@@ -83,6 +94,7 @@ def choose_serial_port(preferred_port=None):
 
 
 def read_until_prefix(connection, prefixes, timeout_seconds=4.0):
+    """Read serial lines until the Arduino sends one of the expected prefixes."""
     deadline = time.perf_counter() + timeout_seconds
     while time.perf_counter() < deadline:
         raw_line = connection.readline()
@@ -116,6 +128,7 @@ def flush_keyboard_buffer():
 
 
 def wait_for_space_press(prompt_text):
+    """Block until the user taps Space for one measured servo endpoint."""
     print(prompt_text)
     flush_keyboard_buffer()
 
@@ -132,6 +145,7 @@ def wait_for_space_press(prompt_text):
 
 
 def round_trip_arc_length_inches(arm_length_in, start_angle_deg, end_angle_deg):
+    """Estimate the servo arm tip travel distance for a given angular sweep."""
     theta_rad = math.radians(abs(end_angle_deg - start_angle_deg))
     return arm_length_in * theta_rad
 
@@ -183,6 +197,7 @@ def write_results(rows, summary):
 
 
 def summarize_trials(trials, args, port, test_started_at):
+    """Build human-readable aggregate timing values from the raw trials."""
     grouped = {"down": [], "up": []}
     for trial in trials:
         grouped[trial["direction"]].append(trial)
@@ -255,6 +270,7 @@ def print_summary(summary):
 
 
 def run_reaction_test(args):
+    """Run the full serial test sequence and write results under docs/."""
     if msvcrt is None:
         raise RuntimeError("This script currently supports Windows only because it uses spacebar capture.")
 
@@ -278,6 +294,8 @@ def run_reaction_test(args):
             f"will be used only to establish a full-range starting point and will not be recorded. "
         )
 
+        # The first movement may start from an unknown physical angle, so it is
+        # used only to put the servo at a known endpoint before measured moves.
         send_command(connection, "MOVE DOWN", ("OK MOVE_DOWN",), timeout_seconds=2.0)
         print("Priming move complete. This first move was omitted from the results.")
         time.sleep(args.settle_seconds)

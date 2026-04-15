@@ -1,3 +1,12 @@
+/*
+  SingleSolenoidBenchTest
+
+  Upload this sketch only when validating one solenoid/PCA9685/MOSFET channel.
+  It repeatedly fires channel 0 at soft, medium, and hard strike PWM values so
+  the team can confirm wiring, flyback protection, and safe force ranges before
+  running the full Python-controlled runtime.
+*/
+
 #include <Arduino.h>
 #include <Wire.h>
 #include <Adafruit_PWMServoDriver.h>
@@ -27,6 +36,7 @@ void allOff() {
 }
 
 void playTestNote(uint16_t strikePwm, uint16_t strikeMs, uint16_t holdPwm, uint16_t holdMs, uint16_t releaseMs) {
+  // Each note uses a strong strike, a lower hold, then a full release.
   setSolenoidPwm(strikePwm);
   delay(strikeMs);
 
