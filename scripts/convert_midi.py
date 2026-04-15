@@ -17,6 +17,7 @@ module.
 
 import argparse
 import copy
+import filecmp
 import json
 import re
 import shutil
@@ -258,6 +259,14 @@ def import_midi_to_library(source_path: Path):
         return source_path, False
 
     MIDI_DIR.mkdir(parents=True, exist_ok=True)
+    existing_same_name_path = MIDI_DIR / source_path.name
+    if existing_same_name_path.exists() and filecmp.cmp(source_path, existing_same_name_path, shallow=False):
+        return existing_same_name_path, False
+
+    for existing_import in MIDI_DIR.glob(f"{source_path.stem}_imported_v*{source_path.suffix}"):
+        if filecmp.cmp(source_path, existing_import, shallow=False):
+            return existing_import, False
+
     target_path = next_library_midi_path(source_path)
     shutil.copy2(source_path, target_path)
     return target_path, True

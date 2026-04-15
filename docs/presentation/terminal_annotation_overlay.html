@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Terminal Screenshot Overlay</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121a2d;
+      --text: #e9eefb;
+      --muted: #a7b3cc;
+      --accent-1: #4dd4ff;
+      --accent-2: #8eff8a;
+      --accent-3: #ffcf5a;
+      --accent-4: #ff8ac2;
+      --accent-5: #b59cff;
+      --border: rgba(255, 255, 255, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: linear-gradient(180deg, #09101f 0%, #12192f 100%);
+      color: var(--text);
+    }
+
+    .page {
+      max-width: 1480px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .panel {
+      background: rgba(18, 26, 45, 0.88);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px 20px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.28);
+    }
+
+    .header {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.2;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-top: 10px;
+    }
+
+    .controls label,
+    .controls button {
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .controls input {
+      display: none;
+    }
+
+    .controls button:hover,
+    .controls label:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .hint {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .stage {
+      position: relative;
+      margin-top: 18px;
+      width: 100%;
+      aspect-ratio: 1384 / 1058;
+      border-radius: 18px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at top left, rgba(77, 212, 255, 0.18), transparent 34%),
+        radial-gradient(circle at bottom right, rgba(181, 156, 255, 0.18), transparent 38%),
+        #070c16;
+      border: 1px solid var(--border);
+    }
+
+    .placeholder {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 24px;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.5;
+      z-index: 0;
+    }
+
+    .screenshot {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #000;
+      z-index: 1;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .annotation {
+      position: absolute;
+    }
+
+    .focus {
+      position: absolute;
+      inset: 0;
+      border: 3px solid var(--color);
+      border-radius: 16px;
+      background: color-mix(in srgb, var(--color) 18%, transparent);
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+    }
+
+    .label {
+      position: absolute;
+      width: min(27vw, 330px);
+      min-width: 220px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(12, 18, 32, 0.92);
+      border: 2px solid var(--color);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+    }
+
+    .label h2 {
+      margin: 0 0 6px;
+      font-size: 16px;
+      color: var(--color);
+    }
+
+    .label p {
+      font-size: 13px;
+      color: #edf2ff;
+    }
+
+    .marker {
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
+      background: var(--color);
+      color: #08111c;
+      font-weight: 700;
+      font-size: 14px;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+    }
+
+    .legend {
+      margin-top: 18px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .legend-item {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .legend-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      margin-top: 3px;
+      flex: 0 0 auto;
+    }
+
+    .presentation .header,
+    .presentation .legend {
+      display: none;
+    }
+
+    .presentation .page {
+      max-width: 100%;
+      padding: 0;
+    }
+
+    .presentation .panel {
+      background: transparent;
+      border: 0;
+      border-radius: 0;
+      padding: 0;
+      box-shadow: none;
+    }
+
+    .presentation .stage {
+      margin-top: 0;
+      height: 100vh;
+      aspect-ratio: auto;
+      border-radius: 0;
+      border: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="panel">
+      <div class="header">
+        <h1>Terminal Screenshot Overlay</h1>
+        <p>
+          Use this temporary file to place plain-English callouts on top of your terminal screenshot.
+          Open the file in a browser, choose the screenshot, and then take a clean screenshot in presentation mode.
+        </p>
+        <div class="controls">
+          <label>
+            Load Screenshot
+            <input id="imageInput" type="file" accept="image/*" />
+          </label>
+          <button id="togglePresentation" type="button">Toggle Presentation Mode</button>
+          <button id="resetImage" type="button">Clear Image</button>
+          <button id="downloadTip" type="button">How To Capture</button>
+        </div>
+        <div class="hint">
+          Recommended workflow: load your screenshot, toggle presentation mode, then use Windows Snipping Tool to capture the annotated result.
+        </div>
+      </div>
+
+      <div class="stage" id="stage">
+        <div class="placeholder" id="placeholder">
+          Drop in the terminal screenshot here with “Load Screenshot”.<br />
+          The overlay boxes are already positioned for the playback flow screenshot you shared.
+        </div>
+        <img id="screenshot" class="screenshot" alt="Terminal screenshot preview" />
+        <div class="overlay" id="overlay"></div>
+      </div>
+
+      <div class="legend">
+        <div class="legend-item">
+          <span class="legend-swatch" style="background: var(--accent-1);"></span>
+          <span><strong style="color: var(--accent-1);">1. Start command:</strong> shows the single command the user runs.</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-swatch" style="background: var(--accent-2);"></span>
+          <span><strong style="color: var(--accent-2);">2. Keyboard setup:</strong> confirms the saved physical piano mapping.</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-swatch" style="background: var(--accent-3);"></span>
+          <span><strong style="color: var(--accent-3);">3. MIDI fitting:</strong> explains how the script checks what the piano can play.</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-swatch" style="background: var(--accent-4);"></span>
+          <span><strong style="color: var(--accent-4);">4. Tempo choice:</strong> explains how the user keeps or adjusts speed.</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-swatch" style="background: var(--accent-5);"></span>
+          <span><strong style="color: var(--accent-5);">5. Summary:</strong> confirms the selected file and playback plan.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const annotations = [
+      {
+        number: "1",
+        color: "var(--accent-1)",
+        box: { left: 1.2, top: 3.1, width: 57, height: 5.4 },
+        marker: { left: 58.8, top: 2.4 },
+        label: { left: 61.5, top: 1.8 },
+        title: "Start The Script",
+        text: "This is the one command the user runs. It starts the piano-player workflow and looks for the latest MIDI file."
+      },
+      {
+        number: "2",
+        color: "var(--accent-2)",
+        box: { left: 1.2, top: 11.3, width: 61, height: 12.9 },
+        marker: { left: 63.2, top: 12.2 },
+        label: { left: 66.0, top: 10.6 },
+        title: "Confirm Keyboard Layout",
+        text: "This section checks the saved note mapping. If the piano hardware has not changed, the user just presses Enter to keep it."
+      },
+      {
+        number: "3",
+        color: "var(--accent-3)",
+        box: { left: 1.2, top: 25.7, width: 72, height: 17.2 },
+        marker: { left: 74.7, top: 27.1 },
+        label: { left: 77.1, top: 25.0 },
+        title: "Fit The Song To The Piano",
+        text: "The script scans the MIDI note range and compares it to the playable octave. The user then chooses whether to skip or transpose out-of-range notes."
+      },
+      {
+        number: "4",
+        color: "var(--accent-4)",
+        box: { left: 1.2, top: 45.8, width: 55, height: 18.5 },
+        marker: { left: 57.8, top: 47.2 },
+        label: { left: 60.5, top: 45.4 },
+        title: "Choose Playback Speed",
+        text: "This prompt lets the user keep the original tempo or slow down or speed up the song. Values like .5 are treated as a multiplier."
+      },
+      {
+        number: "5",
+        color: "var(--accent-5)",
+        box: { left: 1.2, top: 66.1, width: 88.8, height: 28.8 },
+        marker: { left: 90.9, top: 67.0 },
+        label: { left: 62.5, top: 78.0 },
+        title: "Playback Plan Summary",
+        text: "This final block confirms the selected MIDI, detected range, transpose choice, and the exact mapped notes and channels that will be used."
+      }
+    ];
+
+    const overlay = document.getElementById("overlay");
+    const screenshot = document.getElementById("screenshot");
+    const placeholder = document.getElementById("placeholder");
+    const imageInput = document.getElementById("imageInput");
+    const togglePresentation = document.getElementById("togglePresentation");
+    const resetImage = document.getElementById("resetImage");
+    const downloadTip = document.getElementById("downloadTip");
+
+    function percent(value) {
+      return `${value}%`;
+    }
+
+    function renderAnnotations() {
+      overlay.innerHTML = "";
+      annotations.forEach((item) => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "annotation";
+        wrapper.style.setProperty("--color", item.color);
+
+        const focus = document.createElement("div");
+        focus.className = "focus";
+        focus.style.left = percent(item.box.left);
+        focus.style.top = percent(item.box.top);
+        focus.style.width = percent(item.box.width);
+        focus.style.height = percent(item.box.height);
+
+        const marker = document.createElement("div");
+        marker.className = "marker";
+        marker.style.left = percent(item.marker.left);
+        marker.style.top = percent(item.marker.top);
+        marker.textContent = item.number;
+
+        const label = document.createElement("div");
+        label.className = "label";
+        label.style.left = percent(item.label.left);
+        label.style.top = percent(item.label.top);
+        label.innerHTML = `<h2>${item.number}. ${item.title}</h2><p>${item.text}</p>`;
+
+        wrapper.appendChild(focus);
+        wrapper.appendChild(marker);
+        wrapper.appendChild(label);
+        overlay.appendChild(wrapper);
+      });
+    }
+
+    function setImageFromFile(file) {
+      if (!file) {
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        screenshot.src = reader.result;
+        screenshot.style.display = "block";
+        placeholder.style.display = "none";
+      };
+      reader.readAsDataURL(file);
+    }
+
+    imageInput.addEventListener("change", (event) => {
+      const [file] = event.target.files;
+      setImageFromFile(file);
+    });
+
+    resetImage.addEventListener("click", () => {
+      screenshot.removeAttribute("src");
+      screenshot.style.display = "";
+      imageInput.value = "";
+      placeholder.style.display = "grid";
+    });
+
+    togglePresentation.addEventListener("click", () => {
+      document.body.classList.toggle("presentation");
+    });
+
+    downloadTip.addEventListener("click", () => {
+      alert(
+        "1. Load the screenshot.\n" +
+        "2. Toggle presentation mode.\n" +
+        "3. Use Snipping Tool or Win + Shift + S.\n" +
+        "4. Capture the browser window as your annotated slide image."
+      );
+    });
+
+    renderAnnotations();
+  </script>
+</body>
+</html>

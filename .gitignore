@@ -1,3 +1,28 @@
 __pycache__/
 *.pyc
 .venv/
+
+# Local IDE/project state
+.idea/
+
+# Volatile generated outputs from the last conversion/playback run.
+# These are useful on the local machine but should not change in Git every time
+# someone tests a different song.
+arduino/MusicBotOfficial/generated/current_song.h
+songs/metadata/current_song.json
+songs/metadata/last_streamed_song.json
+
+# Repeated imports created while testing downloaded MIDI files. Keep curated
+# project examples in songs/midi, but do not commit every local import attempt.
+songs/midi/*_imported_v*.mid
+arduino/MusicBotOfficial/generated/*_imported_v*.h
+songs/metadata/*_imported_v*.json
+songs/midi/local/
+
+# Local hardware calibration and measurement outputs.
+config/calibrated_mapping.json
+songs/metadata/calibration_report.json
+songs/metadata/calibration_report.txt
+docs/pedal_servo_reaction_results.csv
+docs/pedal_servo_reaction_summary.json
+docs/pedal_servo_test_log.csv

@@ -1,10 +1,14 @@
 /*
   HeaderPlaybackFallback
 
-  Backup sketch for playing the generated current_song.h directly from Arduino
-  flash memory. The preferred workflow is the serial runtime in
+  Backup sketch for playing a generated song header directly from Arduino flash
+  memory. The preferred workflow is the serial runtime in
   arduino/MusicBotOfficial/MusicBotOfficial.ino, but this fallback is useful if
   Python streaming is unavailable and a pre-generated song header already exists.
+
+  The include below points at a tracked sample song so this sketch compiles from
+  a fresh GitHub clone. To test a different exported header, change only this
+  include line locally.
 */
 
 #include <Arduino.h>
@@ -12,7 +16,7 @@
 #include <avr/pgmspace.h>
 #include <Adafruit_PWMServoDriver.h>
 
-#include "../MusicBotOfficial/generated/current_song.h"
+#include "../MusicBotOfficial/generated/CDE_Dynamics_Etude.h"
 
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(SONG_PCA9685_I2C_ADDRESS);
 

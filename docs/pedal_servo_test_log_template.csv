@@ -1,0 +1,13 @@
+trial_id,test_date,servo_model,arduino_pin,signal_source,supply_voltage_v,load_description,video_fps,up_angle_deg,down_angle_deg,command_direction,first_motion_ms,pedal_contact_ms,full_down_ms,pedal_clear_ms,full_up_ms,audible_noise_rating_1_to_5,chatter_yes_no,stall_yes_no,missed_motion_yes_no,notes
+1,,,,2,Arduino Uno digital pin 2,,,,,down,,,,,,,,
+2,,,,2,Arduino Uno digital pin 2,,,,,up,,,,,,,,
+3,,,,2,Arduino Uno digital pin 2,,,,,down,,,,,,,,
+4,,,,2,Arduino Uno digital pin 2,,,,,up,,,,,,,,
+5,,,,2,Arduino Uno digital pin 2,,,,,down,,,,,,,,
+6,,,,2,Arduino Uno digital pin 2,,,,,up,,,,,,,,
+7,,,,2,Arduino Uno digital pin 2,,,,,down,,,,,,,,
+8,,,,2,Arduino Uno digital pin 2,,,,,up,,,,,,,,
+9,,,,2,Arduino Uno digital pin 2,,,,,down,,,,,,,,
+10,,,,2,Arduino Uno digital pin 2,,,,,up,,,,,,,,
+11,,,,2,Arduino Uno digital pin 2,,,,,down,,,,,,,,
+12,,,,2,Arduino Uno digital pin 2,,,,,up,,,,,,,,
