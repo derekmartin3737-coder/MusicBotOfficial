@@ -1002,6 +1002,27 @@ def summarize_octave_shift_counts(shift_counts):
     return ", ".join(parts)
 
 
+def build_transpose_stats_from_scheduled_notes(scheduled_notes, skipped_for_timing=0):
+    shift_counts = defaultdict(int)
+    remapped_note_events = 0
+
+    for note_event in scheduled_notes:
+        source_note = int(note_event.get("source_note", note_event["note"]))
+        input_note = int(note_event["note"])
+        semitone_shift = input_note - source_note
+        if semitone_shift == 0:
+            continue
+        remapped_note_events += 1
+        shift_counts[semitone_shift] += 1
+
+    return {
+        "remapped_note_events": remapped_note_events,
+        "shift_counts": dict(sorted(shift_counts.items())),
+        "shift_summary": summarize_octave_shift_counts(shift_counts),
+        "skipped_for_timing": skipped_for_timing,
+    }
+
+
 def describe_recognizability(playable_count, total_count):
     if total_count <= 0:
         return "no pitched note events were found"
@@ -1050,6 +1071,22 @@ def transpose_note_intervals_to_available_octaves(note_intervals, mapping_config
         "shift_counts": dict(sorted(shift_counts.items())),
         "shift_summary": summarize_octave_shift_counts(shift_counts),
     }
+
+
+def get_octave_transpose_candidate_notes(note, mapping_config):
+    direct_channel = map_note_to_channel(note, mapping_config)
+    if direct_channel is not None:
+        return [int(note)]
+
+    if mapping_config["mode"] == "collapse_all_notes_to_single_channel":
+        return [int(note)]
+
+    supported_notes = get_mapping_note_numbers(mapping_config)
+    candidates = [supported_note for supported_note in supported_notes if (supported_note % 12) == (int(note) % 12)]
+    return sorted(
+        candidates,
+        key=lambda candidate: (abs(candidate - int(note)), 0 if candidate <= int(note) else 1, candidate),
+    )
 
 
 def prompt_for_fit_mode(note_intervals, mapping_config, preset=None):
@@ -1257,6 +1294,160 @@ def schedule_notes(note_intervals, config):
         "unmapped_notes": unmapped_notes,
         "unmapped_note_counts": {str(note): count for note, count in sorted(unmapped_note_counts.items())},
         "channels_used": sorted(notes_by_channel),
+    }
+
+
+def schedule_notes_with_octave_transpose(note_intervals, config):
+    """Schedule notes while choosing octave-fold targets that minimize timing damage.
+
+    Exact in-range notes stay on their mapped key. Out-of-range notes can choose
+    among playable same-pitch-class targets across the available octave(s). If a
+    remapped note would have to be delayed, it is skipped rather than shifting
+    the beat later in time.
+    """
+    mapping_config = config["mapping"]
+
+    channel_states = {}
+    scheduled_notes = []
+    forced_retriggers = 0
+    delayed_notes = 0
+    unmapped_notes = 0
+    unmapped_note_counts = defaultdict(int)
+    channels_used = set()
+    skipped_transposed_notes_for_timing = 0
+
+    def get_channel_state(channel):
+        if channel not in channel_states:
+            channel_states[channel] = {
+                "active_note": None,
+                "last_off_ms": -1_000_000,
+            }
+        return channel_states[channel]
+
+    def evaluate_candidate(interval, target_note, channel):
+        channel_actuation = resolve_channel_actuation(channel, config)
+        release_delay_ms = int(channel_actuation["release_delay_ms"])
+        minimum_rearm_gap_ms = int(channel_actuation["minimum_rearm_gap_ms"])
+        retrigger_gap_ms = int(channel_actuation["retrigger_gap_ms"])
+
+        state = get_channel_state(channel)
+        active_note = state["active_note"]
+        last_off_ms = state["last_off_ms"]
+        naturally_closed_note = None
+        truncated_active_end_ms = None
+        forced_retrigger = False
+        gap_ms = minimum_rearm_gap_ms
+
+        if active_note and interval["start_ms"] >= active_note["end_ms"]:
+            naturally_closed_note = active_note
+            last_off_ms = active_note["end_ms"] + release_delay_ms
+            active_note = None
+
+        if active_note and interval["start_ms"] < active_note["end_ms"]:
+            forced_retrigger = True
+            truncated_active_end_ms = max(active_note["start_ms"] + 1, interval["start_ms"])
+            last_off_ms = truncated_active_end_ms + release_delay_ms
+            gap_ms = retrigger_gap_ms
+
+        start_ms = max(interval["start_ms"], last_off_ms + gap_ms)
+        delay_ms = start_ms - interval["start_ms"]
+
+        return {
+            "channel": channel,
+            "target_note": target_note,
+            "start_ms": start_ms,
+            "delay_ms": delay_ms,
+            "forced_retrigger": forced_retrigger,
+            "naturally_closed_note": naturally_closed_note,
+            "truncated_active_end_ms": truncated_active_end_ms,
+        }
+
+    for interval in sorted(note_intervals, key=lambda item: (item["start_ms"], item["note"], item["end_ms"])):
+        source_note = int(interval.get("source_note", interval["note"]))
+        candidate_notes = get_octave_transpose_candidate_notes(source_note, mapping_config)
+        if not candidate_notes:
+            unmapped_notes += 1
+            unmapped_note_counts[source_note] += 1
+            continue
+
+        candidate_evaluations = []
+        for target_note in candidate_notes:
+            channel = map_note_to_channel(target_note, mapping_config)
+            if channel is None:
+                continue
+            candidate_evaluations.append(evaluate_candidate(interval, int(target_note), int(channel)))
+
+        if not candidate_evaluations:
+            unmapped_notes += 1
+            unmapped_note_counts[source_note] += 1
+            continue
+
+        best_candidate = min(
+            candidate_evaluations,
+            key=lambda candidate: (
+                candidate["delay_ms"],
+                1 if candidate["forced_retrigger"] else 0,
+                abs(candidate["target_note"] - source_note),
+                candidate["target_note"],
+                candidate["channel"],
+            ),
+        )
+
+        remapped_note = best_candidate["target_note"] != source_note
+        if remapped_note and best_candidate["delay_ms"] > 0:
+            skipped_transposed_notes_for_timing += 1
+            unmapped_notes += 1
+            unmapped_note_counts[source_note] += 1
+            continue
+
+        state = get_channel_state(best_candidate["channel"])
+        channel_actuation = resolve_channel_actuation(best_candidate["channel"], config)
+        release_delay_ms = int(channel_actuation["release_delay_ms"])
+
+        if best_candidate["naturally_closed_note"] is not None:
+            scheduled_notes.append(best_candidate["naturally_closed_note"])
+            state["last_off_ms"] = best_candidate["naturally_closed_note"]["end_ms"] + release_delay_ms
+            state["active_note"] = None
+
+        if best_candidate["forced_retrigger"] and state["active_note"] is not None:
+            state["active_note"]["end_ms"] = best_candidate["truncated_active_end_ms"]
+            scheduled_notes.append(state["active_note"])
+            state["last_off_ms"] = state["active_note"]["end_ms"] + release_delay_ms
+            state["active_note"] = None
+            forced_retriggers += 1
+
+        original_duration_ms = max(1, interval["end_ms"] - interval["start_ms"])
+        start_ms = best_candidate["start_ms"]
+        if start_ms > interval["start_ms"]:
+            delayed_notes += 1
+
+        active_note = {
+            **interval,
+            "source_note": source_note,
+            "note": best_candidate["target_note"],
+            "channel": best_candidate["channel"],
+            "original_start_ms": interval["start_ms"],
+            "original_end_ms": interval["end_ms"],
+            "original_duration_ms": original_duration_ms,
+            "start_ms": start_ms,
+            "end_ms": max(start_ms + 1, start_ms + original_duration_ms),
+        }
+        state["active_note"] = active_note
+        channels_used.add(best_candidate["channel"])
+
+    for channel, state in channel_states.items():
+        if state["active_note"] is not None:
+            scheduled_notes.append(state["active_note"])
+            channels_used.add(channel)
+
+    scheduled_notes.sort(key=lambda item: (item["start_ms"], item["channel"], item["note"]))
+    return scheduled_notes, {
+        "forced_retriggers": forced_retriggers,
+        "delayed_notes": delayed_notes,
+        "unmapped_notes": unmapped_notes,
+        "unmapped_note_counts": {str(note): count for note, count in sorted(unmapped_note_counts.items())},
+        "channels_used": sorted(channels_used),
+        "skipped_transposed_notes_for_timing": skipped_transposed_notes_for_timing,
     }
 
 
@@ -1909,17 +2100,12 @@ def run_conversion_workflow(
         return {"cancelled": True}
 
     if fit_selection["mode"] == "strict":
-        shifted_intervals = [dict(interval) for interval in note_intervals]
         transpose_stats = {
             "remapped_note_events": 0,
             "shift_counts": {},
             "shift_summary": "no octave remapping was applied",
+            "skipped_for_timing": 0,
         }
-    else:
-        shifted_intervals, transpose_stats = transpose_note_intervals_to_available_octaves(
-            note_intervals,
-            effective_mapping,
-        )
 
     if preferred_tempo is None:
         preferred_tempo = user_preferences["playback"].get("default_tempo", "")
@@ -1927,8 +2113,15 @@ def run_conversion_workflow(
         tempo_override = prompt_for_tempo_override(tempo_info["first_bpm"], preset=preferred_tempo)
     else:
         tempo_override = parse_tempo_override_input("", tempo_info["first_bpm"])
-    scaled_intervals = scale_intervals(shifted_intervals, tempo_override["scale"])
-    scheduled_notes, scheduling_stats = schedule_notes(scaled_intervals, effective_config)
+    scaled_intervals = scale_intervals(note_intervals, tempo_override["scale"])
+    if fit_selection["mode"] == "strict":
+        scheduled_notes, scheduling_stats = schedule_notes(scaled_intervals, effective_config)
+    else:
+        scheduled_notes, scheduling_stats = schedule_notes_with_octave_transpose(scaled_intervals, effective_config)
+        transpose_stats = build_transpose_stats_from_scheduled_notes(
+            scheduled_notes,
+            skipped_for_timing=scheduling_stats.get("skipped_transposed_notes_for_timing", 0),
+        )
     if not scheduled_notes:
         raise ValueError(
             "No playable notes remained after applying the selected fit mode. Try transpose, a different playable range, or another song."
@@ -1982,6 +2175,7 @@ def run_conversion_workflow(
         "transpose_remapped_note_events": transpose_stats["remapped_note_events"],
         "transpose_shift_counts": transpose_stats["shift_counts"],
         "transpose_shift_summary": transpose_stats["shift_summary"],
+        "transpose_skipped_for_timing": transpose_stats["skipped_for_timing"],
         "strict_playable_count": fit_selection["strict_playable_count"],
         "strict_playable_summary": fit_selection["strict_summary"],
         "transpose_playable_count": fit_selection["transpose_playable_count"],
@@ -2025,6 +2219,11 @@ def run_conversion_workflow(
     report_line(reporter, f"Transpose coverage: {fit_selection['transpose_summary']}")
     report_line(reporter, f"Fit mode used: {fit_mode_label}")
     report_line(reporter, f"Transpose remap summary: {transpose_stats['shift_summary']}")
+    if transpose_stats["skipped_for_timing"] > 0:
+        report_line(
+            reporter,
+            f"Transpose timing guard skipped {transpose_stats['skipped_for_timing']} remapped note events to keep the beat on time.",
+        )
     report_line(reporter, f"Recognizability estimate: {recognizability_summary}")
     report_line(reporter, f"Range override used: {'yes' if mapping_overridden else 'no'}")
     if interval_stats["percussion_events_skipped"] > len(note_intervals):
