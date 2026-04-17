@@ -8,10 +8,10 @@
   ALL_OFF.
 
   Hardware path:
-    Arduino Uno A4/A5 I2C -> PCA9685 PWM board -> MOSFET driver board -> solenoids
+    Arduino Uno A4/A5 I2C -> PCA9685 PWM boards -> MOSFET driver board -> solenoids
 
   Safety note:
-    ALL_OFF sets every PCA9685 channel to zero. Use it whenever a test is
+    ALL_OFF sets every PCA9685 output on every board to zero. Use it whenever a test is
     stopped, a serial error occurs, or a solenoid sounds like it is being held.
 */
 
@@ -19,18 +19,28 @@
 #include <Wire.h>
 #include <Adafruit_PWMServoDriver.h>
 
-// PCA9685 address/frequency must match config/piano_config.json on the Python side.
-static const uint8_t RUNTIME_PCA9685_I2C_ADDRESS = 0x40;
+// PCA9685 addresses/frequency must match config/piano_config.json on the Python side.
+static const uint8_t RUNTIME_PCA_BOARD_COUNT = 4;
+static const uint8_t RUNTIME_PCA_CHANNELS_PER_BOARD = 16;
+static const uint8_t RUNTIME_GLOBAL_CHANNEL_COUNT =
+    RUNTIME_PCA_BOARD_COUNT * RUNTIME_PCA_CHANNELS_PER_BOARD;
+static const uint8_t RUNTIME_PCA9685_I2C_ADDRESSES[RUNTIME_PCA_BOARD_COUNT] = {
+    0x40,
+    0x41,
+    0x42,
+    0x43,
+};
 static const uint16_t RUNTIME_PCA9685_PWM_FREQUENCY_HZ = 250;
 static const uint32_t RUNTIME_SERIAL_BAUD = 115200;
-static const uint8_t RUNTIME_PROTOCOL_VERSION = 2;
+static const uint8_t RUNTIME_PROTOCOL_VERSION = 3;
 
 // Small RAM buffer for streamed events. Python keeps refilling this while
 // playback is running so the Uno does not need to store an entire song.
 static const uint8_t EVENT_BUFFER_CAPACITY = 48;
 static const uint16_t LINE_BUFFER_SIZE = 96;
 
-// One low-level actuator event: wait dt_ms, then set one PCA9685 channel to pwm.
+// One low-level actuator event: wait dt_ms, then set one global channel to pwm.
+// Global channel 0-63 is translated into a PCA9685 board plus its local channel.
 // pwm = 0 releases the solenoid, higher values create strike/hold force.
 typedef struct {
   uint32_t dt_ms;
@@ -38,7 +48,12 @@ typedef struct {
   uint16_t pwm;
 } SolenoidEvent;
 
-Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(RUNTIME_PCA9685_I2C_ADDRESS);
+Adafruit_PWMServoDriver pwmBoards[RUNTIME_PCA_BOARD_COUNT] = {
+    Adafruit_PWMServoDriver(RUNTIME_PCA9685_I2C_ADDRESSES[0]),
+    Adafruit_PWMServoDriver(RUNTIME_PCA9685_I2C_ADDRESSES[1]),
+    Adafruit_PWMServoDriver(RUNTIME_PCA9685_I2C_ADDRESSES[2]),
+    Adafruit_PWMServoDriver(RUNTIME_PCA9685_I2C_ADDRESSES[3]),
+};
 
 // Circular queue used between serial loading and timed playback.
 SolenoidEvent eventBuffer[EVENT_BUFFER_CAPACITY];
@@ -68,11 +83,23 @@ uint8_t freeEventSlots() {
 }
 
 void allChannelsOff() {
-  // The PCA9685 has 16 outputs; turn all of them off, even if the current build
+  // Turn every output off on every PCA9685 board, even if the current build
   // only wires some channels. This is the safest stop state.
-  for (uint8_t channel = 0; channel < 16; channel++) {
-    pwm.setPWM(channel, 0, 0);
+  for (uint8_t boardIndex = 0; boardIndex < RUNTIME_PCA_BOARD_COUNT; boardIndex++) {
+    for (uint8_t channel = 0; channel < RUNTIME_PCA_CHANNELS_PER_BOARD; channel++) {
+      pwmBoards[boardIndex].setPWM(channel, 0, 0);
+    }
   }
+}
+
+void setGlobalChannelPwm(uint8_t globalChannel, uint16_t pwmValue) {
+  if (globalChannel >= RUNTIME_GLOBAL_CHANNEL_COUNT) {
+    return;
+  }
+
+  uint8_t boardIndex = globalChannel / RUNTIME_PCA_CHANNELS_PER_BOARD;
+  uint8_t localChannel = globalChannel % RUNTIME_PCA_CHANNELS_PER_BOARD;
+  pwmBoards[boardIndex].setPWM(localChannel, 0, pwmValue);
 }
 
 void resetEventQueue() {
@@ -179,7 +206,7 @@ void sendStatus() {
 }
 
 bool parseEventLine(const char *line, SolenoidEvent *eventOut) {
-  // EVENT lines come from Python in the form: EVENT <dt_ms> <channel> <pwm>.
+  // EVENT lines come from Python in the form: EVENT <dt_ms> <global_channel> <pwm>.
   unsigned long dtValue = 0;
   unsigned int channelValue = 0;
   unsigned int pwmValue = 0;
@@ -187,7 +214,7 @@ bool parseEventLine(const char *line, SolenoidEvent *eventOut) {
   if (parsed != 3) {
     return false;
   }
-  if (channelValue > 15 || pwmValue > 4095) {
+  if (channelValue >= RUNTIME_GLOBAL_CHANNEL_COUNT || pwmValue > 4095) {
     return false;
   }
 
@@ -227,7 +254,8 @@ bool parseFireLine(
   if (parsed != 6) {
     return false;
   }
-  if (channelValue > 15 || strikePwmValue > 4095 || holdPwmValue > 4095) {
+  if (channelValue >= RUNTIME_GLOBAL_CHANNEL_COUNT || strikePwmValue > 4095 ||
+      holdPwmValue > 4095) {
     return false;
   }
 
@@ -249,15 +277,15 @@ void performCalibrationFire(
     uint16_t releaseMs) {
   // A test pulse is intentionally blocking. It is only used outside playback
   // while a person is listening/watching one channel at a time.
-  pwm.setPWM(channel, 0, strikePwm);
+  setGlobalChannelPwm(channel, strikePwm);
   delay(strikeMs);
 
   if (holdMs > 0 && holdPwm > 0) {
-    pwm.setPWM(channel, 0, holdPwm);
+    setGlobalChannelPwm(channel, holdPwm);
     delay(holdMs);
   }
 
-  pwm.setPWM(channel, 0, 0);
+  setGlobalChannelPwm(channel, 0);
   if (releaseMs > 0) {
     delay(releaseMs);
   }
@@ -495,7 +523,7 @@ void servicePlayback() {
       return;
     }
 
-    pwm.setPWM(event.channel, 0, event.pwm);
+    setGlobalChannelPwm(event.channel, event.pwm);
     playedSongEventCount++;
     lastEventDueAtMs = nextEventDueAtMs;
     dueTimeArmed = false;
@@ -521,8 +549,10 @@ void servicePlayback() {
 void setup() {
   // The runtime starts with all outputs off before it announces READY.
   Wire.begin();
-  pwm.begin();
-  pwm.setPWMFreq(RUNTIME_PCA9685_PWM_FREQUENCY_HZ);
+  for (uint8_t boardIndex = 0; boardIndex < RUNTIME_PCA_BOARD_COUNT; boardIndex++) {
+    pwmBoards[boardIndex].begin();
+    pwmBoards[boardIndex].setPWMFreq(RUNTIME_PCA9685_PWM_FREQUENCY_HZ);
+  }
   allChannelsOff();
 
   Serial.begin(RUNTIME_SERIAL_BAUD);

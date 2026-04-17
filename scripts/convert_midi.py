@@ -41,6 +41,8 @@ except ImportError:
 DEFAULT_TEMPO_US_PER_BEAT = 500000
 ACTIVE_HEADER_NAME = "current_song.h"
 ACTIVE_METADATA_NAME = "current_song.json"
+PCA9685_CHANNELS_PER_BOARD = 16
+MAX_PCA9685_BOARDS = 4
 
 VERSION_RE = re.compile(r"^(?P<name>.+?)(?:_v(?P<version>\d+))?$")
 NOTE_TOKEN_RE = re.compile(r"^\s*([A-Ga-g])([#b]?)(-?\d+)\s*$")
@@ -76,6 +78,82 @@ DEFAULT_USER_PREFERENCES = {
 
 def clamp(value, minimum, maximum):
     return max(minimum, min(maximum, value))
+
+
+def report_line(reporter, message=""):
+    if reporter is None:
+        return
+    reporter(message)
+
+
+def normalize_pca_config(pca_config):
+    normalized = dict(pca_config or {})
+    board_addresses = normalized.get("board_addresses")
+    if board_addresses:
+        normalized["board_addresses"] = [int(address) for address in board_addresses]
+    elif "i2c_address" in normalized:
+        normalized["board_addresses"] = [int(normalized["i2c_address"])]
+    else:
+        normalized["board_addresses"] = [0x40]
+    normalized["pwm_frequency_hz"] = int(normalized.get("pwm_frequency_hz", 250))
+    return normalized
+
+
+def get_pca_board_addresses(config_or_pca):
+    if "pca9685" in config_or_pca:
+        pca_config = config_or_pca["pca9685"]
+    else:
+        pca_config = config_or_pca
+    return normalize_pca_config(pca_config)["board_addresses"]
+
+
+def get_global_channel_capacity(config_or_pca):
+    return len(get_pca_board_addresses(config_or_pca)) * PCA9685_CHANNELS_PER_BOARD
+
+
+def split_global_channel(channel, config_or_pca):
+    channel = int(channel)
+    board_addresses = get_pca_board_addresses(config_or_pca)
+    capacity = len(board_addresses) * PCA9685_CHANNELS_PER_BOARD
+    if not 0 <= channel < capacity:
+        raise ValueError(
+            f"Global channel {channel} is outside the configured PCA9685 capacity of 0-{capacity - 1}."
+        )
+
+    board_index = channel // PCA9685_CHANNELS_PER_BOARD
+    local_channel = channel % PCA9685_CHANNELS_PER_BOARD
+    return {
+        "global_channel": channel,
+        "board_index": board_index,
+        "i2c_address": board_addresses[board_index],
+        "local_channel": local_channel,
+    }
+
+
+def describe_global_channel(channel, config_or_pca):
+    target = split_global_channel(channel, config_or_pca)
+    return (
+        f"global channel {target['global_channel']} "
+        f"(PCA9685 0x{target['i2c_address']:02X} channel {target['local_channel']})"
+    )
+
+
+def validate_mapping_channels(mapping_config, pca_config):
+    capacity = get_global_channel_capacity(pca_config)
+
+    def validate_channel_value(channel, context):
+        channel = int(channel)
+        if not 0 <= channel < capacity:
+            raise ValueError(
+                f"{context} uses global channel {channel}, but the configured PCA9685 hardware only exposes "
+                f"channels 0-{capacity - 1}."
+            )
+
+    for note, channel in mapping_config.get("note_to_channel", {}).items():
+        validate_channel_value(channel, f"Note {note}")
+
+    for channel in mapping_config.get("channel_sequence", []):
+        validate_channel_value(channel, "channel_sequence")
 
 
 def midi_note_name(note: int):
@@ -137,6 +215,22 @@ def parse_inclusive_note_range(raw: str):
     return bottom_note, top_note
 
 
+def parse_active_channel_count(raw, pca_config):
+    raw = str(raw).strip()
+    if not raw:
+        return None
+
+    try:
+        count = int(raw)
+    except ValueError as error:
+        raise ValueError("Active hardware channel count must be a whole number.") from error
+
+    capacity = get_global_channel_capacity(pca_config)
+    if not 1 <= count <= capacity:
+        raise ValueError(f"Active hardware channel count must be between 1 and {capacity}.")
+    return count
+
+
 def format_note_range(bottom_note: int, top_note: int):
     return f"{midi_note_name(bottom_note)} to {midi_note_name(top_note)}"
 
@@ -164,6 +258,7 @@ def load_config():
 
     with CONFIG_PATH.open("r", encoding="utf-8") as handle:
         config = json.load(handle)
+    config["pca9685"] = normalize_pca_config(config.get("pca9685", {}))
 
     # Manual calibration writes config/calibrated_mapping.json. When that file
     # exists, it overrides the default repo mapping without permanently editing
@@ -177,6 +272,8 @@ def load_config():
             config["mapping"] = calibrated_mapping
             config.setdefault("notes", {})
             config["notes"]["calibrated_mapping_path"] = str(CALIBRATED_MAPPING_PATH.relative_to(REPO_ROOT))
+
+    validate_mapping_channels(config["mapping"], config["pca9685"])
 
     return config
 
@@ -272,6 +369,73 @@ def import_midi_to_library(source_path: Path):
     return target_path, True
 
 
+def build_song_catalog(user_preferences):
+    download_midis = collect_download_midis(DOWNLOADS_DIR)
+    project_midis = collect_midis(MIDI_DIR)
+    latest_zip = find_latest_download_zip(DOWNLOADS_DIR)
+    auto_use_latest = bool(user_preferences["playback"].get("auto_use_newest_download", True))
+
+    entries = []
+    for path in download_midis:
+        entries.append(
+            {
+                "path": path,
+                "source": "Downloads",
+                "display_name": path.name,
+                "description": f"Downloads | {path.name}",
+            }
+        )
+    for path in project_midis:
+        entries.append(
+            {
+                "path": path,
+                "source": "Library",
+                "display_name": path.name,
+                "description": f"Library | {path.name}",
+            }
+        )
+
+    suggested_path = None
+    suggested_reason = None
+    if download_midis and auto_use_latest:
+        suggested_path = download_midis[0]
+        suggested_reason = "newest downloaded MIDI in Windows Downloads"
+    elif project_midis:
+        suggested_path = project_midis[0]
+        suggested_reason = "first song in the project MIDI library"
+    elif download_midis:
+        suggested_path = download_midis[0]
+        suggested_reason = "newest downloaded MIDI in Windows Downloads"
+
+    return {
+        "entries": entries,
+        "suggested_path": suggested_path,
+        "suggested_reason": suggested_reason,
+        "latest_zip": latest_zip,
+    }
+
+
+def inspect_midi_file(midi_path):
+    midi_path = Path(midi_path).expanduser()
+    mid = MidiFile(str(midi_path))
+    tempo_info = scan_tempo_info(mid)
+    note_intervals, interval_stats = extract_note_intervals(mid)
+    range_info = analyze_note_range(note_intervals)
+
+    return {
+        "path": midi_path,
+        "name": midi_path.name,
+        "track_count": len(mid.tracks),
+        "type": mid.type,
+        "ticks_per_beat": mid.ticks_per_beat,
+        "tempo_bpm": tempo_info["first_bpm"],
+        "tempo_change_count": tempo_info["tempo_change_count"],
+        "range_label": range_info["range_label"],
+        "note_count": len(note_intervals),
+        "percussion_events_skipped": interval_stats["percussion_events_skipped"],
+    }
+
+
 def choose_input_midi(args, user_preferences):
     # Selection priority is deliberate:
     # direct path > named project song > interactive library > newest download.
@@ -318,7 +482,16 @@ def choose_input_midi(args, user_preferences):
 
 
 def collect_midis(directory: Path):
-    return sorted(directory.glob("*.mid"), key=lambda path: path.name.lower())
+    if not directory.exists():
+        return []
+    return sorted(
+        [
+            path
+            for path in directory.iterdir()
+            if path.is_file() and path.suffix.lower() in {".mid", ".midi"}
+        ],
+        key=lambda path: path.name.lower(),
+    )
 
 
 def prompt_for_song(midi_files):
@@ -565,6 +738,75 @@ def get_mapping_channel_order(mapping_config):
     raise ValueError(f"Unsupported mapping mode: {mode}")
 
 
+def get_available_channel_sequence(mapping_config, pca_config):
+    capacity = get_global_channel_capacity(pca_config)
+    base_sequence = get_mapping_channel_order(mapping_config)
+    available = list(base_sequence)
+    seen_channels = set(available)
+
+    for channel in range(capacity):
+        if channel not in seen_channels:
+            available.append(channel)
+            seen_channels.add(channel)
+
+    return available
+
+
+def resolve_active_channel_sequence(mapping_config, pca_config, active_channel_count=None):
+    current_sequence = get_mapping_channel_order(mapping_config)
+    if active_channel_count in (None, ""):
+        return current_sequence
+
+    count = parse_active_channel_count(active_channel_count, pca_config)
+    available_sequence = get_available_channel_sequence(mapping_config, pca_config)
+    return available_sequence[:count]
+
+
+def apply_active_channel_limit(mapping_config, pca_config, active_channel_count=None):
+    resolved_sequence = resolve_active_channel_sequence(mapping_config, pca_config, active_channel_count)
+    limited_mapping = copy.deepcopy(mapping_config)
+    limited_mapping["channel_sequence"] = resolved_sequence
+
+    if limited_mapping["mode"] == "collapse_all_notes_to_single_channel":
+        single_channel = int(limited_mapping["single_channel"])
+        if single_channel not in set(resolved_sequence):
+            raise ValueError(
+                f"Single-channel test mode uses {describe_global_channel(single_channel, pca_config)}, "
+                "but that channel is outside the currently active hardware count."
+            )
+    elif limited_mapping["mode"] == "explicit_note_map":
+        active_channels = set(resolved_sequence)
+        note_to_channel = {
+            str(note): int(channel)
+            for note, channel in limited_mapping.get("note_to_channel", {}).items()
+            if int(channel) in active_channels
+        }
+        limited_mapping["note_to_channel"] = dict(sorted(note_to_channel.items(), key=lambda item: int(item[0])))
+
+        if "note_labels" in limited_mapping:
+            limited_mapping["note_labels"] = {
+                note: label
+                for note, label in limited_mapping["note_labels"].items()
+                if note in limited_mapping["note_to_channel"]
+            }
+
+    return limited_mapping, resolved_sequence
+
+
+def summarize_active_channel_sequence(channel_sequence, pca_config):
+    if not channel_sequence:
+        return "No active hardware channels selected"
+
+    if len(channel_sequence) == 1:
+        return f"1 active hardware channel: {describe_global_channel(channel_sequence[0], pca_config)}"
+
+    return (
+        f"{len(channel_sequence)} active hardware channels from "
+        f"{describe_global_channel(channel_sequence[0], pca_config)} through "
+        f"{describe_global_channel(channel_sequence[-1], pca_config)}"
+    )
+
+
 def get_mapping_note_numbers(mapping_config):
     if mapping_config["mode"] == "explicit_note_map":
         return sorted(int(note) for note in mapping_config.get("note_to_channel", {}))
@@ -710,6 +952,56 @@ def count_playable_intervals(note_intervals, mapping_config, semitone_shift=0):
     return playable_count
 
 
+def find_octave_transpose_target(note, mapping_config):
+    if map_note_to_channel(note, mapping_config) is not None:
+        return note
+
+    if mapping_config["mode"] == "collapse_all_notes_to_single_channel":
+        return note
+
+    supported_notes = get_mapping_note_numbers(mapping_config)
+    if not supported_notes:
+        return None
+
+    same_pitch_class_candidates = [
+        supported_note for supported_note in supported_notes if (supported_note % 12) == (note % 12)
+    ]
+    if not same_pitch_class_candidates:
+        return None
+
+    # Prefer the nearest playable octave. On exact ties, prefer the lower note
+    # so the remap is stable and does not unexpectedly jump upward.
+    return min(
+        same_pitch_class_candidates,
+        key=lambda candidate: (abs(candidate - note), 0 if candidate <= note else 1, candidate),
+    )
+
+
+def count_octave_transposed_playable_intervals(note_intervals, mapping_config):
+    playable_count = 0
+    note_target_cache = {}
+    for interval in note_intervals:
+        note = int(interval["note"])
+        if note not in note_target_cache:
+            note_target_cache[note] = find_octave_transpose_target(note, mapping_config)
+        if note_target_cache[note] is not None:
+            playable_count += 1
+    return playable_count
+
+
+def summarize_octave_shift_counts(shift_counts):
+    if not shift_counts:
+        return "no octave remapping was needed"
+
+    parts = []
+    for semitone_shift, count in sorted(shift_counts.items(), key=lambda item: (abs(item[0]), item[0])):
+        direction = "up" if semitone_shift > 0 else "down"
+        octave_count = abs(semitone_shift) // 12
+        noun = "note event" if count == 1 else "note events"
+        parts.append(f"{count} {noun} {direction} {octave_count} octave(s)")
+    return ", ".join(parts)
+
+
 def describe_recognizability(playable_count, total_count):
     if total_count <= 0:
         return "no pitched note events were found"
@@ -724,75 +1016,68 @@ def describe_recognizability(playable_count, total_count):
     return "probably fragmentary"
 
 
-def find_best_octave_shift(note_intervals, mapping_config):
-    if mapping_config["mode"] == "collapse_all_notes_to_single_channel":
-        return 0, len(note_intervals)
-
-    supported_notes = get_mapping_note_numbers(mapping_config)
-    if not supported_notes or not note_intervals:
-        return 0, 0
-
-    source_notes = [interval["note"] for interval in note_intervals]
-    min_octave_shift = ((supported_notes[0] - max(source_notes)) // 12) - 1
-    max_octave_shift = ((supported_notes[-1] - min(source_notes)) // 12) + 1
-
-    best_shift = 0
-    best_count = -1
-    for octave_shift in range(min_octave_shift, max_octave_shift + 1):
-        semitone_shift = octave_shift * 12
-        playable_count = count_playable_intervals(note_intervals, mapping_config, semitone_shift)
-        if playable_count > best_count or (
-            playable_count == best_count and abs(semitone_shift) < abs(best_shift)
-        ):
-            best_shift = semitone_shift
-            best_count = playable_count
-
-    return best_shift, best_count
-
-
-def transpose_note_intervals(note_intervals, semitone_shift):
-    if semitone_shift == 0:
-        return [dict(interval) for interval in note_intervals]
-
+def transpose_note_intervals_to_available_octaves(note_intervals, mapping_config):
     transposed = []
+    remapped_note_events = 0
+    shift_counts = defaultdict(int)
+    note_target_cache = {}
+
     for interval in note_intervals:
+        source_note = int(interval["note"])
+        if source_note not in note_target_cache:
+            note_target_cache[source_note] = find_octave_transpose_target(source_note, mapping_config)
+
+        target_note = note_target_cache[source_note]
+        if target_note is None:
+            transposed.append(dict(interval))
+            continue
+
+        semitone_shift = target_note - source_note
+        if semitone_shift != 0:
+            remapped_note_events += 1
+            shift_counts[semitone_shift] += 1
+
         transposed.append(
             {
                 **interval,
-                "source_note": interval.get("source_note", interval["note"]),
-                "note": interval["note"] + semitone_shift,
+                "source_note": interval.get("source_note", source_note),
+                "note": target_note,
             }
         )
-    return transposed
+
+    return transposed, {
+        "remapped_note_events": remapped_note_events,
+        "shift_counts": dict(sorted(shift_counts.items())),
+        "shift_summary": summarize_octave_shift_counts(shift_counts),
+    }
 
 
 def prompt_for_fit_mode(note_intervals, mapping_config, preset=None):
     range_info = analyze_note_range(note_intervals)
     total_note_count = len(note_intervals)
     strict_playable_count = count_playable_intervals(note_intervals, mapping_config, 0)
-    best_shift, transposed_playable_count = find_best_octave_shift(note_intervals, mapping_config)
+    transposed_playable_count = count_octave_transposed_playable_intervals(note_intervals, mapping_config)
     layout_summary = summarize_playable_layout(mapping_config)
     strict_recognizability = describe_recognizability(strict_playable_count, total_note_count)
     transpose_recognizability = describe_recognizability(transposed_playable_count, total_note_count)
+    interactive = preset not in {"strict", "transpose", "cancel"}
 
-    print("\nMIDI pitch scan:")
-    print(f"Detected MIDI note range: {range_info['range_label']}")
-    print(f"Active playable layout: {layout_summary['label']}")
-    print(
-        f"Strict: {format_playable_count(strict_playable_count, total_note_count)}"
-    )
-    print(f"  Keeps the original pitches and skips anything outside your playable layout. Result: {strict_recognizability}.")
-    print(
-        f"Transpose by octave: {format_playable_count(transposed_playable_count, total_note_count)}"
-    )
-    if best_shift == 0:
-        print(f"  Keeps the song where it is because that already fits best. Result: {transpose_recognizability}.")
-    else:
-        direction = "up" if best_shift > 0 else "down"
+    if interactive:
+        print("\nMIDI pitch scan:")
+        print(f"Detected MIDI note range: {range_info['range_label']}")
+        print(f"Active playable layout: {layout_summary['label']}")
         print(
-            f"  Shifts the whole song {direction} {abs(best_shift) // 12} octave(s) to fit more notes, then skips the rest. Result: {transpose_recognizability}."
+            f"Strict: {format_playable_count(strict_playable_count, total_note_count)}"
         )
-    print("Cancel: stop here without converting or sending anything.")
+        print(f"  Keeps the original pitches and skips anything outside your playable layout. Result: {strict_recognizability}.")
+        print(
+            f"Transpose by octave: {format_playable_count(transposed_playable_count, total_note_count)}"
+        )
+        print(
+            "  Keeps already-playable notes where they are, and folds each out-of-range note into the nearest playable octave when that note exists in your layout. "
+            f"Result: {transpose_recognizability}."
+        )
+        print("Cancel: stop here without converting or sending anything.")
 
     recommended_mode = "transpose" if transposed_playable_count > strict_playable_count else "strict"
     if preset in {"strict", "transpose", "cancel"}:
@@ -832,21 +1117,22 @@ def prompt_for_fit_mode(note_intervals, mapping_config, preset=None):
         "transpose_playable_count": transposed_playable_count,
         "transpose_summary": format_playable_count(transposed_playable_count, total_note_count),
         "transpose_recognizability": transpose_recognizability,
-        "best_octave_shift": best_shift,
     }
 
 
-def describe_mapping(mapping_config):
+def describe_mapping(mapping_config, pca_config=None):
     mode = mapping_config["mode"]
     channel_labels = mapping_config.get("channel_labels", {})
     note_labels = mapping_config.get("note_labels", {})
+    if pca_config is None:
+        pca_config = {"board_addresses": [0x40]}
 
     if mode == "collapse_all_notes_to_single_channel":
         channel = int(mapping_config["single_channel"])
         label = channel_labels.get(str(channel), f"Channel {channel}")
         return [
             "Single-solenoid test mode",
-            f"All MIDI notes collapse to PCA9685 channel {channel} ({label})",
+            f"All MIDI notes collapse to {describe_global_channel(channel, pca_config)} ({label})",
             "This is useful for force and timing tuning with one physical solenoid.",
         ]
 
@@ -856,7 +1142,7 @@ def describe_mapping(mapping_config):
         label = channel_labels.get(str(channel), f"Channel {channel}")
         note_label = note_labels.get(str(note), midi_note_name(int(note)))
         lines.append(
-            f"MIDI note {note} ({note_label}) -> PCA9685 channel {channel} ({label})"
+            f"MIDI note {note} ({note_label}) -> {describe_global_channel(channel, pca_config)} ({label})"
         )
     return lines
 
@@ -1081,6 +1367,10 @@ def next_header_path(directory: Path, midi_path: Path):
 
 def render_header_text(selected_midi, delta_events, metadata, config):
     pca_config = config["pca9685"]
+    board_addresses = get_pca_board_addresses(pca_config)
+    padded_board_addresses = list(board_addresses[:MAX_PCA9685_BOARDS])
+    while len(padded_board_addresses) < MAX_PCA9685_BOARDS:
+        padded_board_addresses.append(padded_board_addresses[0])
     mapping_lines = metadata["mapping_lines"]
     channel_lines = metadata["channel_lines"]
 
@@ -1099,6 +1389,7 @@ def render_header_text(selected_midi, delta_events, metadata, config):
         f"// Recognizability estimate: {metadata['recognizability_summary']}",
         f"// Strict coverage: {metadata['strict_playable_summary']}",
         f"// Octave transpose coverage: {metadata['transpose_playable_summary']}",
+        f"// Octave transpose remap summary: {metadata['transpose_shift_summary']}",
         f"// Mapping mode: {config['mapping']['mode']}",
         f"// Forced retriggers: {metadata['forced_retriggers']}",
         f"// Delayed notes: {metadata['delayed_notes']}",
@@ -1146,7 +1437,19 @@ def render_header_text(selected_midi, delta_events, metadata, config):
     lines.extend(
         [
             "",
-            f"const uint8_t SONG_PCA9685_I2C_ADDRESS = 0x{int(pca_config['i2c_address']):02X};",
+            f"const uint8_t SONG_PCA9685_BOARD_COUNT = {len(board_addresses)}u;",
+            f"const uint8_t SONG_PCA9685_MAX_BOARD_COUNT = {MAX_PCA9685_BOARDS}u;",
+            "const uint8_t SONG_PCA9685_BOARD_ADDRESSES[SONG_PCA9685_MAX_BOARD_COUNT] = {",
+        ]
+    )
+
+    for address in padded_board_addresses:
+        lines.append(f"  0x{int(address):02X},")
+
+    lines.extend(
+        [
+            "};",
+            f"const uint8_t SONG_PCA9685_I2C_ADDRESS = 0x{int(board_addresses[0]):02X};",
             f"const uint16_t SONG_PCA9685_PWM_FREQUENCY_HZ = {int(pca_config['pwm_frequency_hz'])}u;",
             f"const uint8_t SONG_CHANNEL_COUNT = {len(metadata['channels_used'])}u;",
             "const uint8_t SONG_CHANNELS[] = {",
@@ -1162,7 +1465,7 @@ def render_header_text(selected_midi, delta_events, metadata, config):
             "",
             "typedef struct {",
             "  uint32_t dt_ms;   // delay BEFORE this event",
-            "  uint8_t  channel; // PCA9685 channel",
+            "  uint8_t  channel; // global channel across every PCA9685 board",
             "  uint16_t pwm;     // 0-4095 duty cycle",
             "} SolenoidEvent;",
             "",
@@ -1185,12 +1488,12 @@ def render_header_text(selected_midi, delta_events, metadata, config):
     return "\n".join(lines)
 
 
-def build_channel_lines(channels_used, mapping_config):
+def build_channel_lines(channels_used, mapping_config, pca_config):
     channel_labels = mapping_config.get("channel_labels", {})
     lines = []
     for channel in channels_used:
         label = channel_labels.get(str(channel), f"Channel {channel}")
-        lines.append(f"PCA9685 channel {channel}: {label}")
+        lines.append(f"{describe_global_channel(channel, pca_config)}: {label}")
     return lines
 
 
@@ -1529,6 +1832,303 @@ def write_outputs(selected_midi, header_path, delta_events, metadata, config, sc
     return json_path, active_header_path, active_json_path, deployment_paths, payload
 
 
+def run_conversion_workflow(
+    selected_midi_source,
+    selection_reason,
+    active_channel_count=None,
+    preferred_range=None,
+    preferred_fit_mode=None,
+    preferred_tempo=None,
+    port=None,
+    dry_run=False,
+    export_only=False,
+    allow_prompts=True,
+    config=None,
+    user_preferences=None,
+    deployment_config=None,
+    reporter=print,
+):
+    if config is None:
+        config = load_config()
+    if user_preferences is None:
+        user_preferences = load_user_preferences()
+    if deployment_config is None:
+        deployment_config = load_deployment_config()
+    else:
+        deployment_config = copy.deepcopy(deployment_config)
+
+    if port:
+        deployment_config.setdefault("serial_runtime", {})
+        deployment_config["serial_runtime"]["preferred_port"] = port
+
+    selected_midi_source = Path(selected_midi_source).expanduser()
+    selected_midi, was_imported = import_midi_to_library(selected_midi_source)
+
+    try:
+        mid = MidiFile(str(selected_midi))
+    except Exception as error:
+        raise RuntimeError(
+            f"'{selected_midi.name}' could not be read as a MIDI file. If it came from a ZIP download, unzip it first."
+        ) from error
+
+    tempo_info = scan_tempo_info(mid)
+    note_intervals, interval_stats = extract_note_intervals(mid)
+    if not note_intervals:
+        raise ValueError("No note_on events were found in the selected MIDI file.")
+
+    base_mapping, active_channel_sequence = apply_active_channel_limit(
+        config["mapping"],
+        config["pca9685"],
+        active_channel_count=active_channel_count,
+    )
+    hardware_channel_summary = summarize_active_channel_sequence(active_channel_sequence, config["pca9685"])
+
+    if preferred_range is None:
+        preferred_range = user_preferences["playback"].get("default_playable_range", "")
+    if allow_prompts or preferred_range not in (None, ""):
+        effective_mapping, playable_layout_summary, mapping_overridden = prompt_for_playable_range(
+            base_mapping,
+            preset=preferred_range,
+        )
+    else:
+        effective_mapping = copy.deepcopy(base_mapping)
+        playable_layout_summary = summarize_playable_layout(effective_mapping)
+        mapping_overridden = False
+    effective_config = dict(config)
+    effective_config["mapping"] = effective_mapping
+
+    if preferred_fit_mode is None:
+        preferred_fit_mode = user_preferences["playback"].get("default_fit_mode", "prompt")
+        if preferred_fit_mode == "prompt":
+            preferred_fit_mode = None
+    if not allow_prompts and preferred_fit_mode in (None, ""):
+        preferred_fit_mode = "transpose"
+    fit_selection = prompt_for_fit_mode(note_intervals, effective_mapping, preset=preferred_fit_mode)
+    if fit_selection["mode"] == "cancel":
+        report_line(reporter, "Cancelled before conversion.")
+        return {"cancelled": True}
+
+    if fit_selection["mode"] == "strict":
+        shifted_intervals = [dict(interval) for interval in note_intervals]
+        transpose_stats = {
+            "remapped_note_events": 0,
+            "shift_counts": {},
+            "shift_summary": "no octave remapping was applied",
+        }
+    else:
+        shifted_intervals, transpose_stats = transpose_note_intervals_to_available_octaves(
+            note_intervals,
+            effective_mapping,
+        )
+
+    if preferred_tempo is None:
+        preferred_tempo = user_preferences["playback"].get("default_tempo", "")
+    if allow_prompts or preferred_tempo not in (None, ""):
+        tempo_override = prompt_for_tempo_override(tempo_info["first_bpm"], preset=preferred_tempo)
+    else:
+        tempo_override = parse_tempo_override_input("", tempo_info["first_bpm"])
+    scaled_intervals = scale_intervals(shifted_intervals, tempo_override["scale"])
+    scheduled_notes, scheduling_stats = schedule_notes(scaled_intervals, effective_config)
+    if not scheduled_notes:
+        raise ValueError(
+            "No playable notes remained after applying the selected fit mode. Try transpose, a different playable range, or another song."
+        )
+    timeline, scheduled_note_metadata, playback_stats = build_playback_events(
+        scheduled_notes, effective_config
+    )
+    delta_events = convert_to_delta_events(timeline)
+    unmapped_note_lines = build_unmapped_note_lines(
+        {int(note): count for note, count in scheduling_stats["unmapped_note_counts"].items()}
+    )
+    selected_playable_count = len(scheduled_notes)
+    recognizability_summary = describe_recognizability(selected_playable_count, len(note_intervals))
+
+    header_path, output_version = next_header_path(HEADER_DIR, selected_midi)
+    output_version_label = "base" if output_version == 0 else f"v{output_version}"
+    mapping_lines = describe_mapping(effective_config["mapping"], effective_config["pca9685"])
+    channel_lines = build_channel_lines(
+        scheduling_stats["channels_used"],
+        effective_config["mapping"],
+        effective_config["pca9685"],
+    )
+    actuation_lines = build_actuation_lines(scheduling_stats["channels_used"], effective_config)
+
+    if fit_selection["mode"] == "strict":
+        fit_mode_label = "strict (original pitches, skip out-of-range notes)"
+    else:
+        if transpose_stats["remapped_note_events"] == 0:
+            fit_mode_label = "transpose by octave (all playable notes were already inside the active layout)"
+        else:
+            fit_mode_label = (
+                "transpose by octave "
+                f"({transpose_stats['remapped_note_events']} note events remapped; {transpose_stats['shift_summary']})"
+            )
+
+    metadata = {
+        "project_mode": config["project_mode"],
+        "output_version_label": output_version_label,
+        "original_bpm": tempo_info["first_bpm"],
+        "tempo_label": tempo_override["label"],
+        "effective_bpm": tempo_override["target_bpm"],
+        "tempo_change_count": tempo_info["tempo_change_count"],
+        "active_hardware_channel_count": len(active_channel_sequence),
+        "active_hardware_channel_summary": hardware_channel_summary,
+        "source_range_label": fit_selection["source_range"]["range_label"],
+        "playable_layout_label": playable_layout_summary["label"],
+        "fit_mode": fit_selection["mode"],
+        "fit_mode_label": fit_mode_label,
+        "transpose_semitones": 0,
+        "transpose_strategy": "per_note_octave_fold",
+        "transpose_remapped_note_events": transpose_stats["remapped_note_events"],
+        "transpose_shift_counts": transpose_stats["shift_counts"],
+        "transpose_shift_summary": transpose_stats["shift_summary"],
+        "strict_playable_count": fit_selection["strict_playable_count"],
+        "strict_playable_summary": fit_selection["strict_summary"],
+        "transpose_playable_count": fit_selection["transpose_playable_count"],
+        "transpose_playable_summary": fit_selection["transpose_summary"],
+        "mapping_override_used": mapping_overridden,
+        "selection_reason": selection_reason,
+        "recognizability_summary": recognizability_summary,
+        "unmapped_note_lines": unmapped_note_lines,
+        "source_note_count": len(note_intervals),
+        "scheduled_note_count": len(scheduled_notes),
+        "event_count": len(delta_events),
+        "forced_retriggers": scheduling_stats["forced_retriggers"],
+        "delayed_notes": scheduling_stats["delayed_notes"],
+        "unmapped_notes": scheduling_stats["unmapped_notes"],
+        "unmapped_note_counts": scheduling_stats["unmapped_note_counts"],
+        "unmatched_note_offs": interval_stats["unmatched_note_offs"],
+        "dangling_note_ons_closed": interval_stats["dangling_note_ons_closed"],
+        "percussion_events_skipped": interval_stats["percussion_events_skipped"],
+        "hold_events": playback_stats["hold_events"],
+        "strike_only_notes": playback_stats["strike_only_notes"],
+        "mapping_lines": mapping_lines,
+        "channel_lines": channel_lines,
+        "actuation_lines": actuation_lines,
+        "channels_used": scheduling_stats["channels_used"],
+    }
+
+    report_line(reporter, "")
+    report_line(reporter, f"Selected file: {selected_midi.name}")
+    report_line(reporter, f"Chosen because: {selection_reason}")
+    report_line(reporter, f"Original source path: {selected_midi_source}")
+    if was_imported:
+        report_line(reporter, f"Imported into project library: {selected_midi}")
+    report_line(reporter, f"Type: {mid.type}")
+    report_line(reporter, f"Ticks per beat: {mid.ticks_per_beat}")
+    report_line(reporter, f"Number of tracks: {len(mid.tracks)}")
+    report_line(reporter, f"Tempo events found: {tempo_info['tempo_change_count']}")
+    report_line(reporter, f"Active hardware: {hardware_channel_summary}")
+    report_line(reporter, f"Detected MIDI note range: {fit_selection['source_range']['range_label']}")
+    report_line(reporter, f"Playable layout: {playable_layout_summary['label']}")
+    report_line(reporter, f"Strict coverage: {fit_selection['strict_summary']}")
+    report_line(reporter, f"Transpose coverage: {fit_selection['transpose_summary']}")
+    report_line(reporter, f"Fit mode used: {fit_mode_label}")
+    report_line(reporter, f"Transpose remap summary: {transpose_stats['shift_summary']}")
+    report_line(reporter, f"Recognizability estimate: {recognizability_summary}")
+    report_line(reporter, f"Range override used: {'yes' if mapping_overridden else 'no'}")
+    if interval_stats["percussion_events_skipped"] > len(note_intervals):
+        report_line(
+            reporter,
+            "Percussion warning: this file appears to contain more percussion events than pitched note events.",
+        )
+    report_line(reporter, "Mapping summary:")
+    for line in mapping_lines:
+        report_line(reporter, f"  {line}")
+    report_line(reporter, "Channel summary:")
+    for line in channel_lines:
+        report_line(reporter, f"  {line}")
+    report_line(reporter, "Actuation summary:")
+    for line in actuation_lines:
+        report_line(reporter, f"  {line}")
+    if unmapped_note_lines:
+        report_line(reporter, "Most skipped notes:")
+        for line in unmapped_note_lines:
+            report_line(reporter, f"  {line}")
+
+    json_path = None
+    active_header_path = None
+    active_json_path = None
+    deployment_paths = None
+    payload = None
+    if dry_run:
+        report_line(reporter, "")
+        report_line(reporter, "Dry run complete. No files were written and nothing was sent over USB.")
+    else:
+        json_path, active_header_path, active_json_path, deployment_paths, payload = write_outputs(
+            selected_midi,
+            header_path,
+            delta_events,
+            metadata,
+            effective_config,
+            scheduled_note_metadata,
+            deployment_config,
+        )
+
+    stream_manifest = None
+    if payload is not None and not export_only:
+        stream_manifest = stream_song_to_arduino(payload, deployment_config)
+
+    if not dry_run:
+        report_line(reporter, "")
+        report_line(reporter, "Conversion complete.")
+        report_line(reporter, f"Versioned header: {header_path.relative_to(REPO_ROOT)}")
+        report_line(reporter, f"Active Arduino header: {active_header_path.relative_to(REPO_ROOT)}")
+        report_line(reporter, f"Versioned metadata: {json_path.relative_to(REPO_ROOT)}")
+        report_line(reporter, f"Active metadata: {active_json_path.relative_to(REPO_ROOT)}")
+        if deployment_paths is not None:
+            if "sketch_path" in deployment_paths:
+                report_line(reporter, f"Synced Arduino IDE sketch: {deployment_paths['sketch_path']}")
+            if "active_header_path" in deployment_paths:
+                report_line(reporter, f"Synced Arduino IDE active header: {deployment_paths['active_header_path']}")
+            if "sync_skipped" in deployment_paths:
+                report_line(reporter, f"Arduino IDE sync skipped: {deployment_paths['sync_skipped']}")
+            if "sync_error" in deployment_paths:
+                report_line(reporter, f"Arduino IDE sync warning: {deployment_paths['sync_error']}")
+        if stream_manifest is not None:
+            report_line(reporter, f"USB playback sent on port: {stream_manifest['port']}")
+            report_line(
+                reporter,
+                f"Streamed {stream_manifest['sent_event_count']} events with runtime protocol "
+                f"v{stream_manifest['protocol_version']} using a buffer capacity of {stream_manifest['buffer_capacity']}.",
+            )
+        report_line(reporter, f"Output header version: {output_version_label}")
+        report_line(reporter, f"Base tempo: {tempo_info['first_bpm']:.2f} BPM")
+        report_line(reporter, f"Effective output tempo: {tempo_override['target_bpm']:.2f} BPM")
+        report_line(reporter, f"Input note intervals: {len(note_intervals)}")
+        report_line(reporter, f"Scheduled notes: {len(scheduled_notes)}")
+        report_line(reporter, f"Generated events: {len(delta_events)}")
+        report_line(reporter, f"Forced retriggers: {scheduling_stats['forced_retriggers']}")
+        report_line(reporter, f"Delayed notes: {scheduling_stats['delayed_notes']}")
+        report_line(reporter, f"Hold events: {playback_stats['hold_events']}")
+        report_line(reporter, f"Strike-only notes: {playback_stats['strike_only_notes']}")
+        report_line(reporter, f"Unmapped notes skipped: {scheduling_stats['unmapped_notes']}")
+        report_line(reporter, f"Unmatched note_off events ignored: {interval_stats['unmatched_note_offs']}")
+        report_line(reporter, f"Dangling note_on events auto-closed: {interval_stats['dangling_note_ons_closed']}")
+        report_line(reporter, f"Percussion note events ignored: {interval_stats['percussion_events_skipped']}")
+
+    return {
+        "cancelled": False,
+        "selected_midi": selected_midi,
+        "selected_midi_source": selected_midi_source,
+        "selection_reason": selection_reason,
+        "active_channel_sequence": active_channel_sequence,
+        "was_imported": was_imported,
+        "metadata": metadata,
+        "playable_layout_summary": playable_layout_summary,
+        "tempo_override": tempo_override,
+        "fit_selection": fit_selection,
+        "output_version_label": output_version_label,
+        "header_path": header_path,
+        "json_path": json_path,
+        "active_header_path": active_header_path,
+        "active_json_path": active_json_path,
+        "deployment_paths": deployment_paths,
+        "payload": payload,
+        "stream_manifest": stream_manifest,
+    }
+
+
 def build_arg_parser():
     parser = argparse.ArgumentParser(
         description="Convert a MIDI file for the autonomous piano player and optionally send it over USB."
@@ -1544,6 +2144,10 @@ def build_arg_parser():
         "--play-latest",
         action="store_true",
         help="Explicitly use the newest .mid/.midi file in the Windows Downloads folder.",
+    )
+    parser.add_argument(
+        "--active-channels",
+        help="How many hardware solenoid channels are currently installed. Leave unset to use the saved mapping count.",
     )
     parser.add_argument(
         "--fit-mode",
@@ -1598,202 +2202,22 @@ def main():
         deployment_config["serial_runtime"]["preferred_port"] = args.port
 
     selected_midi_source, selection_reason = choose_input_midi(args, user_preferences)
-    selected_midi, was_imported = import_midi_to_library(selected_midi_source)
-
-    try:
-        mid = MidiFile(str(selected_midi))
-    except Exception as error:
-        raise RuntimeError(
-            f"'{selected_midi.name}' could not be read as a MIDI file. If it came from a ZIP download, unzip it first."
-        ) from error
-
-    tempo_info = scan_tempo_info(mid)
-    note_intervals, interval_stats = extract_note_intervals(mid)
-    if not note_intervals:
-        raise ValueError("No note_on events were found in the selected MIDI file.")
-
-    preferred_range = args.playable_range
-    if preferred_range is None:
-        preferred_range = user_preferences["playback"].get("default_playable_range", "")
-    effective_mapping, playable_layout_summary, mapping_overridden = prompt_for_playable_range(
-        config["mapping"],
-        preset=preferred_range,
+    run_conversion_workflow(
+        selected_midi_source=selected_midi_source,
+        selection_reason=selection_reason,
+        active_channel_count=args.active_channels,
+        preferred_range=args.playable_range,
+        preferred_fit_mode=args.fit_mode,
+        preferred_tempo=args.tempo,
+        port=args.port,
+        dry_run=args.dry_run,
+        export_only=args.export_only,
+        allow_prompts=True,
+        config=config,
+        user_preferences=user_preferences,
+        deployment_config=deployment_config,
+        reporter=print,
     )
-    effective_config = dict(config)
-    effective_config["mapping"] = effective_mapping
-
-    preferred_fit_mode = args.fit_mode
-    if preferred_fit_mode is None:
-        preferred_fit_mode = user_preferences["playback"].get("default_fit_mode", "prompt")
-        if preferred_fit_mode == "prompt":
-            preferred_fit_mode = None
-    fit_selection = prompt_for_fit_mode(note_intervals, effective_mapping, preset=preferred_fit_mode)
-    if fit_selection["mode"] == "cancel":
-        print("Cancelled before conversion.")
-        return
-
-    applied_octave_shift = 0 if fit_selection["mode"] == "strict" else fit_selection["best_octave_shift"]
-    shifted_intervals = transpose_note_intervals(note_intervals, applied_octave_shift)
-
-    preferred_tempo = args.tempo
-    if preferred_tempo is None:
-        preferred_tempo = user_preferences["playback"].get("default_tempo", "")
-    tempo_override = prompt_for_tempo_override(tempo_info["first_bpm"], preset=preferred_tempo)
-    scaled_intervals = scale_intervals(shifted_intervals, tempo_override["scale"])
-    scheduled_notes, scheduling_stats = schedule_notes(scaled_intervals, effective_config)
-    if not scheduled_notes:
-        raise ValueError(
-            "No playable notes remained after applying the selected fit mode. Try transpose, a different playable range, or another song."
-        )
-    timeline, scheduled_note_metadata, playback_stats = build_playback_events(
-        scheduled_notes, effective_config
-    )
-    delta_events = convert_to_delta_events(timeline)
-    unmapped_note_lines = build_unmapped_note_lines(
-        {int(note): count for note, count in scheduling_stats["unmapped_note_counts"].items()}
-    )
-    selected_playable_count = len(scheduled_notes)
-    recognizability_summary = describe_recognizability(selected_playable_count, len(note_intervals))
-
-    header_path, output_version = next_header_path(HEADER_DIR, selected_midi)
-    output_version_label = "base" if output_version == 0 else f"v{output_version}"
-    mapping_lines = describe_mapping(effective_config["mapping"])
-    channel_lines = build_channel_lines(scheduling_stats["channels_used"], effective_config["mapping"])
-    actuation_lines = build_actuation_lines(scheduling_stats["channels_used"], effective_config)
-
-    if fit_selection["mode"] == "strict":
-        fit_mode_label = "strict (original pitches, skip out-of-range notes)"
-    elif applied_octave_shift == 0:
-        fit_mode_label = "transpose by octave (best shift was 0 semitones)"
-    else:
-        direction = "up" if applied_octave_shift > 0 else "down"
-        fit_mode_label = (
-            f"transpose by octave ({direction} {abs(applied_octave_shift) // 12} octave(s), "
-            f"{applied_octave_shift:+d} semitones)"
-        )
-
-    metadata = {
-        "project_mode": config["project_mode"],
-        "output_version_label": output_version_label,
-        "original_bpm": tempo_info["first_bpm"],
-        "tempo_label": tempo_override["label"],
-        "effective_bpm": tempo_override["target_bpm"],
-        "tempo_change_count": tempo_info["tempo_change_count"],
-        "source_range_label": fit_selection["source_range"]["range_label"],
-        "playable_layout_label": playable_layout_summary["label"],
-        "fit_mode": fit_selection["mode"],
-        "fit_mode_label": fit_mode_label,
-        "transpose_semitones": applied_octave_shift,
-        "strict_playable_count": fit_selection["strict_playable_count"],
-        "strict_playable_summary": fit_selection["strict_summary"],
-        "transpose_playable_count": fit_selection["transpose_playable_count"],
-        "transpose_playable_summary": fit_selection["transpose_summary"],
-        "mapping_override_used": mapping_overridden,
-        "selection_reason": selection_reason,
-        "recognizability_summary": recognizability_summary,
-        "unmapped_note_lines": unmapped_note_lines,
-        "source_note_count": len(note_intervals),
-        "scheduled_note_count": len(scheduled_notes),
-        "event_count": len(delta_events),
-        "forced_retriggers": scheduling_stats["forced_retriggers"],
-        "delayed_notes": scheduling_stats["delayed_notes"],
-        "unmapped_notes": scheduling_stats["unmapped_notes"],
-        "unmapped_note_counts": scheduling_stats["unmapped_note_counts"],
-        "unmatched_note_offs": interval_stats["unmatched_note_offs"],
-        "dangling_note_ons_closed": interval_stats["dangling_note_ons_closed"],
-        "percussion_events_skipped": interval_stats["percussion_events_skipped"],
-        "hold_events": playback_stats["hold_events"],
-        "strike_only_notes": playback_stats["strike_only_notes"],
-        "mapping_lines": mapping_lines,
-        "channel_lines": channel_lines,
-        "actuation_lines": actuation_lines,
-        "channels_used": scheduling_stats["channels_used"],
-    }
-
-    print("\nSelected file:", selected_midi.name)
-    print(f"Chosen because: {selection_reason}")
-    print(f"Original source path: {selected_midi_source}")
-    if was_imported:
-        print(f"Imported into project library: {selected_midi}")
-    print(f"Type: {mid.type}")
-    print(f"Ticks per beat: {mid.ticks_per_beat}")
-    print(f"Number of tracks: {len(mid.tracks)}")
-    print(f"Tempo events found: {tempo_info['tempo_change_count']}")
-    print(f"Detected MIDI note range: {fit_selection['source_range']['range_label']}")
-    print(f"Playable layout: {playable_layout_summary['label']}")
-    print(f"Strict coverage: {fit_selection['strict_summary']}")
-    print(f"Transpose coverage: {fit_selection['transpose_summary']}")
-    print(f"Fit mode used: {fit_mode_label}")
-    print(f"Recognizability estimate: {recognizability_summary}")
-    print(f"Range override used: {'yes' if mapping_overridden else 'no'}")
-    if interval_stats["percussion_events_skipped"] > len(note_intervals):
-        print("Percussion warning: this file appears to contain more percussion events than pitched note events.")
-    print("Mapping summary:")
-    for line in mapping_lines:
-        print(f"  {line}")
-    print("Channel summary:")
-    for line in channel_lines:
-        print(f"  {line}")
-    print("Actuation summary:")
-    for line in actuation_lines:
-        print(f"  {line}")
-    if unmapped_note_lines:
-        print("Most skipped notes:")
-        for line in unmapped_note_lines:
-            print(f"  {line}")
-
-    if args.dry_run:
-        print("\nDry run complete. No files were written and nothing was sent over USB.")
-        return
-
-    json_path, active_header_path, active_json_path, deployment_paths, payload = write_outputs(
-        selected_midi,
-        header_path,
-        delta_events,
-        metadata,
-        effective_config,
-        scheduled_note_metadata,
-        deployment_config,
-    )
-
-    stream_manifest = None
-    if not args.export_only:
-        stream_manifest = stream_song_to_arduino(payload, deployment_config)
-
-    print("\nConversion complete.")
-    print(f"Versioned header: {header_path.relative_to(REPO_ROOT)}")
-    print(f"Active Arduino header: {active_header_path.relative_to(REPO_ROOT)}")
-    print(f"Versioned metadata: {json_path.relative_to(REPO_ROOT)}")
-    print(f"Active metadata: {active_json_path.relative_to(REPO_ROOT)}")
-    if deployment_paths is not None:
-        if "sketch_path" in deployment_paths:
-            print(f"Synced Arduino IDE sketch: {deployment_paths['sketch_path']}")
-        if "active_header_path" in deployment_paths:
-            print(f"Synced Arduino IDE active header: {deployment_paths['active_header_path']}")
-        if "sync_skipped" in deployment_paths:
-            print(f"Arduino IDE sync skipped: {deployment_paths['sync_skipped']}")
-        if "sync_error" in deployment_paths:
-            print(f"Arduino IDE sync warning: {deployment_paths['sync_error']}")
-    if stream_manifest is not None:
-        print(f"USB playback sent on port: {stream_manifest['port']}")
-        print(
-            f"Streamed {stream_manifest['sent_event_count']} events with runtime protocol "
-            f"v{stream_manifest['protocol_version']} using a buffer capacity of {stream_manifest['buffer_capacity']}."
-        )
-    print(f"Output header version: {output_version_label}")
-    print(f"Base tempo: {tempo_info['first_bpm']:.2f} BPM")
-    print(f"Effective output tempo: {tempo_override['target_bpm']:.2f} BPM")
-    print(f"Input note intervals: {len(note_intervals)}")
-    print(f"Scheduled notes: {len(scheduled_notes)}")
-    print(f"Generated events: {len(delta_events)}")
-    print(f"Forced retriggers: {scheduling_stats['forced_retriggers']}")
-    print(f"Delayed notes: {scheduling_stats['delayed_notes']}")
-    print(f"Hold events: {playback_stats['hold_events']}")
-    print(f"Strike-only notes: {playback_stats['strike_only_notes']}")
-    print(f"Unmapped notes skipped: {scheduling_stats['unmapped_notes']}")
-    print(f"Unmatched note_off events ignored: {interval_stats['unmatched_note_offs']}")
-    print(f"Dangling note_on events auto-closed: {interval_stats['dangling_note_ons_closed']}")
-    print(f"Percussion note events ignored: {interval_stats['percussion_events_skipped']}")
 
 
 if __name__ == "__main__":

@@ -18,18 +18,34 @@
 
 #include "../MusicBotOfficial/generated/CDE_Dynamics_Etude.h"
 
-Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(SONG_PCA9685_I2C_ADDRESS);
+Adafruit_PWMServoDriver pwmBoards[SONG_PCA9685_MAX_BOARD_COUNT] = {
+    Adafruit_PWMServoDriver(SONG_PCA9685_BOARD_ADDRESSES[0]),
+    Adafruit_PWMServoDriver(SONG_PCA9685_BOARD_ADDRESSES[1]),
+    Adafruit_PWMServoDriver(SONG_PCA9685_BOARD_ADDRESSES[2]),
+    Adafruit_PWMServoDriver(SONG_PCA9685_BOARD_ADDRESSES[3]),
+};
+
+void setGlobalChannelPwm(uint8_t globalChannel, uint16_t pwmValue) {
+  uint8_t boardIndex = globalChannel / 16;
+  uint8_t localChannel = globalChannel % 16;
+  if (boardIndex >= SONG_PCA9685_BOARD_COUNT) {
+    return;
+  }
+  pwmBoards[boardIndex].setPWM(localChannel, 0, pwmValue);
+}
 
 void allChannelsOff() {
   for (uint8_t i = 0; i < SONG_CHANNEL_COUNT; i++) {
-    pwm.setPWM(SONG_CHANNELS[i], 0, 0);
+    setGlobalChannelPwm(SONG_CHANNELS[i], 0);
   }
 }
 
 void setup() {
   Wire.begin();
-  pwm.begin();
-  pwm.setPWMFreq(SONG_PCA9685_PWM_FREQUENCY_HZ);
+  for (uint8_t boardIndex = 0; boardIndex < SONG_PCA9685_BOARD_COUNT; boardIndex++) {
+    pwmBoards[boardIndex].begin();
+    pwmBoards[boardIndex].setPWMFreq(SONG_PCA9685_PWM_FREQUENCY_HZ);
+  }
   delay(10);
   allChannelsOff();
 }
@@ -43,7 +59,7 @@ void playSongOnce() {
     memcpy_P(&e, &SONG[i], sizeof(SolenoidEvent));
 
     delay(e.dt_ms);
-    pwm.setPWM(e.channel, 0, e.pwm);
+    setGlobalChannelPwm(e.channel, e.pwm);
     i++;
 
     while (i < SONG_EVENT_COUNT) {
@@ -53,7 +69,7 @@ void playSongOnce() {
       if (simultaneousEvent.dt_ms != 0) {
         break;
       }
-      pwm.setPWM(simultaneousEvent.channel, 0, simultaneousEvent.pwm);
+      setGlobalChannelPwm(simultaneousEvent.channel, simultaneousEvent.pwm);
       i++;
     }
   }

@@ -261,7 +261,8 @@ Then it asks you to choose:
   - keep original pitches
   - skip notes outside the current playable layout
 - `transpose`
-  - shift the whole song by octaves to fit more notes
+  - keep already-playable notes where they are
+  - fold each out-of-range note into the nearest playable octave when that note exists in the current layout
   - still skip any notes that remain out of range
 - `cancel`
   - stop without converting or sending anything

@@ -10,6 +10,7 @@ Main hardware configuration for the autonomous piano player.
 - `pca9685` stores the PWM board I2C address and frequency.
 - `mapping` tells Python which MIDI notes route to which PCA9685 channels.
 - `actuation` controls strike PWM, hold PWM, release timing, and retrigger timing.
+- `pedal` stores bench-characterized sustain-servo geometry and timing values.
 - `notes` stores human-readable engineering notes about the current setup.
 
 ## `calibrated_mapping.json`

@@ -1,7 +1,12 @@
 {
   "project_mode": "one_octave_c3_b3",
   "pca9685": {
-    "i2c_address": 64,
+    "board_addresses": [
+      64,
+      65,
+      66,
+      67
+    ],
     "pwm_frequency_hz": 250
   },
   "mapping": {
@@ -18,7 +23,11 @@
       8,
       9,
       10,
-      11
+      11,
+      12,
+      13,
+      14,
+      15
     ],
     "note_to_channel": {
       "48": 0,
@@ -67,17 +76,37 @@
     "strike_min_pwm": 2300,
     "strike_max_pwm": 3600,
     "strike_ms": 35,
-    "hold_min_pwm": 1300,
-    "hold_max_pwm": 2200,
-    "hold_ratio": 0.58,
-    "release_delay_ms": 6,
+    "hold_min_pwm": 800,
+    "hold_max_pwm": 1400,
+    "hold_ratio": 0.35,
+    "release_delay_ms": 20,
     "minimum_rearm_gap_ms": 25,
     "retrigger_gap_ms": 16,
     "channel_overrides": {}
   },
+  "pedal": {
+    "enabled": false,
+    "servo_signal_pin": 2,
+    "servo_model": "9g microservo",
+    "horn_length_in": 0.5,
+    "up_angle_deg": 0,
+    "down_angle_deg": 180,
+    "arc_length_in": 1.5708,
+    "reaction_characterization": {
+      "test_date": "2026-04-15T16:42:56",
+      "serial_port": "COM3",
+      "down_travel_median_ms": 425.551,
+      "up_travel_median_ms": 441.623,
+      "overall_travel_median_ms": 433.587,
+      "overall_estimated_tip_speed_in_per_s": 3.5685,
+      "recommended_down_profile_ms": 426,
+      "recommended_up_profile_ms": 442,
+      "notes": "Reaction-based timings include human response delay. Use these as bench-tuning targets until video-based pedal contact and release timings are captured."
+    }
+  },
   "notes": {
-    "current_setup": "One chromatic octave map. C3 through B3 route to PCA9685 channels 0 through 11 in ascending order.",
-    "wiring_assumption": "PCA9685 channel 0 is the first installed solenoid on C3, channel 1 is C#3, and so on through B3 on channel 11.",
-    "future_setup": "Use the calibration tool to save a calibrated_mapping.json file if the physical order changes or if the installed notes are not contiguous."
+    "current_setup": "The runtime now supports four daisy-chained PCA9685 boards as one 64-channel global space. The current saved note map still uses one chromatic octave, C3 through B3, on global channels 0 through 11.",
+    "wiring_assumption": "Global channels 0 through 15 live on PCA9685 address 0x40, 16 through 31 on 0x41, 32 through 47 on 0x42, and 48 through 63 on 0x43.",
+    "future_setup": "As more solenoids are added, extend the note mapping or save a calibrated_mapping.json file. Songs can then be limited to the currently installed note range."
   }
 }

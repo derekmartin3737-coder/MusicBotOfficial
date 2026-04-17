@@ -26,7 +26,7 @@ The tool will:
 3. show how much of the song is playable
 4. ask whether to:
    - keep the original pitches (`strict`)
-   - transpose by octave (`transpose`)
+   - transpose by octave (`transpose`) so out-of-range notes are folded into the playable octave(s) when possible
    - stop (`cancel`)
 5. optionally ask for a tempo override
 6. convert the MIDI into timed PWM events

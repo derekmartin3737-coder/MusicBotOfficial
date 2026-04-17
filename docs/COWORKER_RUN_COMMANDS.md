@@ -188,6 +188,31 @@ Quick short test:
 python -u scripts\pedal_servo_reaction_test.py --port <COM_PORT> --measured-moves 2
 ```
 
+## 13. Pedal Actuation Sweep
+
+Use this when you want to watch the pedal servo press and release with a few built-in motion profiles.
+
+Upload this sketch:
+
+```text
+arduino\PedalServoActuationSweep\PedalServoActuationSweep.ino
+```
+
+It auto-cycles through:
+
+- direct full-speed motion
+- the measured median timing profile
+- a firmer faster ramp
+- a softer slower ramp
+
+Optional: open the Arduino Serial Monitor at `115200` baud to see which profile is running or to send:
+
+- `n` for the next profile
+- `r` to repeat the current profile
+- `p` to pause or resume auto-cycle
+- `h` to home the servo
+- `?` for help
+
 ## Notes
 
 - Do not upload `.json` or `.h` files to the Arduino. The runtime sketch is `arduino\MusicBotOfficial\MusicBotOfficial.ino`.

@@ -93,10 +93,11 @@ def build_mapping_lines(mapping):
     lines = []
     note_to_channel = mapping.get("note_to_channel", {})
     channel_labels = mapping.get("channel_labels", {})
+    pca_config = engine.load_config()["pca9685"]
     for note, channel in sorted(note_to_channel.items(), key=lambda item: int(item[0])):
         channel_label = channel_labels.get(str(channel), f"Channel {channel}")
         lines.append(
-            f"{engine.midi_note_name(int(note))} ({note}) -> PCA9685 channel {channel} ({channel_label})"
+            f"{engine.midi_note_name(int(note))} ({note}) -> {engine.describe_global_channel(channel, pca_config)} ({channel_label})"
         )
     return lines
 
@@ -132,10 +133,11 @@ def run_sweep(connection, config):
         actuation = engine.resolve_channel_actuation(channel, config)
         pulse = build_calibration_pulse(actuation)
         label = config["mapping"].get("channel_labels", {}).get(str(channel), f"Channel {channel}")
+        channel_target = engine.describe_global_channel(channel, config["pca9685"])
         if note is None:
-            print(f"  Firing channel {channel}: {label}")
+            print(f"  Firing {channel_target}: {label}")
         else:
-            print(f"  Testing {engine.midi_note_name(note)} on channel {channel}: {label}")
+            print(f"  Testing {engine.midi_note_name(note)} on {channel_target}: {label}")
         fire_channel(connection, channel, pulse)
         time.sleep(0.25)
 
@@ -145,6 +147,23 @@ def prompt_bottom_note():
         raw = input("Enter the bottom note of your contiguous keyboard range (example: C4): ").strip()
         try:
             return engine.parse_note_token(raw)
+        except ValueError as error:
+            print(error)
+
+
+def prompt_active_channel_count(config):
+    default_count = len(engine.get_mapping_channel_order(config["mapping"]))
+    capacity = engine.get_global_channel_capacity(config["pca9685"])
+    print(
+        f"How many hardware channels are active right now? Press Enter to keep {default_count}. "
+        f"The configured 4-board system can use up to {capacity}."
+    )
+    while True:
+        raw = input(f"Active channel count [{default_count}]: ").strip()
+        if not raw:
+            return default_count
+        try:
+            return engine.parse_active_channel_count(raw, config["pca9685"])
         except ValueError as error:
             print(error)
 
@@ -185,7 +204,7 @@ def calibrate_manual_mapping(connection, config, port, ready_info):
         actuation = engine.resolve_channel_actuation(channel, config)
         pulse = build_calibration_pulse(actuation)
         label = channel_labels.get(str(channel), f"Channel {channel}")
-        print(f"\nFiring channel {channel}: {label}")
+        print(f"\nFiring {engine.describe_global_channel(channel, config['pca9685'])}: {label}")
         fire_channel(connection, channel, pulse)
 
         while True:
@@ -248,7 +267,7 @@ def tune_channel(connection, config, channel):
         "release_ms": int(release_ms),
     }
 
-    print(f"\nFiring tuned pulse on channel {channel}.")
+    print(f"\nFiring tuned pulse on {engine.describe_global_channel(channel, config['pca9685'])}.")
     fire_channel(connection, channel, tuned_pulse)
     print("If that felt right, update the engineering config later with those values.")
 
@@ -258,6 +277,10 @@ def build_arg_parser():
         description="Calibration and debug tools for the autonomous piano player."
     )
     parser.add_argument("--port", help="Specific serial port to use, such as COM4.")
+    parser.add_argument(
+        "--active-channels",
+        help="How many hardware channels are currently installed. Leave unset to answer interactively.",
+    )
     parser.add_argument("--sweep", action="store_true", help="Fire each configured channel once in sequence.")
     parser.add_argument(
         "--calibrate-octave",
@@ -305,6 +328,19 @@ def main():
     args = build_arg_parser().parse_args()
     config = engine.load_config()
     action = choose_action(args)
+
+    if action in {"sweep", "calibrate_octave", "calibrate_manual"}:
+        active_channel_count = args.active_channels
+        if active_channel_count is None:
+            active_channel_count = prompt_active_channel_count(config)
+        limited_mapping, active_sequence = engine.apply_active_channel_limit(
+            config["mapping"],
+            config["pca9685"],
+            active_channel_count=active_channel_count,
+        )
+        config = dict(config)
+        config["mapping"] = limited_mapping
+        print(engine.summarize_active_channel_sequence(active_sequence, config["pca9685"]))
 
     connection = None
     try:
