@@ -27,6 +27,13 @@ Optional local deployment settings.
 
 This can point Python at an Arduino IDE sketch folder for syncing generated files, and it stores serial settings such as baud rate and preferred COM port behavior.
 
+`arduino_ide_sync.sketch_path` may be either:
+
+- an absolute path on the local machine
+- a repo-relative path such as `arduino\MusicBotOfficial\MusicBotOfficial.ino`
+
+Repo-relative paths are resolved from the repository root, which makes shared configs portable across teammates.
+
 ## `user_preferences.json`
 
 User workflow defaults.

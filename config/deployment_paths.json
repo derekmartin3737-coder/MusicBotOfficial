@@ -1,7 +1,7 @@
 {
   "arduino_ide_sync": {
     "enabled": true,
-    "sketch_path": "C:\\Users\\derek\\OneDrive - Oregon State University\\Documents\\Arduino\\Capstone_python_arduino_led_code\\Capstone_python_arduino_led_code.ino",
+    "sketch_path": "arduino\\MusicBotOfficial\\MusicBotOfficial.ino",
     "generated_dir_name": "generated"
   },
   "serial_runtime": {

@@ -169,11 +169,11 @@ This only needs to be done again if the Arduino runtime changes.
 
 ### 5. Decide whether to use deployment path syncing
 
-[config/deployment_paths.json](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/config/deployment_paths.json) currently contains a machine-specific Arduino sketchbook path from the original development machine.
+[config/deployment_paths.json](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/config/deployment_paths.json) now defaults to the repo-local Arduino sketch path, so it works across cloned copies without editing machine-specific user folders.
 
 If you are just testing the repo directly, you can ignore that file.
 
-If you want Python to mirror generated files into your own Arduino sketchbook folder, update the `arduino_ide_sync.sketch_path` value on your machine.
+If you want Python to mirror generated files into a separate Arduino sketchbook folder, update the `arduino_ide_sync.sketch_path` value on your machine. Absolute and repo-relative paths are both supported.
 
 ## Quick test paths
 

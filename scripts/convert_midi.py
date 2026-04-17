@@ -19,6 +19,7 @@ import argparse
 import copy
 import filecmp
 import json
+import os
 import re
 import shutil
 import time
@@ -78,6 +79,14 @@ DEFAULT_USER_PREFERENCES = {
 
 def clamp(value, minimum, maximum):
     return max(minimum, min(maximum, value))
+
+
+def resolve_configured_path(raw_path):
+    expanded = os.path.expandvars(os.path.expanduser(str(raw_path).strip()))
+    path = Path(expanded)
+    if path.is_absolute():
+        return path
+    return REPO_ROOT / path
 
 
 def report_line(reporter, message=""):
@@ -1918,7 +1927,7 @@ def sync_arduino_ide_runtime(header_text, deployment_config):
             "sync_skipped": "No Arduino IDE sketch path is configured.",
         }
 
-    sketch_path = Path(sketch_path_raw)
+    sketch_path = resolve_configured_path(sketch_path_raw)
     generated_dir_name = sync_config.get("generated_dir_name", "generated")
     generated_dir = sketch_path.parent / generated_dir_name
 
