@@ -263,6 +263,7 @@ Then it asks you to choose:
 - `transpose`
   - keep already-playable notes where they are
   - fold each out-of-range note into the nearest playable octave when that note exists in the current layout
+  - skip folded notes that would otherwise disturb on-time playback
   - still skip any notes that remain out of range
 - `cancel`
   - stop without converting or sending anything

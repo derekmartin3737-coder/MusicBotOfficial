@@ -1112,7 +1112,7 @@ def prompt_for_fit_mode(note_intervals, mapping_config, preset=None):
         )
         print(
             "  Keeps already-playable notes where they are, and folds each out-of-range note into the nearest playable octave when that note exists in your layout. "
-            f"Result: {transpose_recognizability}."
+            f"Result: {transpose_recognizability}. Notes that do not fit cleanly without disturbing timing may still be skipped during scheduling."
         )
         print("Cancel: stop here without converting or sending anything.")
 
@@ -1298,152 +1298,116 @@ def schedule_notes(note_intervals, config):
 
 
 def schedule_notes_with_octave_transpose(note_intervals, config):
-    """Schedule notes while choosing octave-fold targets that minimize timing damage.
+    """Schedule exact notes first, then add octave-folded notes only in free gaps.
 
-    Exact in-range notes stay on their mapped key. Out-of-range notes can choose
-    among playable same-pitch-class targets across the available octave(s). If a
-    remapped note would have to be delayed, it is skipped rather than shifting
-    the beat later in time.
+    This keeps the originally playable notes in time and treats transposed notes
+    as optional additions that must not disturb the existing rhythm.
     """
     mapping_config = config["mapping"]
 
-    channel_states = {}
-    scheduled_notes = []
-    forced_retriggers = 0
-    delayed_notes = 0
-    unmapped_notes = 0
+    exact_intervals = []
+    remapped_source_intervals = []
+    for interval in note_intervals:
+        source_note = int(interval.get("source_note", interval["note"]))
+        if map_note_to_channel(source_note, mapping_config) is not None:
+            exact_intervals.append({**interval, "source_note": source_note, "note": source_note})
+        else:
+            remapped_source_intervals.append({**interval, "source_note": source_note})
+
+    scheduled_notes, exact_stats = schedule_notes(exact_intervals, config)
+    notes_by_channel = defaultdict(list)
+    for note_event in scheduled_notes:
+        notes_by_channel[int(note_event["channel"])].append(note_event)
+    for channel_notes in notes_by_channel.values():
+        channel_notes.sort(key=lambda item: (item["start_ms"], item["end_ms"], item["note"]))
+
+    unmapped_notes = int(exact_stats["unmapped_notes"])
     unmapped_note_counts = defaultdict(int)
-    channels_used = set()
+    for note, count in exact_stats["unmapped_note_counts"].items():
+        unmapped_note_counts[int(note)] += int(count)
+    channels_used = set(int(channel) for channel in exact_stats["channels_used"])
     skipped_transposed_notes_for_timing = 0
 
-    def get_channel_state(channel):
-        if channel not in channel_states:
-            channel_states[channel] = {
-                "active_note": None,
-                "last_off_ms": -1_000_000,
-            }
-        return channel_states[channel]
-
-    def evaluate_candidate(interval, target_note, channel):
+    def can_insert_on_time(channel, start_ms, end_ms):
         channel_actuation = resolve_channel_actuation(channel, config)
         release_delay_ms = int(channel_actuation["release_delay_ms"])
         minimum_rearm_gap_ms = int(channel_actuation["minimum_rearm_gap_ms"])
-        retrigger_gap_ms = int(channel_actuation["retrigger_gap_ms"])
 
-        state = get_channel_state(channel)
-        active_note = state["active_note"]
-        last_off_ms = state["last_off_ms"]
-        naturally_closed_note = None
-        truncated_active_end_ms = None
-        forced_retrigger = False
-        gap_ms = minimum_rearm_gap_ms
+        previous_note = None
+        next_note = None
+        for scheduled_note in notes_by_channel[channel]:
+            if scheduled_note["start_ms"] >= start_ms:
+                next_note = scheduled_note
+                break
+            previous_note = scheduled_note
 
-        if active_note and interval["start_ms"] >= active_note["end_ms"]:
-            naturally_closed_note = active_note
-            last_off_ms = active_note["end_ms"] + release_delay_ms
-            active_note = None
+        if previous_note is not None:
+            earliest_start_ms = previous_note["end_ms"] + release_delay_ms + minimum_rearm_gap_ms
+            if start_ms < earliest_start_ms:
+                return False
 
-        if active_note and interval["start_ms"] < active_note["end_ms"]:
-            forced_retrigger = True
-            truncated_active_end_ms = max(active_note["start_ms"] + 1, interval["start_ms"])
-            last_off_ms = truncated_active_end_ms + release_delay_ms
-            gap_ms = retrigger_gap_ms
+        if next_note is not None:
+            latest_end_ms = next_note["start_ms"] - release_delay_ms - minimum_rearm_gap_ms
+            if end_ms > latest_end_ms:
+                return False
 
-        start_ms = max(interval["start_ms"], last_off_ms + gap_ms)
-        delay_ms = start_ms - interval["start_ms"]
+        return True
 
-        return {
-            "channel": channel,
-            "target_note": target_note,
-            "start_ms": start_ms,
-            "delay_ms": delay_ms,
-            "forced_retrigger": forced_retrigger,
-            "naturally_closed_note": naturally_closed_note,
-            "truncated_active_end_ms": truncated_active_end_ms,
-        }
+    def insert_scheduled_note(note_event):
+        channel = int(note_event["channel"])
+        notes_by_channel[channel].append(note_event)
+        notes_by_channel[channel].sort(key=lambda item: (item["start_ms"], item["end_ms"], item["note"]))
+        channels_used.add(channel)
 
-    for interval in sorted(note_intervals, key=lambda item: (item["start_ms"], item["note"], item["end_ms"])):
-        source_note = int(interval.get("source_note", interval["note"]))
+    for interval in sorted(remapped_source_intervals, key=lambda item: (item["start_ms"], item["note"], item["end_ms"])):
+        source_note = int(interval["source_note"])
         candidate_notes = get_octave_transpose_candidate_notes(source_note, mapping_config)
         if not candidate_notes:
-            unmapped_notes += 1
-            unmapped_note_counts[source_note] += 1
-            continue
-
-        candidate_evaluations = []
-        for target_note in candidate_notes:
-            channel = map_note_to_channel(target_note, mapping_config)
-            if channel is None:
-                continue
-            candidate_evaluations.append(evaluate_candidate(interval, int(target_note), int(channel)))
-
-        if not candidate_evaluations:
-            unmapped_notes += 1
-            unmapped_note_counts[source_note] += 1
-            continue
-
-        best_candidate = min(
-            candidate_evaluations,
-            key=lambda candidate: (
-                candidate["delay_ms"],
-                1 if candidate["forced_retrigger"] else 0,
-                abs(candidate["target_note"] - source_note),
-                candidate["target_note"],
-                candidate["channel"],
-            ),
-        )
-
-        remapped_note = best_candidate["target_note"] != source_note
-        if remapped_note and best_candidate["delay_ms"] > 0:
             skipped_transposed_notes_for_timing += 1
             unmapped_notes += 1
             unmapped_note_counts[source_note] += 1
             continue
 
-        state = get_channel_state(best_candidate["channel"])
-        channel_actuation = resolve_channel_actuation(best_candidate["channel"], config)
-        release_delay_ms = int(channel_actuation["release_delay_ms"])
-
-        if best_candidate["naturally_closed_note"] is not None:
-            scheduled_notes.append(best_candidate["naturally_closed_note"])
-            state["last_off_ms"] = best_candidate["naturally_closed_note"]["end_ms"] + release_delay_ms
-            state["active_note"] = None
-
-        if best_candidate["forced_retrigger"] and state["active_note"] is not None:
-            state["active_note"]["end_ms"] = best_candidate["truncated_active_end_ms"]
-            scheduled_notes.append(state["active_note"])
-            state["last_off_ms"] = state["active_note"]["end_ms"] + release_delay_ms
-            state["active_note"] = None
-            forced_retriggers += 1
-
         original_duration_ms = max(1, interval["end_ms"] - interval["start_ms"])
-        start_ms = best_candidate["start_ms"]
-        if start_ms > interval["start_ms"]:
-            delayed_notes += 1
+        target_end_ms = max(interval["start_ms"] + 1, interval["start_ms"] + original_duration_ms)
+        fitting_candidates = []
 
-        active_note = {
+        for target_note in candidate_notes:
+            channel = map_note_to_channel(target_note, mapping_config)
+            if channel is None:
+                continue
+            if can_insert_on_time(int(channel), interval["start_ms"], target_end_ms):
+                fitting_candidates.append((abs(int(target_note) - source_note), int(target_note), int(channel)))
+
+        if not fitting_candidates:
+            skipped_transposed_notes_for_timing += 1
+            unmapped_notes += 1
+            unmapped_note_counts[source_note] += 1
+            continue
+
+        _, target_note, channel = min(
+            fitting_candidates,
+            key=lambda item: (item[0], item[1], item[2]),
+        )
+
+        scheduled_note = {
             **interval,
             "source_note": source_note,
-            "note": best_candidate["target_note"],
-            "channel": best_candidate["channel"],
+            "note": target_note,
+            "channel": channel,
             "original_start_ms": interval["start_ms"],
             "original_end_ms": interval["end_ms"],
             "original_duration_ms": original_duration_ms,
-            "start_ms": start_ms,
-            "end_ms": max(start_ms + 1, start_ms + original_duration_ms),
+            "start_ms": interval["start_ms"],
+            "end_ms": target_end_ms,
         }
-        state["active_note"] = active_note
-        channels_used.add(best_candidate["channel"])
-
-    for channel, state in channel_states.items():
-        if state["active_note"] is not None:
-            scheduled_notes.append(state["active_note"])
-            channels_used.add(channel)
+        insert_scheduled_note(scheduled_note)
+        scheduled_notes.append(scheduled_note)
 
     scheduled_notes.sort(key=lambda item: (item["start_ms"], item["channel"], item["note"]))
     return scheduled_notes, {
-        "forced_retriggers": forced_retriggers,
-        "delayed_notes": delayed_notes,
+        "forced_retriggers": exact_stats["forced_retriggers"],
+        "delayed_notes": exact_stats["delayed_notes"],
         "unmapped_notes": unmapped_notes,
         "unmapped_note_counts": {str(note): count for note, count in sorted(unmapped_note_counts.items())},
         "channels_used": sorted(channels_used),
