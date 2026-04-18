@@ -17,6 +17,8 @@ Or double-click:
 
 - [play_piano.bat](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/play_piano.bat)
 
+The same launcher also includes `Calibrate Note Mapping...` in the GUI if you need to update the saved key mapping before playing.
+
 ## What happens next
 
 The tool will:

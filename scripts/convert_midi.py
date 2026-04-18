@@ -69,6 +69,7 @@ DEFAULT_USER_PREFERENCES = {
     "playback": {
         "auto_use_newest_download": True,
         "default_fit_mode": "prompt",
+        "default_active_channels": 31,
         "default_playable_range": "",
         "default_tempo": "",
         "wait_for_finish": True,
@@ -1775,6 +1776,55 @@ def parse_runtime_key_values(response):
         key, value = token.split("=", 1)
         fields[key] = value
     return fields
+
+
+def parse_hex_address_list(raw_value):
+    raw_value = str(raw_value or "").strip()
+    if not raw_value or raw_value.lower() == "none":
+        return []
+    return [int(token, 16) for token in raw_value.split(",") if token]
+
+
+def format_i2c_address_list(addresses):
+    if not addresses:
+        return "none"
+    return ", ".join(f"0x{int(address):02X}" for address in addresses)
+
+
+def parse_i2c_response(response):
+    if not response.startswith("I2C "):
+        raise RuntimeError(f"Unexpected I2C response: {response}")
+
+    fields = parse_runtime_key_values(response)
+    return {
+        "detected_addresses": parse_hex_address_list(fields.get("detected")),
+        "expected_addresses": parse_hex_address_list(fields.get("expected")),
+        "missing_addresses": parse_hex_address_list(fields.get("missing")),
+        "count": int(fields.get("count", 0)),
+    }
+
+
+def build_i2c_mismatch_warning(i2c_info):
+    expected = i2c_info.get("expected_addresses", [])
+    detected = i2c_info.get("detected_addresses", [])
+    missing = i2c_info.get("missing_addresses", [])
+
+    if expected and detected == expected and not missing:
+        return None
+
+    if not detected:
+        return (
+            "No configured PCA9685 addresses responded on I2C. "
+            f"Expected {format_i2c_address_list(expected)}."
+        )
+
+    return (
+        "Detected PCA9685 addresses do not match the configured hardware. "
+        f"Detected {format_i2c_address_list(detected)}; "
+        f"expected {format_i2c_address_list(expected)}; "
+        f"missing {format_i2c_address_list(missing)}. "
+        "If multiple boards are firing together, check the A0-A5 address jumpers so each board has a unique I2C address."
+    )
 
 
 def parse_status_response(response):

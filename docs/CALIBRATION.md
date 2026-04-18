@@ -8,9 +8,17 @@ Run:
 python scripts/piano_tools.py
 ```
 
+Or from the normal launcher:
+
+```bash
+python scripts/play_piano.py --calibrate
+```
+
 Or double-click:
 
 - [calibrate_piano.bat](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/calibrate_piano.bat)
+
+If you launch [play_piano.bat](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/play_piano.bat) or `python scripts/play_piano.py` without arguments, the GUI now includes a `Calibrate Note Mapping...` button so playback and mapping setup live under one entry point.
 
 ## Available actions
 
@@ -32,6 +40,8 @@ The tool will:
 ### 3. Save a manual channel-to-note map
 
 Use this when the installed keys are not contiguous.
+This is the right mode for layouts like white keys in one octave plus full
+chromatic notes in others.
 
 The tool will:
 
@@ -53,3 +63,7 @@ The calibration tools write:
 - [songs/metadata/calibration_report.txt](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/songs/metadata/calibration_report.txt)
 
 When `calibrated_mapping.json` exists, the playback tool automatically uses it.
+
+If calibration reports an I2C warning, stop and fix the PCA9685 board
+addresses first. Multiple boards must use unique addresses such as `0x40`,
+`0x41`, `0x42`, and `0x43`.

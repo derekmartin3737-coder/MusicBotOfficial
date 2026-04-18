@@ -6,8 +6,10 @@ note-to-channel calibration map, and tuning one channel's strike/hold values.
 """
 
 import argparse
+import copy
 import json
 import time
+from collections import defaultdict
 from pathlib import Path
 
 import convert_midi as engine
@@ -50,6 +52,16 @@ def open_runtime_connection(port_override=None):
 
     ready_response = engine.send_serial_command(connection, "HELLO", ("READY",), timeout_seconds=4.0)
     ready_info = engine.parse_ready_response(ready_response)
+    ready_info["i2c_info"] = None
+    ready_info["i2c_warning"] = None
+    try:
+        i2c_response = engine.send_serial_command(connection, "I2C", ("I2C",), timeout_seconds=2.0)
+    except RuntimeError as error:
+        if "UNKNOWN_COMMAND" not in str(error):
+            raise
+    else:
+        ready_info["i2c_info"] = engine.parse_i2c_response(i2c_response)
+        ready_info["i2c_warning"] = engine.build_i2c_mismatch_warning(ready_info["i2c_info"])
     engine.send_serial_command(connection, "STOP", ("OK STOPPED",), timeout_seconds=2.0)
     engine.send_serial_command(connection, "CLEAR", ("OK CLEARED",), timeout_seconds=2.0)
     return connection, port, ready_info
@@ -102,6 +114,49 @@ def build_mapping_lines(mapping):
     return lines
 
 
+def build_calibration_config(base_config, active_channel_count):
+    """Prepare calibration to walk the active global channels in raw hardware order.
+
+    Calibration should not inherit a stale saved note order from an older wiring
+    map. If the user says there are N active channels, test global channels
+    0..N-1 so every PCA board/channel combination is unambiguous.
+    """
+    active_count = engine.parse_active_channel_count(active_channel_count, base_config["pca9685"])
+    active_sequence = list(range(active_count))
+
+    config = copy.deepcopy(base_config)
+    mapping = config["mapping"]
+    mapping["channel_sequence"] = active_sequence
+
+    if mapping.get("mode") == "explicit_note_map":
+        active_channels = set(active_sequence)
+        note_to_channel = {
+            str(note): int(channel)
+            for note, channel in mapping.get("note_to_channel", {}).items()
+            if int(channel) in active_channels
+        }
+        mapping["note_to_channel"] = dict(sorted(note_to_channel.items(), key=lambda item: int(item[0])))
+        if "note_labels" in mapping:
+            mapping["note_labels"] = {
+                note: label
+                for note, label in mapping["note_labels"].items()
+                if note in mapping["note_to_channel"]
+            }
+
+    return config, active_sequence
+
+
+def iter_calibration_channels(mapping):
+    """Yield each active hardware channel exactly once in calibration order."""
+    channel_to_notes = defaultdict(list)
+    if mapping.get("mode") == "explicit_note_map":
+        for note, channel in mapping.get("note_to_channel", {}).items():
+            channel_to_notes[int(channel)].append(int(note))
+
+    for channel in engine.get_mapping_channel_order(mapping):
+        yield channel, sorted(channel_to_notes.get(int(channel), []))
+
+
 def iter_mapping_in_note_order(mapping):
     """Yield configured channel tests in musical order when notes are known."""
     if mapping.get("mode") != "explicit_note_map":
@@ -128,16 +183,19 @@ def contiguous_octave_mapping(config, bottom_note):
 
 def run_sweep(connection, config):
     """Fire every mapped note once so wiring/order mistakes are obvious."""
-    print("\nSweeping mapped notes in ascending note order.")
-    for note, channel in iter_mapping_in_note_order(config["mapping"]):
+    print("\nSweeping active hardware channels in global channel order.")
+    for channel, mapped_notes in iter_calibration_channels(config["mapping"]):
         actuation = engine.resolve_channel_actuation(channel, config)
         pulse = build_calibration_pulse(actuation)
         label = config["mapping"].get("channel_labels", {}).get(str(channel), f"Channel {channel}")
         channel_target = engine.describe_global_channel(channel, config["pca9685"])
-        if note is None:
-            print(f"  Firing {channel_target}: {label}")
+        if len(mapped_notes) == 1:
+            print(f"  Testing {engine.midi_note_name(mapped_notes[0])} on {channel_target}: {label}")
+        elif len(mapped_notes) > 1:
+            notes = ", ".join(engine.midi_note_name(note) for note in mapped_notes)
+            print(f"  Firing {channel_target}: {label} (currently mapped to {notes})")
         else:
-            print(f"  Testing {engine.midi_note_name(note)} on {channel_target}: {label}")
+            print(f"  Firing {channel_target}: {label}")
         fire_channel(connection, channel, pulse)
         time.sleep(0.25)
 
@@ -333,19 +391,20 @@ def main():
         active_channel_count = args.active_channels
         if active_channel_count is None:
             active_channel_count = prompt_active_channel_count(config)
-        limited_mapping, active_sequence = engine.apply_active_channel_limit(
-            config["mapping"],
-            config["pca9685"],
-            active_channel_count=active_channel_count,
-        )
-        config = dict(config)
-        config["mapping"] = limited_mapping
+        config, active_sequence = build_calibration_config(config, active_channel_count)
         print(engine.summarize_active_channel_sequence(active_sequence, config["pca9685"]))
 
     connection = None
     try:
         connection, port, ready_info = open_runtime_connection(port_override=args.port)
         print(f"Connected to Arduino runtime on {port} (protocol v{ready_info['protocol_version']}).")
+        if ready_info.get("i2c_warning"):
+            print(f"I2C warning: {ready_info['i2c_warning']}")
+        elif ready_info.get("i2c_info") and ready_info["i2c_info"].get("detected_addresses"):
+            print(
+                "Detected PCA9685 addresses: "
+                f"{engine.format_i2c_address_list(ready_info['i2c_info']['detected_addresses'])}"
+            )
 
         if action == "sweep":
             run_sweep(connection, config)

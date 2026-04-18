@@ -32,7 +32,7 @@ static const uint8_t RUNTIME_PCA9685_I2C_ADDRESSES[RUNTIME_PCA_BOARD_COUNT] = {
 };
 static const uint16_t RUNTIME_PCA9685_PWM_FREQUENCY_HZ = 250;
 static const uint32_t RUNTIME_SERIAL_BAUD = 115200;
-static const uint8_t RUNTIME_PROTOCOL_VERSION = 3;
+static const uint8_t RUNTIME_PROTOCOL_VERSION = 4;
 
 // Small RAM buffer for streamed events. Python keeps refilling this while
 // playback is running so the Uno does not need to store an entire song.
@@ -90,6 +90,55 @@ void allChannelsOff() {
       pwmBoards[boardIndex].setPWM(channel, 0, 0);
     }
   }
+}
+
+bool probeI2cAddress(uint8_t address) {
+  Wire.beginTransmission(address);
+  return Wire.endTransmission() == 0;
+}
+
+void printAddressList(const uint8_t *addresses, uint8_t count) {
+  if (count == 0) {
+    Serial.print(F("none"));
+    return;
+  }
+
+  for (uint8_t index = 0; index < count; index++) {
+    if (index > 0) {
+      Serial.print(',');
+    }
+    if (addresses[index] < 0x10) {
+      Serial.print(F("0x0"));
+    } else {
+      Serial.print(F("0x"));
+    }
+    Serial.print(addresses[index], HEX);
+  }
+}
+
+void sendI2cStatus() {
+  uint8_t detectedAddresses[RUNTIME_PCA_BOARD_COUNT];
+  uint8_t missingAddresses[RUNTIME_PCA_BOARD_COUNT];
+  uint8_t detectedCount = 0;
+  uint8_t missingCount = 0;
+
+  for (uint8_t boardIndex = 0; boardIndex < RUNTIME_PCA_BOARD_COUNT; boardIndex++) {
+    uint8_t address = RUNTIME_PCA9685_I2C_ADDRESSES[boardIndex];
+    if (probeI2cAddress(address)) {
+      detectedAddresses[detectedCount++] = address;
+    } else {
+      missingAddresses[missingCount++] = address;
+    }
+  }
+
+  Serial.print(F("I2C detected="));
+  printAddressList(detectedAddresses, detectedCount);
+  Serial.print(F(" expected="));
+  printAddressList(RUNTIME_PCA9685_I2C_ADDRESSES, RUNTIME_PCA_BOARD_COUNT);
+  Serial.print(F(" missing="));
+  printAddressList(missingAddresses, missingCount);
+  Serial.print(F(" count="));
+  Serial.println(detectedCount);
 }
 
 void setGlobalChannelPwm(uint8_t globalChannel, uint16_t pwmValue) {
@@ -346,7 +395,12 @@ void handleCommand(const char *line) {
 
   if (strcmp(line, "HELP") == 0) {
     Serial.println(
-        F("OK COMMANDS HELLO PING STATUS BEGIN EVENT COMMIT PLAY STOP CLEAR FIRE ALL_OFF"));
+        F("OK COMMANDS HELLO PING STATUS I2C BEGIN EVENT COMMIT PLAY STOP CLEAR FIRE ALL_OFF"));
+    return;
+  }
+
+  if (strcmp(line, "I2C") == 0) {
+    sendI2cStatus();
     return;
   }
 

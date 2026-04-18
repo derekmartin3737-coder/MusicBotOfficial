@@ -105,7 +105,7 @@
     }
   },
   "notes": {
-    "current_setup": "The runtime now supports four daisy-chained PCA9685 boards as one 64-channel global space. The current saved note map still uses one chromatic octave, C3 through B3, on global channels 0 through 11.",
+    "current_setup": "The runtime now supports four daisy-chained PCA9685 boards as one 64-channel global space. The current bench setup uses 31 solenoids: white keys C2 through B2, then full chromatic octaves C3 through B3 and C4 through B4.",
     "wiring_assumption": "Global channels 0 through 15 live on PCA9685 address 0x40, 16 through 31 on 0x41, 32 through 47 on 0x42, and 48 through 63 on 0x43.",
     "future_setup": "As more solenoids are added, extend the note mapping or save a calibrated_mapping.json file. Songs can then be limited to the currently installed note range."
   }

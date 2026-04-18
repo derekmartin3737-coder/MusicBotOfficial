@@ -9,11 +9,13 @@ from __future__ import annotations
 
 import queue
 import threading
+import time
 import tkinter as tk
 from pathlib import Path
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox, simpledialog, ttk
 
 import convert_midi as engine
+import piano_tools
 
 
 class SongPickerDialog(tk.Toplevel):
@@ -117,6 +119,64 @@ class SongPickerDialog(tk.Toplevel):
         self.destroy()
 
 
+class CalibrationActionDialog(tk.Toplevel):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.title("Note Mapping Calibration")
+        self.resizable(False, False)
+        self.transient(parent)
+        self.grab_set()
+
+        self.result = None
+        self.action_var = tk.StringVar(value="manual")
+
+        outer = ttk.Frame(self, padding=16)
+        outer.grid(row=0, column=0, sticky="nsew")
+
+        ttk.Label(
+            outer,
+            text="Choose a note mapping action",
+            font=("Segoe UI", 11, "bold"),
+        ).grid(row=0, column=0, sticky="w")
+        ttk.Label(
+            outer,
+            text="Use manual mapping when the installed notes are not one clean contiguous span.",
+            wraplength=420,
+        ).grid(row=1, column=0, sticky="w", pady=(6, 12))
+
+        ttk.Radiobutton(
+            outer,
+            text="Sweep channels only",
+            variable=self.action_var,
+            value="sweep",
+        ).grid(row=2, column=0, sticky="w", pady=2)
+        ttk.Radiobutton(
+            outer,
+            text="Save contiguous octave map",
+            variable=self.action_var,
+            value="contiguous",
+        ).grid(row=3, column=0, sticky="w", pady=2)
+        ttk.Radiobutton(
+            outer,
+            text="Save manual channel-to-note map",
+            variable=self.action_var,
+            value="manual",
+        ).grid(row=4, column=0, sticky="w", pady=2)
+
+        button_row = ttk.Frame(outer)
+        button_row.grid(row=5, column=0, sticky="e", pady=(14, 0))
+        ttk.Button(button_row, text="Cancel", command=self.cancel).grid(row=0, column=0)
+        ttk.Button(button_row, text="Continue", command=self.accept).grid(row=0, column=1, padx=(8, 0))
+
+    def accept(self):
+        self.result = self.action_var.get()
+        self.destroy()
+
+    def cancel(self):
+        self.result = None
+        self.destroy()
+
+
 class PianoPlayerApp(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -131,15 +191,19 @@ class PianoPlayerApp(tk.Tk):
         self.selection_reason = ""
         self.worker = None
         self.message_queue = queue.Queue()
+        playback_preferences = self.user_preferences.get("playback", {})
+        default_active_channels = playback_preferences.get(
+            "default_active_channels",
+            len(engine.get_mapping_channel_order(self.config_data["mapping"])),
+        )
+        default_playable_range = playback_preferences.get("default_playable_range", "")
 
         self.song_name_var = tk.StringVar(value="No song selected")
         self.song_reason_var = tk.StringVar(value="")
         self.song_info_var = tk.StringVar(value="No MIDI selected yet.")
-        self.active_channels_var = tk.StringVar(
-            value=str(len(engine.get_mapping_channel_order(self.config_data["mapping"])))
-        )
+        self.active_channels_var = tk.StringVar(value=str(default_active_channels))
         self.tempo_var = tk.StringVar(value="")
-        self.range_var = tk.StringVar(value="")
+        self.range_var = tk.StringVar(value=str(default_playable_range))
         self.fit_mode_var = tk.StringVar(value="transpose")
         self.export_only_var = tk.BooleanVar(value=False)
 
@@ -200,7 +264,7 @@ class PianoPlayerApp(tk.Tk):
         )
         ttk.Label(
             options_frame,
-            text="How many hardware channels are active right now. Increase or decrease this as you add or remove keys.",
+            text="How many hardware channels are active right now. The current bench default is 31.",
             wraplength=620,
         ).grid(row=1, column=1, sticky="w", padx=(0, 12), pady=(0, 8))
 
@@ -215,7 +279,11 @@ class PianoPlayerApp(tk.Tk):
         ttk.Entry(options_frame, textvariable=self.range_var).grid(row=4, column=1, sticky="ew", padx=(0, 12), pady=(4, 4))
         ttk.Label(
             options_frame,
-            text="Leave blank to use the saved note mapping. Or enter a contiguous range like C3-B3 or 48-59.",
+            text=(
+                "Leave blank to use the saved note mapping. "
+                "Your current 31-solenoid setup spans C2 to B4 but is non-contiguous in octave 2, "
+                "so blank is the correct default unless you want a temporary contiguous override like C3-B3."
+            ),
             wraplength=620,
         ).grid(row=5, column=1, sticky="w", padx=(0, 12), pady=(0, 8))
 
@@ -240,6 +308,9 @@ class PianoPlayerApp(tk.Tk):
         )
         ttk.Button(action_frame, text="Play / Send to Arduino", command=lambda: self.start_run(dry_run=False)).grid(
             row=0, column=1, sticky="w", padx=(8, 0)
+        )
+        ttk.Button(action_frame, text="Calibrate Note Mapping...", command=self.start_note_mapping_calibration).grid(
+            row=0, column=2, sticky="w", padx=(8, 0)
         )
 
         log_frame = ttk.LabelFrame(outer, text="Status")
@@ -326,6 +397,209 @@ class PianoPlayerApp(tk.Tk):
             f"Playable note events detected: {preview['note_count']}"
         )
 
+    def get_active_channel_count(self):
+        active_channel_count = self.active_channels_var.get().strip()
+        return engine.parse_active_channel_count(
+            active_channel_count,
+            self.config_data["pca9685"],
+        )
+
+    def build_active_calibration_config(self, active_channel_count):
+        config = engine.load_config()
+        return piano_tools.build_calibration_config(config, active_channel_count)
+
+    def log_mapping_lines(self, mapping_lines):
+        for line in mapping_lines:
+            self.append_log(f"  {line}")
+
+    def run_sweep_calibration(self, connection, config):
+        self.append_log("Sweeping active hardware channels in global channel order.")
+        for channel, mapped_notes in piano_tools.iter_calibration_channels(config["mapping"]):
+            actuation = engine.resolve_channel_actuation(channel, config)
+            pulse = piano_tools.build_calibration_pulse(actuation)
+            label = config["mapping"].get("channel_labels", {}).get(str(channel), f"Channel {channel}")
+            channel_target = engine.describe_global_channel(channel, config["pca9685"])
+            if len(mapped_notes) == 1:
+                self.append_log(f"  Testing {engine.midi_note_name(mapped_notes[0])} on {channel_target}: {label}")
+            elif len(mapped_notes) > 1:
+                notes = ", ".join(engine.midi_note_name(note) for note in mapped_notes)
+                self.append_log(f"  Firing {channel_target}: {label} (currently mapped to {notes})")
+            else:
+                self.append_log(f"  Firing {channel_target}: {label}")
+            piano_tools.fire_channel(connection, channel, pulse)
+            self.update()
+            time.sleep(0.25)
+
+    def calibrate_contiguous_octave_gui(self, connection, config, port, ready_info):
+        self.run_sweep_calibration(connection, config)
+        bottom_note_text = simpledialog.askstring(
+            "Bottom Note",
+            "Enter the bottom note of the contiguous keyboard range, such as C4.",
+            parent=self,
+        )
+        if bottom_note_text is None:
+            raise RuntimeError("Calibration cancelled before saving the contiguous range.")
+
+        bottom_note = engine.parse_note_token(bottom_note_text.strip())
+        mapping = piano_tools.contiguous_octave_mapping(config, bottom_note)
+        mapping_lines = piano_tools.build_mapping_lines(mapping)
+
+        if not messagebox.askyesno(
+            "Save Contiguous Map",
+            "Save this contiguous mapping?\n\n" + "\n".join(mapping_lines),
+            parent=self,
+        ):
+            raise RuntimeError("Calibration cancelled before saving the contiguous range.")
+
+        report_payload = {
+            "mode": "contiguous_octave",
+            "port": port,
+            "protocol_version": ready_info["protocol_version"],
+            "mapping_lines": mapping_lines,
+            "mapping": mapping,
+        }
+        piano_tools.save_calibrated_mapping(mapping, report_payload)
+        self.append_log("Saved contiguous mapping:")
+        self.log_mapping_lines(mapping_lines)
+
+    def calibrate_manual_mapping_gui(self, connection, config, port, ready_info):
+        note_to_channel = {}
+        note_labels = {}
+        channel_labels = dict(config["mapping"].get("channel_labels", {}))
+        channel_sequence = engine.get_mapping_channel_order(config["mapping"])
+
+        self.append_log("Manual channel mapping started.")
+        self.append_log("Each channel will fire once. Enter the piano note it moved, or leave blank to skip it.")
+
+        for channel in channel_sequence:
+            actuation = engine.resolve_channel_actuation(channel, config)
+            pulse = piano_tools.build_calibration_pulse(actuation)
+            label = channel_labels.get(str(channel), f"Channel {channel}")
+            channel_target = engine.describe_global_channel(channel, config["pca9685"])
+            self.append_log(f"Firing {channel_target}: {label}")
+            piano_tools.fire_channel(connection, channel, pulse)
+            self.update()
+
+            while True:
+                raw = simpledialog.askstring(
+                    "Manual Mapping",
+                    f"{channel_target}\n{label}\n\nWhich piano note moved? Use a name like C4 or F#3.\nLeave blank to skip this channel.",
+                    parent=self,
+                )
+                if raw is None or not raw.strip():
+                    break
+                try:
+                    note = engine.parse_note_token(raw.strip())
+                except ValueError as error:
+                    messagebox.showerror("Invalid note", str(error), parent=self)
+                    continue
+                if str(note) in note_to_channel:
+                    messagebox.showerror(
+                        "Duplicate note",
+                        "That note was already assigned. Enter a different note or leave this channel blank.",
+                        parent=self,
+                    )
+                    continue
+                note_to_channel[str(note)] = channel
+                note_labels[str(note)] = engine.midi_note_name(note)
+                break
+
+        if not note_to_channel:
+            raise RuntimeError("No channel mappings were entered, so nothing was saved.")
+
+        mapping = {
+            "mode": "explicit_note_map",
+            "note_to_channel": dict(sorted(note_to_channel.items(), key=lambda item: int(item[0]))),
+            "note_labels": note_labels,
+            "channel_labels": channel_labels,
+            "channel_sequence": channel_sequence,
+        }
+        mapping_lines = piano_tools.build_mapping_lines(mapping)
+
+        if not messagebox.askyesno(
+            "Save Manual Map",
+            "Save this manual mapping?\n\n" + "\n".join(mapping_lines),
+            parent=self,
+        ):
+            raise RuntimeError("Calibration cancelled before saving the manual mapping.")
+
+        report_payload = {
+            "mode": "manual_mapping",
+            "port": port,
+            "protocol_version": ready_info["protocol_version"],
+            "mapping_lines": mapping_lines,
+            "mapping": mapping,
+        }
+        piano_tools.save_calibrated_mapping(mapping, report_payload)
+        self.append_log("Saved manual mapping:")
+        self.log_mapping_lines(mapping_lines)
+
+    def start_note_mapping_calibration(self):
+        if self.worker is not None and self.worker.is_alive():
+            messagebox.showinfo("Already running", "Wait for the current playback job to finish first.", parent=self)
+            return
+
+        dialog = CalibrationActionDialog(self)
+        self.wait_window(dialog)
+        if dialog.result is None:
+            return
+
+        try:
+            active_channel_count = self.get_active_channel_count()
+            calibration_config, active_sequence = self.build_active_calibration_config(active_channel_count)
+        except ValueError as error:
+            messagebox.showerror("Invalid hardware count", str(error), parent=self)
+            return
+
+        self.append_log("")
+        self.append_log("Starting note mapping calibration...")
+        self.append_log(engine.summarize_active_channel_sequence(active_sequence, calibration_config["pca9685"]))
+        self.set_controls_enabled(False)
+        self.update()
+
+        connection = None
+        try:
+            connection, port, ready_info = piano_tools.open_runtime_connection()
+            self.append_log(f"Connected to Arduino runtime on {port} (protocol v{ready_info['protocol_version']}).")
+            if ready_info.get("i2c_warning"):
+                self.append_log(f"I2C warning: {ready_info['i2c_warning']}")
+            elif ready_info.get("i2c_info") and ready_info["i2c_info"].get("detected_addresses"):
+                self.append_log(
+                    "Detected PCA9685 addresses: "
+                    f"{engine.format_i2c_address_list(ready_info['i2c_info']['detected_addresses'])}"
+                )
+
+            if dialog.result == "sweep":
+                self.run_sweep_calibration(connection, calibration_config)
+                messagebox.showinfo("Sweep Complete", "Channel sweep complete.", parent=self)
+            elif dialog.result == "contiguous":
+                self.calibrate_contiguous_octave_gui(connection, calibration_config, port, ready_info)
+                messagebox.showinfo(
+                    "Calibration Saved",
+                    f"Saved contiguous note mapping to {engine.CALIBRATED_MAPPING_PATH.name}.",
+                    parent=self,
+                )
+            else:
+                self.calibrate_manual_mapping_gui(connection, calibration_config, port, ready_info)
+                messagebox.showinfo(
+                    "Calibration Saved",
+                    f"Saved manual note mapping to {engine.CALIBRATED_MAPPING_PATH.name}.",
+                    parent=self,
+                )
+
+            self.config_data = engine.load_config()
+        except Exception as error:
+            self.append_log(f"Calibration error: {error}")
+            messagebox.showerror("Calibration failed", str(error), parent=self)
+        finally:
+            if connection is not None:
+                try:
+                    engine.send_serial_command(connection, "ALL_OFF", ("OK ALL_OFF",), timeout_seconds=2.0)
+                except Exception:
+                    pass
+                connection.close()
+            self.set_controls_enabled(True)
+
     def start_run(self, dry_run):
         if self.worker is not None and self.worker.is_alive():
             messagebox.showinfo("Already running", "Wait for the current playback job to finish first.", parent=self)
@@ -335,12 +609,8 @@ class PianoPlayerApp(tk.Tk):
             messagebox.showinfo("Choose a song", "Pick a MIDI file first.", parent=self)
             return
 
-        active_channel_count = self.active_channels_var.get().strip()
         try:
-            active_channel_count = engine.parse_active_channel_count(
-                active_channel_count,
-                self.config_data["pca9685"],
-            )
+            active_channel_count = self.get_active_channel_count()
         except ValueError as error:
             messagebox.showerror("Invalid hardware count", str(error), parent=self)
             return
