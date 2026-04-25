@@ -258,6 +258,9 @@ class PianoPlayerApp(tk.Tk):
             len(engine.get_mapping_channel_order(self.config_data["mapping"])),
         )
         default_playable_range = playback_preferences.get("default_playable_range", "")
+        default_fit_mode = playback_preferences.get("default_fit_mode", "strict")
+        if default_fit_mode not in {"strict", "transpose"}:
+            default_fit_mode = "strict"
 
         self.song_name_var = tk.StringVar(value="No song selected")
         self.song_reason_var = tk.StringVar(value="")
@@ -265,7 +268,7 @@ class PianoPlayerApp(tk.Tk):
         self.active_channels_var = tk.StringVar(value=str(default_active_channels))
         self.tempo_var = tk.StringVar(value="")
         self.range_var = tk.StringVar(value=str(default_playable_range))
-        self.fit_mode_var = tk.StringVar(value="transpose")
+        self.fit_mode_var = tk.StringVar(value=default_fit_mode)
         self.export_only_var = tk.BooleanVar(value=False)
 
         self._build_layout()

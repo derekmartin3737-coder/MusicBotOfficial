@@ -68,7 +68,7 @@ STREAM_MANIFEST_PATH = METADATA_DIR / "last_streamed_song.json"
 DEFAULT_USER_PREFERENCES = {
     "playback": {
         "auto_use_newest_download": True,
-        "default_fit_mode": "prompt",
+        "default_fit_mode": "strict",
         "default_active_channels": 61,
         "default_playable_range": "",
         "default_tempo": "",
