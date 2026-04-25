@@ -16,6 +16,9 @@ import convert_midi as engine
 
 CALIBRATION_REPORT_PATH = engine.METADATA_DIR / "calibration_report.json"
 CALIBRATION_REPORT_TEXT_PATH = engine.METADATA_DIR / "calibration_report.txt"
+# Slightly slower than the original calibration pace so single-note mapping,
+# especially on dense black-key sections, is easier to watch and label.
+CALIBRATION_INTER_FIRE_DELAY_SECONDS = 0.44
 
 
 def build_calibration_pulse(actuation):
@@ -29,6 +32,55 @@ def build_calibration_pulse(actuation):
         "hold_ms": max(120, int(actuation["strike_ms"]) * 3),
         "release_ms": 240,
     }
+
+
+def build_calibration_channel_labels(pca_config, active_sequence, existing_labels=None):
+    labels = {}
+    for channel in active_sequence:
+        channel_key = str(int(channel))
+        target = engine.split_global_channel(channel, pca_config)
+        labels[channel_key] = f"PCA9685 0x{target['i2c_address']:02X} channel {target['local_channel']}"
+    return labels
+
+
+def count_required_pca_boards(active_sequence):
+    if not active_sequence:
+        return 0
+    highest_channel = max(int(channel) for channel in active_sequence)
+    return (highest_channel // engine.PCA9685_CHANNELS_PER_BOARD) + 1
+
+
+def ensure_calibration_hardware_ready(ready_info, pca_config, active_sequence):
+    """Fail fast when the PCA bus does not match the requested calibration span."""
+    i2c_info = ready_info.get("i2c_info")
+    if not i2c_info:
+        raise RuntimeError(
+            "Calibration needs the current MusicBotOfficial Arduino runtime so it can verify each PCA9685 address "
+            "before firing channels. Re-upload arduino/MusicBotOfficial/MusicBotOfficial.ino, then try calibration again."
+        )
+
+    required_board_count = count_required_pca_boards(active_sequence)
+    if required_board_count <= 0:
+        return
+
+    expected_addresses = engine.get_pca_board_addresses(pca_config)
+    required_addresses = expected_addresses[:required_board_count]
+    detected_addresses = i2c_info.get("detected_addresses", [])
+    missing_required = [address for address in required_addresses if address not in detected_addresses]
+
+    if not detected_addresses:
+        raise RuntimeError(
+            "Calibration could not find any PCA9685 boards on I2C. "
+            f"Expected at least {engine.format_i2c_address_list(required_addresses)}."
+        )
+
+    if missing_required:
+        raise RuntimeError(
+            "Calibration needs each PCA9685 board to answer on its own address so it can fire one solenoid at a time. "
+            f"Detected {engine.format_i2c_address_list(detected_addresses)}, but calibration for "
+            f"{len(active_sequence)} active channels requires {engine.format_i2c_address_list(required_addresses)}. "
+            "If several notes fire together, check the A0-A5 address jumpers and confirm each board has a unique I2C address."
+        )
 
 
 def open_runtime_connection(port_override=None):
@@ -69,11 +121,18 @@ def open_runtime_connection(port_override=None):
 
 def fire_channel(connection, channel, pulse):
     """Ask the Arduino runtime to fire one PCA9685 channel for calibration."""
+    engine.send_serial_command(connection, "ALL_OFF", ("OK ALL_OFF",), timeout_seconds=2.0)
     command = (
         f"FIRE {channel} {pulse['strike_pwm']} {pulse['hold_pwm']} "
         f"{pulse['strike_ms']} {pulse['hold_ms']} {pulse['release_ms']}"
     )
-    return engine.send_serial_command(connection, command, ("OK FIRED",), timeout_seconds=5.0)
+    try:
+        return engine.send_serial_command(connection, command, ("OK FIRED",), timeout_seconds=5.0)
+    finally:
+        try:
+            engine.send_serial_command(connection, "ALL_OFF", ("OK ALL_OFF",), timeout_seconds=2.0)
+        except Exception:
+            pass
 
 
 def save_calibrated_mapping(mapping, report_payload):
@@ -114,6 +173,47 @@ def build_mapping_lines(mapping):
     return lines
 
 
+def infer_missing_notes(mapping):
+    """Infer note gaps inside the saved explicit mapping span."""
+    if mapping.get("mode") != "explicit_note_map":
+        return []
+
+    note_numbers = sorted(int(note) for note in mapping.get("note_to_channel", {}))
+    if not note_numbers:
+        return []
+
+    note_to_channel = mapping.get("note_to_channel", {})
+    return [note for note in range(note_numbers[0], note_numbers[-1] + 1) if str(note) not in note_to_channel]
+
+
+def get_unused_mapping_channels(mapping, active_channel_count=None):
+    """Return channels in the saved sequence that do not currently have a mapped note."""
+    channel_sequence = [int(channel) for channel in engine.get_mapping_channel_order(mapping)]
+    if active_channel_count is not None:
+        channel_sequence = [channel for channel in channel_sequence if channel < int(active_channel_count)]
+
+    used_channels = {int(channel) for channel in mapping.get("note_to_channel", {}).values()}
+    return [channel for channel in channel_sequence if channel not in used_channels]
+
+
+def format_note_list(notes):
+    if not notes:
+        return "none"
+    return ", ".join(engine.midi_note_name(int(note)) for note in notes)
+
+
+def build_patch_mapping_config(base_config, active_channel_count=None):
+    """Keep the saved mapping but expose only the unused channels that still need labels."""
+    config = copy.deepcopy(base_config)
+    count = None
+    if active_channel_count is not None:
+        count = engine.parse_active_channel_count(active_channel_count, config["pca9685"])
+
+    unused_channels = get_unused_mapping_channels(config["mapping"], count)
+    missing_notes = infer_missing_notes(config["mapping"])
+    return config, unused_channels, missing_notes
+
+
 def build_calibration_config(base_config, active_channel_count):
     """Prepare calibration to walk the active global channels in raw hardware order.
 
@@ -125,23 +225,13 @@ def build_calibration_config(base_config, active_channel_count):
     active_sequence = list(range(active_count))
 
     config = copy.deepcopy(base_config)
-    mapping = config["mapping"]
-    mapping["channel_sequence"] = active_sequence
-
-    if mapping.get("mode") == "explicit_note_map":
-        active_channels = set(active_sequence)
-        note_to_channel = {
-            str(note): int(channel)
-            for note, channel in mapping.get("note_to_channel", {}).items()
-            if int(channel) in active_channels
-        }
-        mapping["note_to_channel"] = dict(sorted(note_to_channel.items(), key=lambda item: int(item[0])))
-        if "note_labels" in mapping:
-            mapping["note_labels"] = {
-                note: label
-                for note, label in mapping["note_labels"].items()
-                if note in mapping["note_to_channel"]
-            }
+    config["mapping"] = {
+        "mode": "explicit_note_map",
+        "note_to_channel": {},
+        "note_labels": {},
+        "channel_labels": build_calibration_channel_labels(config["pca9685"], active_sequence),
+        "channel_sequence": active_sequence,
+    }
 
     return config, active_sequence
 
@@ -197,7 +287,7 @@ def run_sweep(connection, config):
         else:
             print(f"  Firing {channel_target}: {label}")
         fire_channel(connection, channel, pulse)
-        time.sleep(0.25)
+        time.sleep(CALIBRATION_INTER_FIRE_DELAY_SECONDS)
 
 
 def prompt_bottom_note():
@@ -264,6 +354,7 @@ def calibrate_manual_mapping(connection, config, port, ready_info):
         label = channel_labels.get(str(channel), f"Channel {channel}")
         print(f"\nFiring {engine.describe_global_channel(channel, config['pca9685'])}: {label}")
         fire_channel(connection, channel, pulse)
+        time.sleep(CALIBRATION_INTER_FIRE_DELAY_SECONDS)
 
         while True:
             raw = input("Which piano note moved? ").strip()
@@ -301,6 +392,89 @@ def calibrate_manual_mapping(connection, config, port, ready_info):
     }
     save_calibrated_mapping(mapping, report_payload)
     print(f"\nSaved calibrated mapping to {engine.CALIBRATED_MAPPING_PATH.relative_to(engine.REPO_ROOT)}")
+
+
+def patch_manual_mapping(connection, config, port, ready_info, patch_channels=None):
+    """Merge note assignments into the existing saved map without starting from scratch."""
+    existing_mapping = copy.deepcopy(config["mapping"])
+    if existing_mapping.get("mode") != "explicit_note_map":
+        raise RuntimeError("Patch mapping requires an explicit saved note map.")
+
+    if patch_channels is None:
+        patch_channels = get_unused_mapping_channels(existing_mapping)
+    patch_channels = [int(channel) for channel in patch_channels]
+    if not patch_channels:
+        raise RuntimeError("There are no unused channels left to patch in the current saved mapping.")
+
+    note_to_channel = dict(existing_mapping.get("note_to_channel", {}))
+    note_labels = dict(existing_mapping.get("note_labels", {}))
+    channel_labels = dict(existing_mapping.get("channel_labels", {}))
+    channel_sequence = [int(channel) for channel in existing_mapping.get("channel_sequence", [])]
+    missing_notes = infer_missing_notes(existing_mapping)
+
+    print("\nPatch existing mapping")
+    print("Only the currently unused channels will fire.")
+    print(f"Unused channels to test: {', '.join(str(channel) for channel in patch_channels)}")
+    print(f"Inferred missing notes inside the saved span: {format_note_list(missing_notes)}")
+    print("Enter the piano note that moved, or press Enter to leave a channel unused for now.")
+
+    added_assignments = []
+    for channel in patch_channels:
+        actuation = engine.resolve_channel_actuation(channel, config)
+        pulse = build_calibration_pulse(actuation)
+        label = channel_labels.get(str(channel), f"Channel {channel}")
+        channel_target = engine.describe_global_channel(channel, config["pca9685"])
+        print(f"\nFiring {channel_target}: {label}")
+        fire_channel(connection, channel, pulse)
+        time.sleep(CALIBRATION_INTER_FIRE_DELAY_SECONDS)
+
+        while True:
+            raw = input("Which piano note moved? ").strip()
+            if not raw:
+                break
+            try:
+                note = engine.parse_note_token(raw)
+            except ValueError as error:
+                print(error)
+                continue
+            if str(note) in note_to_channel:
+                print("That note is already assigned in the saved mapping. Enter a different note or press Enter to skip.")
+                continue
+            note_to_channel[str(note)] = channel
+            note_labels[str(note)] = engine.midi_note_name(note)
+            added_assignments.append((note, channel))
+            break
+
+    if not added_assignments:
+        raise RuntimeError("No new patch assignments were entered, so nothing was saved.")
+
+    mapping = {
+        "mode": "explicit_note_map",
+        "note_to_channel": dict(sorted(note_to_channel.items(), key=lambda item: int(item[0]))),
+        "note_labels": note_labels,
+        "channel_labels": channel_labels,
+        "channel_sequence": channel_sequence,
+    }
+    mapping_lines = build_mapping_lines(mapping)
+    report_payload = {
+        "mode": "manual_patch",
+        "port": port,
+        "protocol_version": ready_info["protocol_version"],
+        "mapping_lines": mapping_lines,
+        "mapping": mapping,
+        "patched_channels": patch_channels,
+        "added_assignments": [
+            {
+                "note": int(note),
+                "note_label": engine.midi_note_name(int(note)),
+                "channel": int(channel),
+            }
+            for note, channel in added_assignments
+        ],
+        "missing_notes_before": missing_notes,
+    }
+    save_calibrated_mapping(mapping, report_payload)
+    print(f"\nSaved patched mapping to {engine.CALIBRATED_MAPPING_PATH.relative_to(engine.REPO_ROOT)}")
 
 
 def tune_channel(connection, config, channel):
@@ -350,6 +524,11 @@ def build_arg_parser():
         action="store_true",
         help="Fire each channel and manually assign the piano note it moves.",
     )
+    parser.add_argument(
+        "--patch-mapping",
+        action="store_true",
+        help="Fire only the unused channels in the saved mapping and merge in missing notes.",
+    )
     parser.add_argument("--tune-channel", type=int, help="Run a simple tuning pulse on one channel.")
     return parser
 
@@ -361,6 +540,8 @@ def choose_action(args):
         return "calibrate_octave"
     if args.calibrate_manual:
         return "calibrate_manual"
+    if args.patch_mapping:
+        return "patch_mapping"
     if args.tune_channel is not None:
         return "tune"
 
@@ -368,7 +549,8 @@ def choose_action(args):
     print("  1. Sweep the configured channels")
     print("  2. Save a contiguous octave map")
     print("  3. Save a manual channel-to-note map")
-    print("  4. Tune one channel")
+    print("  4. Patch the existing saved note map")
+    print("  5. Tune one channel")
     while True:
         choice = input("Choose 1, 2, 3, or 4: ").strip()
         if choice == "1":
@@ -378,8 +560,10 @@ def choose_action(args):
         if choice == "3":
             return "calibrate_manual"
         if choice == "4":
+            return "patch_mapping"
+        if choice == "5":
             return "tune"
-        print("Enter 1, 2, 3, or 4.")
+        print("Enter 1, 2, 3, 4, or 5.")
 
 
 def main():
@@ -393,6 +577,17 @@ def main():
             active_channel_count = prompt_active_channel_count(config)
         config, active_sequence = build_calibration_config(config, active_channel_count)
         print(engine.summarize_active_channel_sequence(active_sequence, config["pca9685"]))
+    elif action == "patch_mapping":
+        active_channel_count = args.active_channels
+        if active_channel_count is None:
+            active_channel_count = prompt_active_channel_count(config)
+        config, patch_channels, missing_notes = build_patch_mapping_config(config, active_channel_count)
+        if not patch_channels:
+            raise RuntimeError("The saved mapping does not have any unused channels to patch.")
+        print(f"Unused channels to patch: {', '.join(str(channel) for channel in patch_channels)}")
+        if missing_notes:
+            print(f"Missing notes inferred from the saved span: {format_note_list(missing_notes)}")
+        print(engine.summarize_active_channel_sequence(patch_channels, config["pca9685"]))
 
     connection = None
     try:
@@ -406,6 +601,11 @@ def main():
                 f"{engine.format_i2c_address_list(ready_info['i2c_info']['detected_addresses'])}"
             )
 
+        if action in {"sweep", "calibrate_octave", "calibrate_manual"}:
+            ensure_calibration_hardware_ready(ready_info, config["pca9685"], active_sequence)
+        elif action == "patch_mapping":
+            ensure_calibration_hardware_ready(ready_info, config["pca9685"], patch_channels)
+
         if action == "sweep":
             run_sweep(connection, config)
             return
@@ -414,6 +614,9 @@ def main():
             return
         if action == "calibrate_manual":
             calibrate_manual_mapping(connection, config, port, ready_info)
+            return
+        if action == "patch_mapping":
+            patch_manual_mapping(connection, config, port, ready_info, patch_channels=patch_channels)
             return
         if action == "tune":
             channel = args.tune_channel

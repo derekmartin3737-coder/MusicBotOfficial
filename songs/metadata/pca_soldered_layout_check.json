@@ -1,0 +1,34 @@
+{
+  "port": "COM7",
+  "steps": [
+    {
+      "name": "unsoldered_board",
+      "detected_addresses": [
+        64
+      ]
+    },
+    {
+      "name": "leftmost_bridge_board",
+      "detected_addresses": []
+    },
+    {
+      "name": "second_left_bridge_board",
+      "detected_addresses": []
+    },
+    {
+      "name": "third_left_bridge_board",
+      "detected_addresses": []
+    },
+    {
+      "name": "all_four_boards",
+      "detected_addresses": []
+    }
+  ],
+  "summary_lines": [
+    "The unsoldered board still behaves like the default 0x40 board, which is what we want.",
+    "The leftmost-bridge board was not visible in the runtime's 0x40-0x43 scan. That usually means it moved to some other address outside the desired four-address plan.",
+    "The second-left-bridge board was not visible in the runtime's 0x40-0x43 scan. That usually means it moved to some other address outside the desired four-address plan.",
+    "The third-left-bridge board was not visible in the runtime's 0x40-0x43 scan. That usually means it moved to some other address outside the desired four-address plan.",
+    "With all four boards connected, the runtime detected no PCA boards at all."
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "port": "COM7",
+  "steps": [
+    {
+      "name": "unsoldered_alone",
+      "detected_addresses": [
+        64
+      ]
+    },
+    {
+      "name": "unsoldered_plus_leftmost",
+      "detected_addresses": [
+        64
+      ]
+    },
+    {
+      "name": "unsoldered_plus_second_left",
+      "detected_addresses": [
+        64
+      ]
+    },
+    {
+      "name": "unsoldered_plus_third_left",
+      "detected_addresses": [
+        64
+      ]
+    },
+    {
+      "name": "all_four",
+      "detected_addresses": [
+        64
+      ]
+    }
+  ],
+  "summary_lines": [
+    "Baseline unsoldered board still reads 0x40 by itself.",
+    "With the leftmost-bridge board added, the bus still shows only 0x40. That board is present on the bus but not on one of the low target addresses.",
+    "With the second-left-bridge board added, the bus still shows only 0x40. That board is present on the bus but not on one of the low target addresses.",
+    "With the third-left-bridge board added, the bus still shows only 0x40. That board is present on the bus but not on one of the low target addresses.",
+    "With all four boards connected, the runtime saw 0x40."
+  ]
+}

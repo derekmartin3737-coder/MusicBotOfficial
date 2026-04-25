@@ -1,0 +1,46 @@
+{
+  "port": "COM7",
+  "expected_addresses": [
+    64,
+    65,
+    66,
+    67
+  ],
+  "steps": [
+    {
+      "name": "single_board_no_bridge",
+      "detected_addresses": [
+        64
+      ]
+    },
+    {
+      "name": "single_board_candidate_1",
+      "detected_addresses": [
+        64
+      ]
+    },
+    {
+      "name": "single_board_candidate_2",
+      "detected_addresses": [
+        64
+      ]
+    },
+    {
+      "name": "single_board_both_candidates",
+      "detected_addresses": [
+        64
+      ]
+    },
+    {
+      "name": "all_boards_final",
+      "detected_addresses": [
+        64
+      ]
+    }
+  ],
+  "summary_lines": [
+    "Baseline one-board test succeeded at 0x40, so the board can be detected by itself.",
+    "The candidate-bridge results did not match the simple A0/A1 pattern yet. That usually means one of the tested jumper pairs is not A0 or A1, or the temporary bridge was not making clean contact.",
+    "Final four-board test detected 0x40 instead of all four expected addresses."
+  ]
+}

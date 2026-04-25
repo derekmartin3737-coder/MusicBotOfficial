@@ -1,0 +1,2343 @@
+{
+  "source_midi": "troubleshooting_white_keys.mid",
+  "source_midi_path": "songs\\midi\\troubleshooting_white_keys.mid",
+  "output_header": "troubleshooting_white_keys.h",
+  "output_header_path": "arduino\\MusicBotOfficial\\generated\\troubleshooting_white_keys.h",
+  "active_header": "current_song.h",
+  "active_header_path": "arduino\\MusicBotOfficial\\generated\\current_song.h",
+  "config_path": "config\\piano_config.json",
+  "events": [
+    {
+      "dt_ms": 0,
+      "channel": 3,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 35,
+      "channel": 3,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 635,
+      "channel": 3,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 330,
+      "channel": 2,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 35,
+      "channel": 2,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 635,
+      "channel": 2,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 330,
+      "channel": 1,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 35,
+      "channel": 1,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 635,
+      "channel": 1,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 330,
+      "channel": 0,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 35,
+      "channel": 0,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 635,
+      "channel": 0,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 330,
+      "channel": 11,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 35,
+      "channel": 11,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 635,
+      "channel": 11,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 330,
+      "channel": 10,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 35,
+      "channel": 10,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 635,
+      "channel": 10,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 330,
+      "channel": 8,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 35,
+      "channel": 8,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 635,
+      "channel": 8,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 330,
+      "channel": 15,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 35,
+      "channel": 15,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 635,
+      "channel": 15,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 330,
+      "channel": 14,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 35,
+      "channel": 14,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 635,
+      "channel": 14,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 330,
+      "channel": 13,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 35,
+      "channel": 13,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 635,
+      "channel": 13,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 330,
+      "channel": 12,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 35,
+      "channel": 12,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 635,
+      "channel": 12,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 1730,
+      "channel": 1,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 0,
+      "channel": 3,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 35,
+      "channel": 1,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 0,
+      "channel": 3,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 635,
+      "channel": 1,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 0,
+      "channel": 3,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 330,
+      "channel": 0,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 0,
+      "channel": 2,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 35,
+      "channel": 0,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 0,
+      "channel": 2,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 635,
+      "channel": 0,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 0,
+      "channel": 2,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 330,
+      "channel": 1,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 0,
+      "channel": 11,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 35,
+      "channel": 1,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 0,
+      "channel": 11,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 635,
+      "channel": 1,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 0,
+      "channel": 11,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 330,
+      "channel": 0,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 0,
+      "channel": 10,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 35,
+      "channel": 0,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 0,
+      "channel": 10,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 635,
+      "channel": 0,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 0,
+      "channel": 10,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 330,
+      "channel": 8,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 0,
+      "channel": 11,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 35,
+      "channel": 8,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 0,
+      "channel": 11,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 635,
+      "channel": 8,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 0,
+      "channel": 11,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 330,
+      "channel": 10,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 0,
+      "channel": 15,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 35,
+      "channel": 10,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 0,
+      "channel": 15,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 635,
+      "channel": 10,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 0,
+      "channel": 15,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 330,
+      "channel": 8,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 0,
+      "channel": 14,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 35,
+      "channel": 8,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 0,
+      "channel": 14,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 635,
+      "channel": 8,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 0,
+      "channel": 14,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 330,
+      "channel": 13,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 0,
+      "channel": 15,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 35,
+      "channel": 13,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 0,
+      "channel": 15,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 635,
+      "channel": 13,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 0,
+      "channel": 15,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 330,
+      "channel": 12,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 0,
+      "channel": 14,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 35,
+      "channel": 12,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 0,
+      "channel": 14,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 635,
+      "channel": 12,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 0,
+      "channel": 14,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 1730,
+      "channel": 3,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 0,
+      "channel": 12,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 35,
+      "channel": 3,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 0,
+      "channel": 12,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 635,
+      "channel": 3,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 0,
+      "channel": 12,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 330,
+      "channel": 2,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 0,
+      "channel": 13,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 35,
+      "channel": 2,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 0,
+      "channel": 13,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 635,
+      "channel": 2,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 0,
+      "channel": 13,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 330,
+      "channel": 1,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 0,
+      "channel": 14,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 35,
+      "channel": 1,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 0,
+      "channel": 14,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 635,
+      "channel": 1,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 0,
+      "channel": 14,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 330,
+      "channel": 0,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 0,
+      "channel": 15,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 35,
+      "channel": 0,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 0,
+      "channel": 15,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 635,
+      "channel": 0,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 0,
+      "channel": 15,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 330,
+      "channel": 8,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 0,
+      "channel": 11,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 35,
+      "channel": 8,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 0,
+      "channel": 11,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 635,
+      "channel": 8,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 0,
+      "channel": 11,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 330,
+      "channel": 10,
+      "pwm": 3321
+    },
+    {
+      "dt_ms": 35,
+      "channel": 10,
+      "pwm": 1162
+    },
+    {
+      "dt_ms": 635,
+      "channel": 10,
+      "pwm": 0
+    }
+  ],
+  "scheduled_notes": [
+    {
+      "source_note": 48,
+      "source_note_label": "C3",
+      "input_note": 48,
+      "note_label": "C3",
+      "velocity": 100,
+      "channel": 3,
+      "source_channel": null,
+      "original_start_ms": 0,
+      "original_end_ms": 650,
+      "scheduled_start_ms": 0,
+      "scheduled_end_ms": 650,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 670,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 50,
+      "source_note_label": "D3",
+      "input_note": 50,
+      "note_label": "D3",
+      "velocity": 100,
+      "channel": 2,
+      "source_channel": null,
+      "original_start_ms": 1000,
+      "original_end_ms": 1650,
+      "scheduled_start_ms": 1000,
+      "scheduled_end_ms": 1650,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 1670,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 52,
+      "source_note_label": "E3",
+      "input_note": 52,
+      "note_label": "E3",
+      "velocity": 100,
+      "channel": 1,
+      "source_channel": null,
+      "original_start_ms": 2000,
+      "original_end_ms": 2650,
+      "scheduled_start_ms": 2000,
+      "scheduled_end_ms": 2650,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 2670,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 53,
+      "source_note_label": "F3",
+      "input_note": 53,
+      "note_label": "F3",
+      "velocity": 100,
+      "channel": 0,
+      "source_channel": null,
+      "original_start_ms": 3000,
+      "original_end_ms": 3650,
+      "scheduled_start_ms": 3000,
+      "scheduled_end_ms": 3650,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 3670,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 55,
+      "source_note_label": "G3",
+      "input_note": 55,
+      "note_label": "G3",
+      "velocity": 100,
+      "channel": 11,
+      "source_channel": null,
+      "original_start_ms": 4000,
+      "original_end_ms": 4650,
+      "scheduled_start_ms": 4000,
+      "scheduled_end_ms": 4650,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 4670,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 57,
+      "source_note_label": "A3",
+      "input_note": 57,
+      "note_label": "A3",
+      "velocity": 100,
+      "channel": 10,
+      "source_channel": null,
+      "original_start_ms": 5000,
+      "original_end_ms": 5650,
+      "scheduled_start_ms": 5000,
+      "scheduled_end_ms": 5650,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 5670,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 59,
+      "source_note_label": "B3",
+      "input_note": 59,
+      "note_label": "B3",
+      "velocity": 100,
+      "channel": 8,
+      "source_channel": null,
+      "original_start_ms": 6000,
+      "original_end_ms": 6650,
+      "scheduled_start_ms": 6000,
+      "scheduled_end_ms": 6650,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 6670,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 60,
+      "source_note_label": "C4",
+      "input_note": 60,
+      "note_label": "C4",
+      "velocity": 100,
+      "channel": 15,
+      "source_channel": null,
+      "original_start_ms": 7000,
+      "original_end_ms": 7650,
+      "scheduled_start_ms": 7000,
+      "scheduled_end_ms": 7650,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 7670,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 62,
+      "source_note_label": "D4",
+      "input_note": 62,
+      "note_label": "D4",
+      "velocity": 100,
+      "channel": 14,
+      "source_channel": null,
+      "original_start_ms": 8000,
+      "original_end_ms": 8650,
+      "scheduled_start_ms": 8000,
+      "scheduled_end_ms": 8650,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 8670,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 64,
+      "source_note_label": "E4",
+      "input_note": 64,
+      "note_label": "E4",
+      "velocity": 100,
+      "channel": 13,
+      "source_channel": null,
+      "original_start_ms": 9000,
+      "original_end_ms": 9650,
+      "scheduled_start_ms": 9000,
+      "scheduled_end_ms": 9650,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 9670,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 65,
+      "source_note_label": "F4",
+      "input_note": 65,
+      "note_label": "F4",
+      "velocity": 100,
+      "channel": 12,
+      "source_channel": null,
+      "original_start_ms": 10000,
+      "original_end_ms": 10650,
+      "scheduled_start_ms": 10000,
+      "scheduled_end_ms": 10650,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 10670,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 52,
+      "source_note_label": "E3",
+      "input_note": 52,
+      "note_label": "E3",
+      "velocity": 100,
+      "channel": 1,
+      "source_channel": null,
+      "original_start_ms": 12400,
+      "original_end_ms": 13050,
+      "scheduled_start_ms": 12400,
+      "scheduled_end_ms": 13050,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 13070,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 48,
+      "source_note_label": "C3",
+      "input_note": 48,
+      "note_label": "C3",
+      "velocity": 100,
+      "channel": 3,
+      "source_channel": null,
+      "original_start_ms": 12400,
+      "original_end_ms": 13050,
+      "scheduled_start_ms": 12400,
+      "scheduled_end_ms": 13050,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 13070,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 53,
+      "source_note_label": "F3",
+      "input_note": 53,
+      "note_label": "F3",
+      "velocity": 100,
+      "channel": 0,
+      "source_channel": null,
+      "original_start_ms": 13400,
+      "original_end_ms": 14050,
+      "scheduled_start_ms": 13400,
+      "scheduled_end_ms": 14050,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 14070,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 50,
+      "source_note_label": "D3",
+      "input_note": 50,
+      "note_label": "D3",
+      "velocity": 100,
+      "channel": 2,
+      "source_channel": null,
+      "original_start_ms": 13400,
+      "original_end_ms": 14050,
+      "scheduled_start_ms": 13400,
+      "scheduled_end_ms": 14050,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 14070,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 52,
+      "source_note_label": "E3",
+      "input_note": 52,
+      "note_label": "E3",
+      "velocity": 100,
+      "channel": 1,
+      "source_channel": null,
+      "original_start_ms": 14400,
+      "original_end_ms": 15050,
+      "scheduled_start_ms": 14400,
+      "scheduled_end_ms": 15050,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 15070,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 55,
+      "source_note_label": "G3",
+      "input_note": 55,
+      "note_label": "G3",
+      "velocity": 100,
+      "channel": 11,
+      "source_channel": null,
+      "original_start_ms": 14400,
+      "original_end_ms": 15050,
+      "scheduled_start_ms": 14400,
+      "scheduled_end_ms": 15050,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 15070,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 53,
+      "source_note_label": "F3",
+      "input_note": 53,
+      "note_label": "F3",
+      "velocity": 100,
+      "channel": 0,
+      "source_channel": null,
+      "original_start_ms": 15400,
+      "original_end_ms": 16050,
+      "scheduled_start_ms": 15400,
+      "scheduled_end_ms": 16050,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 16070,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 57,
+      "source_note_label": "A3",
+      "input_note": 57,
+      "note_label": "A3",
+      "velocity": 100,
+      "channel": 10,
+      "source_channel": null,
+      "original_start_ms": 15400,
+      "original_end_ms": 16050,
+      "scheduled_start_ms": 15400,
+      "scheduled_end_ms": 16050,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 16070,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 59,
+      "source_note_label": "B3",
+      "input_note": 59,
+      "note_label": "B3",
+      "velocity": 100,
+      "channel": 8,
+      "source_channel": null,
+      "original_start_ms": 16400,
+      "original_end_ms": 17050,
+      "scheduled_start_ms": 16400,
+      "scheduled_end_ms": 17050,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 17070,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 55,
+      "source_note_label": "G3",
+      "input_note": 55,
+      "note_label": "G3",
+      "velocity": 100,
+      "channel": 11,
+      "source_channel": null,
+      "original_start_ms": 16400,
+      "original_end_ms": 17050,
+      "scheduled_start_ms": 16400,
+      "scheduled_end_ms": 17050,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 17070,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 57,
+      "source_note_label": "A3",
+      "input_note": 57,
+      "note_label": "A3",
+      "velocity": 100,
+      "channel": 10,
+      "source_channel": null,
+      "original_start_ms": 17400,
+      "original_end_ms": 18050,
+      "scheduled_start_ms": 17400,
+      "scheduled_end_ms": 18050,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 18070,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 60,
+      "source_note_label": "C4",
+      "input_note": 60,
+      "note_label": "C4",
+      "velocity": 100,
+      "channel": 15,
+      "source_channel": null,
+      "original_start_ms": 17400,
+      "original_end_ms": 18050,
+      "scheduled_start_ms": 17400,
+      "scheduled_end_ms": 18050,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 18070,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 59,
+      "source_note_label": "B3",
+      "input_note": 59,
+      "note_label": "B3",
+      "velocity": 100,
+      "channel": 8,
+      "source_channel": null,
+      "original_start_ms": 18400,
+      "original_end_ms": 19050,
+      "scheduled_start_ms": 18400,
+      "scheduled_end_ms": 19050,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 19070,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 62,
+      "source_note_label": "D4",
+      "input_note": 62,
+      "note_label": "D4",
+      "velocity": 100,
+      "channel": 14,
+      "source_channel": null,
+      "original_start_ms": 18400,
+      "original_end_ms": 19050,
+      "scheduled_start_ms": 18400,
+      "scheduled_end_ms": 19050,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 19070,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 64,
+      "source_note_label": "E4",
+      "input_note": 64,
+      "note_label": "E4",
+      "velocity": 100,
+      "channel": 13,
+      "source_channel": null,
+      "original_start_ms": 19400,
+      "original_end_ms": 20050,
+      "scheduled_start_ms": 19400,
+      "scheduled_end_ms": 20050,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 20070,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 60,
+      "source_note_label": "C4",
+      "input_note": 60,
+      "note_label": "C4",
+      "velocity": 100,
+      "channel": 15,
+      "source_channel": null,
+      "original_start_ms": 19400,
+      "original_end_ms": 20050,
+      "scheduled_start_ms": 19400,
+      "scheduled_end_ms": 20050,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 20070,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 65,
+      "source_note_label": "F4",
+      "input_note": 65,
+      "note_label": "F4",
+      "velocity": 100,
+      "channel": 12,
+      "source_channel": null,
+      "original_start_ms": 20400,
+      "original_end_ms": 21050,
+      "scheduled_start_ms": 20400,
+      "scheduled_end_ms": 21050,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 21070,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 62,
+      "source_note_label": "D4",
+      "input_note": 62,
+      "note_label": "D4",
+      "velocity": 100,
+      "channel": 14,
+      "source_channel": null,
+      "original_start_ms": 20400,
+      "original_end_ms": 21050,
+      "scheduled_start_ms": 20400,
+      "scheduled_end_ms": 21050,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 21070,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 48,
+      "source_note_label": "C3",
+      "input_note": 48,
+      "note_label": "C3",
+      "velocity": 100,
+      "channel": 3,
+      "source_channel": null,
+      "original_start_ms": 22800,
+      "original_end_ms": 23450,
+      "scheduled_start_ms": 22800,
+      "scheduled_end_ms": 23450,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 23470,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 65,
+      "source_note_label": "F4",
+      "input_note": 65,
+      "note_label": "F4",
+      "velocity": 100,
+      "channel": 12,
+      "source_channel": null,
+      "original_start_ms": 22800,
+      "original_end_ms": 23450,
+      "scheduled_start_ms": 22800,
+      "scheduled_end_ms": 23450,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 23470,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 50,
+      "source_note_label": "D3",
+      "input_note": 50,
+      "note_label": "D3",
+      "velocity": 100,
+      "channel": 2,
+      "source_channel": null,
+      "original_start_ms": 23800,
+      "original_end_ms": 24450,
+      "scheduled_start_ms": 23800,
+      "scheduled_end_ms": 24450,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 24470,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 64,
+      "source_note_label": "E4",
+      "input_note": 64,
+      "note_label": "E4",
+      "velocity": 100,
+      "channel": 13,
+      "source_channel": null,
+      "original_start_ms": 23800,
+      "original_end_ms": 24450,
+      "scheduled_start_ms": 23800,
+      "scheduled_end_ms": 24450,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 24470,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 52,
+      "source_note_label": "E3",
+      "input_note": 52,
+      "note_label": "E3",
+      "velocity": 100,
+      "channel": 1,
+      "source_channel": null,
+      "original_start_ms": 24800,
+      "original_end_ms": 25450,
+      "scheduled_start_ms": 24800,
+      "scheduled_end_ms": 25450,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 25470,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 62,
+      "source_note_label": "D4",
+      "input_note": 62,
+      "note_label": "D4",
+      "velocity": 100,
+      "channel": 14,
+      "source_channel": null,
+      "original_start_ms": 24800,
+      "original_end_ms": 25450,
+      "scheduled_start_ms": 24800,
+      "scheduled_end_ms": 25450,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 25470,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 53,
+      "source_note_label": "F3",
+      "input_note": 53,
+      "note_label": "F3",
+      "velocity": 100,
+      "channel": 0,
+      "source_channel": null,
+      "original_start_ms": 25800,
+      "original_end_ms": 26450,
+      "scheduled_start_ms": 25800,
+      "scheduled_end_ms": 26450,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 26470,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 60,
+      "source_note_label": "C4",
+      "input_note": 60,
+      "note_label": "C4",
+      "velocity": 100,
+      "channel": 15,
+      "source_channel": null,
+      "original_start_ms": 25800,
+      "original_end_ms": 26450,
+      "scheduled_start_ms": 25800,
+      "scheduled_end_ms": 26450,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 26470,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 59,
+      "source_note_label": "B3",
+      "input_note": 59,
+      "note_label": "B3",
+      "velocity": 100,
+      "channel": 8,
+      "source_channel": null,
+      "original_start_ms": 26800,
+      "original_end_ms": 27450,
+      "scheduled_start_ms": 26800,
+      "scheduled_end_ms": 27450,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 27470,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 55,
+      "source_note_label": "G3",
+      "input_note": 55,
+      "note_label": "G3",
+      "velocity": 100,
+      "channel": 11,
+      "source_channel": null,
+      "original_start_ms": 26800,
+      "original_end_ms": 27450,
+      "scheduled_start_ms": 26800,
+      "scheduled_end_ms": 27450,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 27470,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    },
+    {
+      "source_note": 57,
+      "source_note_label": "A3",
+      "input_note": 57,
+      "note_label": "A3",
+      "velocity": 100,
+      "channel": 10,
+      "source_channel": null,
+      "original_start_ms": 27800,
+      "original_end_ms": 28450,
+      "scheduled_start_ms": 27800,
+      "scheduled_end_ms": 28450,
+      "scheduled_duration_ms": 650,
+      "strike_pwm": 3321,
+      "hold_pwm": 1162,
+      "release_ms": 28470,
+      "actuation": {
+        "strike_min_pwm": 2300,
+        "strike_max_pwm": 3600,
+        "strike_ms": 35,
+        "hold_min_pwm": 800,
+        "hold_max_pwm": 1400,
+        "hold_ratio": 0.35,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16
+      }
+    }
+  ],
+  "metadata": {
+    "project_mode": "one_octave_c3_b3",
+    "output_version_label": "base",
+    "original_bpm": 60.0,
+    "tempo_label": "original timing",
+    "effective_bpm": 60.0,
+    "tempo_change_count": 0,
+    "active_hardware_channel_count": 31,
+    "active_hardware_channel_summary": "31 active hardware channels from global channel 0 (PCA9685 0x40 channel 0) through global channel 30 (PCA9685 0x41 channel 14)",
+    "source_range_label": "C3 to F4",
+    "playable_layout_label": "16 mapped notes from C3 to F4 (non-contiguous)",
+    "fit_mode": "troubleshooting",
+    "fit_mode_label": "White troubleshooting pattern",
+    "transpose_semitones": 0,
+    "transpose_strategy": "none",
+    "transpose_remapped_note_events": 0,
+    "transpose_shift_counts": {},
+    "transpose_shift_summary": "not applicable for troubleshooting sequence",
+    "transpose_skipped_for_timing": 0,
+    "strict_playable_count": 40,
+    "strict_playable_summary": "40 of 40 note events playable (100.0%)",
+    "transpose_playable_count": 40,
+    "transpose_playable_summary": "40 of 40 note events playable (100.0%)",
+    "mapping_override_used": false,
+    "selection_reason": "generated troubleshooting sequence for white keys",
+    "recognizability_summary": "diagnostic sequence",
+    "unmapped_note_lines": [],
+    "source_note_count": 40,
+    "scheduled_note_count": 40,
+    "event_count": 120,
+    "forced_retriggers": 0,
+    "delayed_notes": 0,
+    "unmapped_notes": 0,
+    "unmapped_note_counts": {},
+    "unmatched_note_offs": 0,
+    "dangling_note_ons_closed": 0,
+    "percussion_events_skipped": 0,
+    "hold_events": 40,
+    "strike_only_notes": 0,
+    "mapping_lines": [
+      "Explicit note-to-channel mode",
+      "MIDI note 48 (C3) -> global channel 3 (PCA9685 0x40 channel 3) (D#3 key solenoid)",
+      "MIDI note 49 (C#3) -> global channel 7 (PCA9685 0x40 channel 7) (G3 key solenoid)",
+      "MIDI note 50 (D3) -> global channel 2 (PCA9685 0x40 channel 2) (D3 key solenoid)",
+      "MIDI note 51 (D#3) -> global channel 6 (PCA9685 0x40 channel 6) (F#3 key solenoid)",
+      "MIDI note 52 (E3) -> global channel 1 (PCA9685 0x40 channel 1) (C#3 key solenoid)",
+      "MIDI note 53 (F3) -> global channel 0 (PCA9685 0x40 channel 0) (C3 key solenoid)",
+      "MIDI note 54 (F#3) -> global channel 5 (PCA9685 0x40 channel 5) (F3 key solenoid)",
+      "MIDI note 55 (G3) -> global channel 11 (PCA9685 0x40 channel 11) (B3 key solenoid)",
+      "MIDI note 56 (G#3) -> global channel 4 (PCA9685 0x40 channel 4) (E3 key solenoid)",
+      "MIDI note 57 (A3) -> global channel 10 (PCA9685 0x40 channel 10) (A#3 key solenoid)",
+      "MIDI note 58 (A#3) -> global channel 9 (PCA9685 0x40 channel 9) (A3 key solenoid)",
+      "MIDI note 59 (B3) -> global channel 8 (PCA9685 0x40 channel 8) (G#3 key solenoid)",
+      "MIDI note 60 (C4) -> global channel 15 (PCA9685 0x40 channel 15) (Channel 15)",
+      "MIDI note 62 (D4) -> global channel 14 (PCA9685 0x40 channel 14) (Channel 14)",
+      "MIDI note 64 (E4) -> global channel 13 (PCA9685 0x40 channel 13) (Channel 13)",
+      "MIDI note 65 (F4) -> global channel 12 (PCA9685 0x40 channel 12) (Channel 12)"
+    ],
+    "channel_lines": [
+      "global channel 0 (PCA9685 0x40 channel 0): C3 key solenoid",
+      "global channel 1 (PCA9685 0x40 channel 1): C#3 key solenoid",
+      "global channel 2 (PCA9685 0x40 channel 2): D3 key solenoid",
+      "global channel 3 (PCA9685 0x40 channel 3): D#3 key solenoid",
+      "global channel 8 (PCA9685 0x40 channel 8): G#3 key solenoid",
+      "global channel 10 (PCA9685 0x40 channel 10): A#3 key solenoid",
+      "global channel 11 (PCA9685 0x40 channel 11): B3 key solenoid",
+      "global channel 12 (PCA9685 0x40 channel 12): Channel 12",
+      "global channel 13 (PCA9685 0x40 channel 13): Channel 13",
+      "global channel 14 (PCA9685 0x40 channel 14): Channel 14",
+      "global channel 15 (PCA9685 0x40 channel 15): Channel 15"
+    ],
+    "actuation_lines": [
+      "Channel 0: strike 2300-3600, hold 800-1400, hold ratio 0.35, strike 35 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 1: strike 2300-3600, hold 800-1400, hold ratio 0.35, strike 35 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 2: strike 2300-3600, hold 800-1400, hold ratio 0.35, strike 35 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 3: strike 2300-3600, hold 800-1400, hold ratio 0.35, strike 35 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 8: strike 2300-3600, hold 800-1400, hold ratio 0.35, strike 35 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 10: strike 2300-3600, hold 800-1400, hold ratio 0.35, strike 35 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 11: strike 2300-3600, hold 800-1400, hold ratio 0.35, strike 35 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 12: strike 2300-3600, hold 800-1400, hold ratio 0.35, strike 35 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 13: strike 2300-3600, hold 800-1400, hold ratio 0.35, strike 35 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 14: strike 2300-3600, hold 800-1400, hold ratio 0.35, strike 35 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 15: strike 2300-3600, hold 800-1400, hold ratio 0.35, strike 35 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms"
+    ],
+    "channels_used": [
+      0,
+      1,
+      2,
+      3,
+      8,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "diagnostic_key_color": "white",
+    "diagnostic_filtered_note_set_label": "11 mapped white keys from C3 to F4",
+    "diagnostic_phase_labels": [
+      "White keys: bottom to top one at a time",
+      "White keys: moving thirds",
+      "White keys: widest pairs moving inward"
+    ],
+    "diagnostic_step_count": 26,
+    "diagnostic_step_plan": [
+      {
+        "index": 1,
+        "phase_name": "ascending singles",
+        "phase_label": "White keys: bottom to top one at a time",
+        "notes": [
+          48
+        ],
+        "note_labels": [
+          "C3"
+        ],
+        "start_ms": 0,
+        "end_ms": 650
+      },
+      {
+        "index": 2,
+        "phase_name": "ascending singles",
+        "phase_label": "White keys: bottom to top one at a time",
+        "notes": [
+          50
+        ],
+        "note_labels": [
+          "D3"
+        ],
+        "start_ms": 1000,
+        "end_ms": 1650
+      },
+      {
+        "index": 3,
+        "phase_name": "ascending singles",
+        "phase_label": "White keys: bottom to top one at a time",
+        "notes": [
+          52
+        ],
+        "note_labels": [
+          "E3"
+        ],
+        "start_ms": 2000,
+        "end_ms": 2650
+      },
+      {
+        "index": 4,
+        "phase_name": "ascending singles",
+        "phase_label": "White keys: bottom to top one at a time",
+        "notes": [
+          53
+        ],
+        "note_labels": [
+          "F3"
+        ],
+        "start_ms": 3000,
+        "end_ms": 3650
+      },
+      {
+        "index": 5,
+        "phase_name": "ascending singles",
+        "phase_label": "White keys: bottom to top one at a time",
+        "notes": [
+          55
+        ],
+        "note_labels": [
+          "G3"
+        ],
+        "start_ms": 4000,
+        "end_ms": 4650
+      },
+      {
+        "index": 6,
+        "phase_name": "ascending singles",
+        "phase_label": "White keys: bottom to top one at a time",
+        "notes": [
+          57
+        ],
+        "note_labels": [
+          "A3"
+        ],
+        "start_ms": 5000,
+        "end_ms": 5650
+      },
+      {
+        "index": 7,
+        "phase_name": "ascending singles",
+        "phase_label": "White keys: bottom to top one at a time",
+        "notes": [
+          59
+        ],
+        "note_labels": [
+          "B3"
+        ],
+        "start_ms": 6000,
+        "end_ms": 6650
+      },
+      {
+        "index": 8,
+        "phase_name": "ascending singles",
+        "phase_label": "White keys: bottom to top one at a time",
+        "notes": [
+          60
+        ],
+        "note_labels": [
+          "C4"
+        ],
+        "start_ms": 7000,
+        "end_ms": 7650
+      },
+      {
+        "index": 9,
+        "phase_name": "ascending singles",
+        "phase_label": "White keys: bottom to top one at a time",
+        "notes": [
+          62
+        ],
+        "note_labels": [
+          "D4"
+        ],
+        "start_ms": 8000,
+        "end_ms": 8650
+      },
+      {
+        "index": 10,
+        "phase_name": "ascending singles",
+        "phase_label": "White keys: bottom to top one at a time",
+        "notes": [
+          64
+        ],
+        "note_labels": [
+          "E4"
+        ],
+        "start_ms": 9000,
+        "end_ms": 9650
+      },
+      {
+        "index": 11,
+        "phase_name": "ascending singles",
+        "phase_label": "White keys: bottom to top one at a time",
+        "notes": [
+          65
+        ],
+        "note_labels": [
+          "F4"
+        ],
+        "start_ms": 10000,
+        "end_ms": 10650
+      },
+      {
+        "index": 12,
+        "phase_name": "ascending thirds",
+        "phase_label": "White keys: moving thirds",
+        "notes": [
+          48,
+          52
+        ],
+        "note_labels": [
+          "C3",
+          "E3"
+        ],
+        "start_ms": 12400,
+        "end_ms": 13050
+      },
+      {
+        "index": 13,
+        "phase_name": "ascending thirds",
+        "phase_label": "White keys: moving thirds",
+        "notes": [
+          50,
+          53
+        ],
+        "note_labels": [
+          "D3",
+          "F3"
+        ],
+        "start_ms": 13400,
+        "end_ms": 14050
+      },
+      {
+        "index": 14,
+        "phase_name": "ascending thirds",
+        "phase_label": "White keys: moving thirds",
+        "notes": [
+          52,
+          55
+        ],
+        "note_labels": [
+          "E3",
+          "G3"
+        ],
+        "start_ms": 14400,
+        "end_ms": 15050
+      },
+      {
+        "index": 15,
+        "phase_name": "ascending thirds",
+        "phase_label": "White keys: moving thirds",
+        "notes": [
+          53,
+          57
+        ],
+        "note_labels": [
+          "F3",
+          "A3"
+        ],
+        "start_ms": 15400,
+        "end_ms": 16050
+      },
+      {
+        "index": 16,
+        "phase_name": "ascending thirds",
+        "phase_label": "White keys: moving thirds",
+        "notes": [
+          55,
+          59
+        ],
+        "note_labels": [
+          "G3",
+          "B3"
+        ],
+        "start_ms": 16400,
+        "end_ms": 17050
+      },
+      {
+        "index": 17,
+        "phase_name": "ascending thirds",
+        "phase_label": "White keys: moving thirds",
+        "notes": [
+          57,
+          60
+        ],
+        "note_labels": [
+          "A3",
+          "C4"
+        ],
+        "start_ms": 17400,
+        "end_ms": 18050
+      },
+      {
+        "index": 18,
+        "phase_name": "ascending thirds",
+        "phase_label": "White keys: moving thirds",
+        "notes": [
+          59,
+          62
+        ],
+        "note_labels": [
+          "B3",
+          "D4"
+        ],
+        "start_ms": 18400,
+        "end_ms": 19050
+      },
+      {
+        "index": 19,
+        "phase_name": "ascending thirds",
+        "phase_label": "White keys: moving thirds",
+        "notes": [
+          60,
+          64
+        ],
+        "note_labels": [
+          "C4",
+          "E4"
+        ],
+        "start_ms": 19400,
+        "end_ms": 20050
+      },
+      {
+        "index": 20,
+        "phase_name": "ascending thirds",
+        "phase_label": "White keys: moving thirds",
+        "notes": [
+          62,
+          65
+        ],
+        "note_labels": [
+          "D4",
+          "F4"
+        ],
+        "start_ms": 20400,
+        "end_ms": 21050
+      },
+      {
+        "index": 21,
+        "phase_name": "outer in pairs",
+        "phase_label": "White keys: widest pairs moving inward",
+        "notes": [
+          48,
+          65
+        ],
+        "note_labels": [
+          "C3",
+          "F4"
+        ],
+        "start_ms": 22800,
+        "end_ms": 23450
+      },
+      {
+        "index": 22,
+        "phase_name": "outer in pairs",
+        "phase_label": "White keys: widest pairs moving inward",
+        "notes": [
+          50,
+          64
+        ],
+        "note_labels": [
+          "D3",
+          "E4"
+        ],
+        "start_ms": 23800,
+        "end_ms": 24450
+      },
+      {
+        "index": 23,
+        "phase_name": "outer in pairs",
+        "phase_label": "White keys: widest pairs moving inward",
+        "notes": [
+          52,
+          62
+        ],
+        "note_labels": [
+          "E3",
+          "D4"
+        ],
+        "start_ms": 24800,
+        "end_ms": 25450
+      },
+      {
+        "index": 24,
+        "phase_name": "outer in pairs",
+        "phase_label": "White keys: widest pairs moving inward",
+        "notes": [
+          53,
+          60
+        ],
+        "note_labels": [
+          "F3",
+          "C4"
+        ],
+        "start_ms": 25800,
+        "end_ms": 26450
+      },
+      {
+        "index": 25,
+        "phase_name": "outer in pairs",
+        "phase_label": "White keys: widest pairs moving inward",
+        "notes": [
+          55,
+          59
+        ],
+        "note_labels": [
+          "G3",
+          "B3"
+        ],
+        "start_ms": 26800,
+        "end_ms": 27450
+      },
+      {
+        "index": 26,
+        "phase_name": "outer in pairs",
+        "phase_label": "White keys: widest pairs moving inward",
+        "notes": [
+          57
+        ],
+        "note_labels": [
+          "A3"
+        ],
+        "start_ms": 27800,
+        "end_ms": 28450
+      }
+    ]
+  },
+  "config": {
+    "project_mode": "one_octave_c3_b3",
+    "pca9685": {
+      "board_addresses": [
+        64,
+        65,
+        66,
+        67
+      ],
+      "pwm_frequency_hz": 250
+    },
+    "mapping": {
+      "mode": "explicit_note_map",
+      "note_to_channel": {
+        "48": 3,
+        "49": 7,
+        "50": 2,
+        "51": 6,
+        "52": 1,
+        "53": 0,
+        "54": 5,
+        "55": 11,
+        "56": 4,
+        "57": 10,
+        "58": 9,
+        "59": 8,
+        "60": 15,
+        "62": 14,
+        "64": 13,
+        "65": 12
+      },
+      "note_labels": {
+        "53": "F3",
+        "52": "E3",
+        "50": "D3",
+        "48": "C3",
+        "56": "G#3",
+        "54": "F#3",
+        "51": "D#3",
+        "49": "C#3",
+        "59": "B3",
+        "58": "A#3",
+        "55": "G3",
+        "57": "A3",
+        "65": "F4",
+        "64": "E4",
+        "62": "D4",
+        "60": "C4"
+      },
+      "channel_labels": {
+        "0": "C3 key solenoid",
+        "1": "C#3 key solenoid",
+        "2": "D3 key solenoid",
+        "3": "D#3 key solenoid",
+        "4": "E3 key solenoid",
+        "5": "F3 key solenoid",
+        "6": "F#3 key solenoid",
+        "7": "G3 key solenoid",
+        "8": "G#3 key solenoid",
+        "9": "A3 key solenoid",
+        "10": "A#3 key solenoid",
+        "11": "B3 key solenoid"
+      },
+      "channel_sequence": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30
+      ]
+    },
+    "actuation": {
+      "strike_min_pwm": 2300,
+      "strike_max_pwm": 3600,
+      "strike_ms": 35,
+      "hold_min_pwm": 800,
+      "hold_max_pwm": 1400,
+      "hold_ratio": 0.35,
+      "release_delay_ms": 20,
+      "minimum_rearm_gap_ms": 25,
+      "retrigger_gap_ms": 16,
+      "channel_overrides": {}
+    },
+    "pedal": {
+      "enabled": false,
+      "servo_signal_pin": 2,
+      "servo_model": "9g microservo",
+      "horn_length_in": 0.5,
+      "up_angle_deg": 0,
+      "down_angle_deg": 180,
+      "arc_length_in": 1.5708,
+      "reaction_characterization": {
+        "test_date": "2026-04-15T16:42:56",
+        "serial_port": "COM3",
+        "down_travel_median_ms": 425.551,
+        "up_travel_median_ms": 441.623,
+        "overall_travel_median_ms": 433.587,
+        "overall_estimated_tip_speed_in_per_s": 3.5685,
+        "recommended_down_profile_ms": 426,
+        "recommended_up_profile_ms": 442,
+        "notes": "Reaction-based timings include human response delay. Use these as bench-tuning targets until video-based pedal contact and release timings are captured."
+      }
+    },
+    "notes": {
+      "current_setup": "The runtime now supports up to four PCA9685 boards sharing the Arduino's I2C bus in parallel as one 64-channel global space. The current bench setup uses 31 solenoids: white keys C2 through B2, then full chromatic octaves C3 through B3 and C4 through B4.",
+      "wiring_assumption": "Global channels 0 through 15 live on PCA9685 address 0x40, 16 through 31 on 0x41, 32 through 47 on 0x42, and 48 through 63 on 0x43.",
+      "future_setup": "As more solenoids are added, extend the note mapping or save a calibrated_mapping.json file. Songs can then be limited to the currently installed note range.",
+      "calibrated_mapping_path": "config\\calibrated_mapping.json"
+    }
+  }
+}

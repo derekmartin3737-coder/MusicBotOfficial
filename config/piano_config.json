@@ -2,10 +2,10 @@
   "project_mode": "one_octave_c3_b3",
   "pca9685": {
     "board_addresses": [
-      64,
-      65,
-      66,
-      67
+      96,
+      80,
+      72,
+      64
     ],
     "pwm_frequency_hz": 250
   },
@@ -73,12 +73,12 @@
     }
   },
   "actuation": {
-    "strike_min_pwm": 2300,
-    "strike_max_pwm": 3600,
-    "strike_ms": 35,
-    "hold_min_pwm": 800,
-    "hold_max_pwm": 1400,
-    "hold_ratio": 0.35,
+    "strike_min_pwm": 2900,
+    "strike_max_pwm": 3900,
+    "strike_ms": 45,
+    "hold_min_pwm": 1200,
+    "hold_max_pwm": 2000,
+    "hold_ratio": 0.5,
     "release_delay_ms": 20,
     "minimum_rearm_gap_ms": 25,
     "retrigger_gap_ms": 16,
@@ -105,8 +105,8 @@
     }
   },
   "notes": {
-    "current_setup": "The runtime now supports four daisy-chained PCA9685 boards as one 64-channel global space. The current bench setup uses 31 solenoids: white keys C2 through B2, then full chromatic octaves C3 through B3 and C4 through B4.",
-    "wiring_assumption": "Global channels 0 through 15 live on PCA9685 address 0x40, 16 through 31 on 0x41, 32 through 47 on 0x42, and 48 through 63 on 0x43.",
+    "current_setup": "The runtime now supports up to four PCA9685 boards sharing the Arduino's I2C bus in parallel as one 64-channel global space. The current bench setup uses 61 solenoids across four PCA9685 boards: channels 0 through 60 are wired, with the final board using only its lower 13 channels.",
+    "wiring_assumption": "Global channels 0 through 15 live on the first configured PCA9685 address, 16 through 31 on the second, 32 through 47 on the third, and 48 through 63 on the fourth.",
     "future_setup": "As more solenoids are added, extend the note mapping or save a calibrated_mapping.json file. Songs can then be limited to the currently installed note range."
   }
 }

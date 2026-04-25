@@ -162,14 +162,75 @@ class CalibrationActionDialog(tk.Toplevel):
             variable=self.action_var,
             value="manual",
         ).grid(row=4, column=0, sticky="w", pady=2)
+        ttk.Radiobutton(
+            outer,
+            text="Patch existing saved map (unused channels only)",
+            variable=self.action_var,
+            value="patch",
+        ).grid(row=5, column=0, sticky="w", pady=2)
 
         button_row = ttk.Frame(outer)
-        button_row.grid(row=5, column=0, sticky="e", pady=(14, 0))
+        button_row.grid(row=6, column=0, sticky="e", pady=(14, 0))
         ttk.Button(button_row, text="Cancel", command=self.cancel).grid(row=0, column=0)
         ttk.Button(button_row, text="Continue", command=self.accept).grid(row=0, column=1, padx=(8, 0))
 
     def accept(self):
         self.result = self.action_var.get()
+        self.destroy()
+
+    def cancel(self):
+        self.result = None
+        self.destroy()
+
+
+class TroubleshootingActionDialog(tk.Toplevel):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.title("Key Troubleshooting")
+        self.resizable(False, False)
+        self.transient(parent)
+        self.grab_set()
+
+        self.result = None
+        self.key_color_var = tk.StringVar(value="white")
+
+        outer = ttk.Frame(self, padding=16)
+        outer.grid(row=0, column=0, sticky="nsew")
+
+        ttk.Label(
+            outer,
+            text="Choose a troubleshooting routine",
+            font=("Segoe UI", 11, "bold"),
+        ).grid(row=0, column=0, sticky="w")
+        ttk.Label(
+            outer,
+            text=(
+                "This uses the same installed-solenoid count, range override, export-only setting, "
+                "and tempo override from the main window. Enter 0.5x there to slow the run down."
+            ),
+            wraplength=440,
+        ).grid(row=1, column=0, sticky="w", pady=(6, 12))
+
+        ttk.Radiobutton(
+            outer,
+            text="White keys: singles, moving thirds, then widest pairs inward",
+            variable=self.key_color_var,
+            value="white",
+        ).grid(row=2, column=0, sticky="w", pady=2)
+        ttk.Radiobutton(
+            outer,
+            text="Black keys: singles, moving thirds, then widest pairs inward",
+            variable=self.key_color_var,
+            value="black",
+        ).grid(row=3, column=0, sticky="w", pady=2)
+
+        button_row = ttk.Frame(outer)
+        button_row.grid(row=4, column=0, sticky="e", pady=(14, 0))
+        ttk.Button(button_row, text="Cancel", command=self.cancel).grid(row=0, column=0)
+        ttk.Button(button_row, text="Run", command=self.accept).grid(row=0, column=1, padx=(8, 0))
+
+    def accept(self):
+        self.result = self.key_color_var.get()
         self.destroy()
 
     def cancel(self):
@@ -264,7 +325,7 @@ class PianoPlayerApp(tk.Tk):
         )
         ttk.Label(
             options_frame,
-            text="How many hardware channels are active right now. The current bench default is 31.",
+            text="How many hardware channels are active right now. The current bench default is 61.",
             wraplength=620,
         ).grid(row=1, column=1, sticky="w", padx=(0, 12), pady=(0, 8))
 
@@ -281,8 +342,8 @@ class PianoPlayerApp(tk.Tk):
             options_frame,
             text=(
                 "Leave blank to use the saved note mapping. "
-                "Your current 31-solenoid setup spans C2 to B4 but is non-contiguous in octave 2, "
-                "so blank is the correct default unless you want a temporary contiguous override like C3-B3."
+                "For calibration and for your current 61-solenoid bench, blank is the correct default "
+                "unless you intentionally want a temporary contiguous override."
             ),
             wraplength=620,
         ).grid(row=5, column=1, sticky="w", padx=(0, 12), pady=(0, 8))
@@ -311,6 +372,9 @@ class PianoPlayerApp(tk.Tk):
         )
         ttk.Button(action_frame, text="Calibrate Note Mapping...", command=self.start_note_mapping_calibration).grid(
             row=0, column=2, sticky="w", padx=(8, 0)
+        )
+        ttk.Button(action_frame, text="Troubleshoot Keys...", command=self.start_troubleshooting_run).grid(
+            row=0, column=3, sticky="w", padx=(8, 0)
         )
 
         log_frame = ttk.LabelFrame(outer, text="Status")
@@ -408,6 +472,10 @@ class PianoPlayerApp(tk.Tk):
         config = engine.load_config()
         return piano_tools.build_calibration_config(config, active_channel_count)
 
+    def build_patch_mapping_config(self, active_channel_count):
+        config = engine.load_config()
+        return piano_tools.build_patch_mapping_config(config, active_channel_count)
+
     def log_mapping_lines(self, mapping_lines):
         for line in mapping_lines:
             self.append_log(f"  {line}")
@@ -428,7 +496,7 @@ class PianoPlayerApp(tk.Tk):
                 self.append_log(f"  Firing {channel_target}: {label}")
             piano_tools.fire_channel(connection, channel, pulse)
             self.update()
-            time.sleep(0.25)
+            time.sleep(piano_tools.CALIBRATION_INTER_FIRE_DELAY_SECONDS)
 
     def calibrate_contiguous_octave_gui(self, connection, config, port, ready_info):
         self.run_sweep_calibration(connection, config)
@@ -479,6 +547,7 @@ class PianoPlayerApp(tk.Tk):
             self.append_log(f"Firing {channel_target}: {label}")
             piano_tools.fire_channel(connection, channel, pulse)
             self.update()
+            time.sleep(piano_tools.CALIBRATION_INTER_FIRE_DELAY_SECONDS)
 
             while True:
                 raw = simpledialog.askstring(
@@ -534,6 +603,118 @@ class PianoPlayerApp(tk.Tk):
         self.append_log("Saved manual mapping:")
         self.log_mapping_lines(mapping_lines)
 
+    def patch_manual_mapping_gui(self, connection, config, port, ready_info, patch_channels):
+        existing_mapping = dict(config["mapping"])
+        note_to_channel = dict(existing_mapping.get("note_to_channel", {}))
+        note_labels = dict(existing_mapping.get("note_labels", {}))
+        channel_labels = dict(existing_mapping.get("channel_labels", {}))
+        channel_sequence = [int(channel) for channel in existing_mapping.get("channel_sequence", [])]
+        missing_notes = piano_tools.infer_missing_notes(existing_mapping)
+        added_assignments = []
+
+        self.append_log("Patch existing note mapping started.")
+        self.append_log(f"Unused channels to test: {', '.join(str(channel) for channel in patch_channels)}")
+        if missing_notes:
+            self.append_log(
+                "Missing notes inferred from the saved span: "
+                + ", ".join(engine.midi_note_name(note) for note in missing_notes)
+            )
+        self.append_log("Each unused channel will fire once. Enter the piano note it moved, or leave blank to skip it.")
+
+        for channel in patch_channels:
+            actuation = engine.resolve_channel_actuation(channel, config)
+            pulse = piano_tools.build_calibration_pulse(actuation)
+            label = channel_labels.get(str(channel), f"Channel {channel}")
+            channel_target = engine.describe_global_channel(channel, config["pca9685"])
+            self.append_log(f"Firing {channel_target}: {label}")
+            piano_tools.fire_channel(connection, channel, pulse)
+            self.update()
+            time.sleep(piano_tools.CALIBRATION_INTER_FIRE_DELAY_SECONDS)
+
+            while True:
+                prompt_lines = [
+                    channel_target,
+                    label,
+                ]
+                if missing_notes:
+                    prompt_lines.extend(
+                        [
+                            "",
+                            "Likely missing notes from the saved span:",
+                            ", ".join(engine.midi_note_name(note) for note in missing_notes),
+                        ]
+                    )
+                prompt_lines.extend(
+                    [
+                        "",
+                        "Which piano note moved? Use a name like C4 or F#3.",
+                        "Leave blank to skip this channel for now.",
+                    ]
+                )
+                raw = simpledialog.askstring(
+                    "Patch Saved Mapping",
+                    "\n".join(prompt_lines),
+                    parent=self,
+                )
+                if raw is None or not raw.strip():
+                    break
+                try:
+                    note = engine.parse_note_token(raw.strip())
+                except ValueError as error:
+                    messagebox.showerror("Invalid note", str(error), parent=self)
+                    continue
+                if str(note) in note_to_channel:
+                    messagebox.showerror(
+                        "Duplicate note",
+                        "That note is already assigned in the saved mapping. Enter a different note or leave this channel blank.",
+                        parent=self,
+                    )
+                    continue
+                note_to_channel[str(note)] = channel
+                note_labels[str(note)] = engine.midi_note_name(note)
+                added_assignments.append((note, channel))
+                break
+
+        if not added_assignments:
+            raise RuntimeError("No new patch assignments were entered, so nothing was saved.")
+
+        mapping = {
+            "mode": "explicit_note_map",
+            "note_to_channel": dict(sorted(note_to_channel.items(), key=lambda item: int(item[0]))),
+            "note_labels": note_labels,
+            "channel_labels": channel_labels,
+            "channel_sequence": channel_sequence,
+        }
+        mapping_lines = piano_tools.build_mapping_lines(mapping)
+
+        if not messagebox.askyesno(
+            "Save Patched Map",
+            "Save the updated mapping?\n\n" + "\n".join(mapping_lines),
+            parent=self,
+        ):
+            raise RuntimeError("Patch mapping cancelled before saving the updated map.")
+
+        report_payload = {
+            "mode": "manual_patch",
+            "port": port,
+            "protocol_version": ready_info["protocol_version"],
+            "mapping_lines": mapping_lines,
+            "mapping": mapping,
+            "patched_channels": [int(channel) for channel in patch_channels],
+            "added_assignments": [
+                {
+                    "note": int(note),
+                    "note_label": engine.midi_note_name(int(note)),
+                    "channel": int(channel),
+                }
+                for note, channel in added_assignments
+            ],
+            "missing_notes_before": missing_notes,
+        }
+        piano_tools.save_calibrated_mapping(mapping, report_payload)
+        self.append_log("Saved patched mapping:")
+        self.log_mapping_lines(mapping_lines)
+
     def start_note_mapping_calibration(self):
         if self.worker is not None and self.worker.is_alive():
             messagebox.showinfo("Already running", "Wait for the current playback job to finish first.", parent=self)
@@ -546,14 +727,31 @@ class PianoPlayerApp(tk.Tk):
 
         try:
             active_channel_count = self.get_active_channel_count()
-            calibration_config, active_sequence = self.build_active_calibration_config(active_channel_count)
+            if dialog.result == "patch":
+                calibration_config, patch_channels, missing_notes = self.build_patch_mapping_config(active_channel_count)
+                if not patch_channels:
+                    raise RuntimeError("The saved mapping does not have any unused channels to patch.")
+            else:
+                calibration_config, active_sequence = self.build_active_calibration_config(active_channel_count)
         except ValueError as error:
             messagebox.showerror("Invalid hardware count", str(error), parent=self)
+            return
+        except RuntimeError as error:
+            messagebox.showerror("Patch mapping unavailable", str(error), parent=self)
             return
 
         self.append_log("")
         self.append_log("Starting note mapping calibration...")
-        self.append_log(engine.summarize_active_channel_sequence(active_sequence, calibration_config["pca9685"]))
+        if dialog.result == "patch":
+            self.append_log(f"Unused channels to patch: {', '.join(str(channel) for channel in patch_channels)}")
+            if missing_notes:
+                self.append_log(
+                    "Missing notes inferred from the saved span: "
+                    + ", ".join(engine.midi_note_name(note) for note in missing_notes)
+                )
+            self.append_log(engine.summarize_active_channel_sequence(patch_channels, calibration_config["pca9685"]))
+        else:
+            self.append_log(engine.summarize_active_channel_sequence(active_sequence, calibration_config["pca9685"]))
         self.set_controls_enabled(False)
         self.update()
 
@@ -569,6 +767,19 @@ class PianoPlayerApp(tk.Tk):
                     f"{engine.format_i2c_address_list(ready_info['i2c_info']['detected_addresses'])}"
                 )
 
+            if dialog.result == "patch":
+                piano_tools.ensure_calibration_hardware_ready(
+                    ready_info,
+                    calibration_config["pca9685"],
+                    patch_channels,
+                )
+            else:
+                piano_tools.ensure_calibration_hardware_ready(
+                    ready_info,
+                    calibration_config["pca9685"],
+                    active_sequence,
+                )
+
             if dialog.result == "sweep":
                 self.run_sweep_calibration(connection, calibration_config)
                 messagebox.showinfo("Sweep Complete", "Channel sweep complete.", parent=self)
@@ -579,11 +790,18 @@ class PianoPlayerApp(tk.Tk):
                     f"Saved contiguous note mapping to {engine.CALIBRATED_MAPPING_PATH.name}.",
                     parent=self,
                 )
-            else:
+            elif dialog.result == "manual":
                 self.calibrate_manual_mapping_gui(connection, calibration_config, port, ready_info)
                 messagebox.showinfo(
                     "Calibration Saved",
                     f"Saved manual note mapping to {engine.CALIBRATED_MAPPING_PATH.name}.",
+                    parent=self,
+                )
+            else:
+                self.patch_manual_mapping_gui(connection, calibration_config, port, ready_info, patch_channels)
+                messagebox.showinfo(
+                    "Patch Saved",
+                    f"Saved patched note mapping to {engine.CALIBRATED_MAPPING_PATH.name}.",
                     parent=self,
                 )
 
@@ -609,11 +827,37 @@ class PianoPlayerApp(tk.Tk):
             messagebox.showinfo("Choose a song", "Pick a MIDI file first.", parent=self)
             return
 
+        run_options = self.collect_run_options(base_tempo_bpm=120.0)
+        if run_options is None:
+            return
+
+        self.append_log("")
+        self.append_log(f"Starting {'dry run' if dry_run else 'playback'} for {self.selected_song_path.name}...")
+        self.set_controls_enabled(False)
+
+        worker_args = {
+            "workflow_kind": "conversion",
+            "selected_midi_source": self.selected_song_path,
+            "selection_reason": self.selection_reason or "selected from the GUI",
+            "active_channel_count": run_options["active_channel_count"],
+            "preferred_range": run_options["preferred_range"],
+            "preferred_fit_mode": self.fit_mode_var.get(),
+            "preferred_tempo": run_options["preferred_tempo"],
+            "dry_run": dry_run,
+            "export_only": run_options["export_only"],
+            "allow_prompts": False,
+            "reporter": lambda message: self.message_queue.put(("log", message)),
+        }
+
+        self.worker = threading.Thread(target=self._run_workflow, args=(worker_args,), daemon=True)
+        self.worker.start()
+
+    def collect_run_options(self, base_tempo_bpm):
         try:
             active_channel_count = self.get_active_channel_count()
         except ValueError as error:
             messagebox.showerror("Invalid hardware count", str(error), parent=self)
-            return
+            return None
 
         preferred_range = self.range_var.get().strip()
         if preferred_range:
@@ -621,33 +865,54 @@ class PianoPlayerApp(tk.Tk):
                 engine.parse_inclusive_note_range(preferred_range)
             except ValueError as error:
                 messagebox.showerror("Invalid note range", str(error), parent=self)
-                return
+                return None
         else:
             preferred_range = ""
 
         preferred_tempo = self.tempo_var.get().strip()
         if preferred_tempo:
             try:
-                engine.parse_tempo_override_input(preferred_tempo, 120.0)
+                engine.parse_tempo_override_input(preferred_tempo, base_tempo_bpm)
             except ValueError as error:
                 messagebox.showerror("Invalid tempo", str(error), parent=self)
-                return
+                return None
         else:
             preferred_tempo = ""
 
+        return {
+            "active_channel_count": active_channel_count,
+            "preferred_range": preferred_range,
+            "preferred_tempo": preferred_tempo,
+            "export_only": self.export_only_var.get(),
+        }
+
+    def start_troubleshooting_run(self):
+        if self.worker is not None and self.worker.is_alive():
+            messagebox.showinfo("Already running", "Wait for the current playback job to finish first.", parent=self)
+            return
+
+        dialog = TroubleshootingActionDialog(self)
+        self.wait_window(dialog)
+        if dialog.result is None:
+            return
+
+        run_options = self.collect_run_options(base_tempo_bpm=engine.DIAGNOSTIC_BASE_BPM)
+        if run_options is None:
+            return
+
+        key_label = dialog.result.title()
         self.append_log("")
-        self.append_log(f"Starting {'dry run' if dry_run else 'playback'} for {self.selected_song_path.name}...")
+        self.append_log(f"Starting {key_label.lower()} key troubleshooting...")
         self.set_controls_enabled(False)
 
         worker_args = {
-            "selected_midi_source": self.selected_song_path,
-            "selection_reason": self.selection_reason or "selected from the GUI",
-            "active_channel_count": active_channel_count,
-            "preferred_range": preferred_range,
-            "preferred_fit_mode": self.fit_mode_var.get(),
-            "preferred_tempo": preferred_tempo,
-            "dry_run": dry_run,
-            "export_only": self.export_only_var.get(),
+            "workflow_kind": "troubleshooting",
+            "key_color": dialog.result,
+            "active_channel_count": run_options["active_channel_count"],
+            "preferred_range": run_options["preferred_range"],
+            "preferred_tempo": run_options["preferred_tempo"],
+            "dry_run": False,
+            "export_only": run_options["export_only"],
             "allow_prompts": False,
             "reporter": lambda message: self.message_queue.put(("log", message)),
         }
@@ -657,7 +922,11 @@ class PianoPlayerApp(tk.Tk):
 
     def _run_workflow(self, worker_args):
         try:
-            result = engine.run_conversion_workflow(**worker_args)
+            workflow_kind = worker_args.pop("workflow_kind", "conversion")
+            if workflow_kind == "troubleshooting":
+                result = engine.run_troubleshooting_workflow(**worker_args)
+            else:
+                result = engine.run_conversion_workflow(**worker_args)
         except Exception as error:
             self.message_queue.put(("error", str(error)))
             return
@@ -673,25 +942,40 @@ class PianoPlayerApp(tk.Tk):
                 elif message_type == "error":
                     self.set_controls_enabled(True)
                     self.append_log(f"Error: {payload}")
-                    messagebox.showerror("Playback failed", payload, parent=self)
+                    messagebox.showerror("Run failed", payload, parent=self)
                 elif message_type == "done":
                     self.set_controls_enabled(True)
                     result = payload
                     if result.get("cancelled"):
                         self.append_log("Cancelled before conversion.")
                     else:
-                        if result["payload"] is None:
-                            title = "Dry run complete"
-                        elif result["stream_manifest"] is None:
-                            title = "Export complete"
+                        if result["workflow_kind"] == "troubleshooting":
+                            if result["payload"] is None:
+                                title = "Troubleshooting dry run complete"
+                            elif result["stream_manifest"] is None:
+                                title = "Troubleshooting export complete"
+                            else:
+                                title = "Troubleshooting complete"
+                            key_label = result["metadata"].get("diagnostic_key_color", "selected").title()
+                            summary = (
+                                f"Finished {key_label.lower()} key troubleshooting\n"
+                                f"Active hardware channels: {result['metadata']['active_hardware_channel_count']}\n"
+                                f"Steps: {result['metadata'].get('diagnostic_step_count', 0)}\n"
+                                f"Effective tempo: {result['tempo_override']['target_bpm']:.2f} BPM"
+                            )
                         else:
-                            title = "Playback complete"
-                        summary = (
-                            f"Finished {result['selected_midi'].name}\n"
-                            f"Active hardware channels: {result['metadata']['active_hardware_channel_count']}\n"
-                            f"Mode: {result['metadata']['fit_mode_label']}\n"
-                            f"Effective tempo: {result['tempo_override']['target_bpm']:.2f} BPM"
-                        )
+                            if result["payload"] is None:
+                                title = "Dry run complete"
+                            elif result["stream_manifest"] is None:
+                                title = "Export complete"
+                            else:
+                                title = "Playback complete"
+                            summary = (
+                                f"Finished {result['selected_midi'].name}\n"
+                                f"Active hardware channels: {result['metadata']['active_hardware_channel_count']}\n"
+                                f"Mode: {result['metadata']['fit_mode_label']}\n"
+                                f"Effective tempo: {result['tempo_override']['target_bpm']:.2f} BPM"
+                            )
                         self.append_log("Done.")
                         messagebox.showinfo(title, summary, parent=self)
         except queue.Empty:

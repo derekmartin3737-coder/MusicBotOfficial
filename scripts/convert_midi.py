@@ -69,13 +69,21 @@ DEFAULT_USER_PREFERENCES = {
     "playback": {
         "auto_use_newest_download": True,
         "default_fit_mode": "prompt",
-        "default_active_channels": 31,
+        "default_active_channels": 61,
         "default_playable_range": "",
         "default_tempo": "",
         "wait_for_finish": True,
         "show_diagnostics": True,
     }
 }
+
+WHITE_KEY_PITCH_CLASSES = {0, 2, 4, 5, 7, 9, 11}
+BLACK_KEY_PITCH_CLASSES = {1, 3, 6, 8, 10}
+DIAGNOSTIC_BASE_BPM = 60.0
+DIAGNOSTIC_STEP_MS = 1000
+DIAGNOSTIC_NOTE_DURATION_MS = 650
+DIAGNOSTIC_PHASE_GAP_MS = 1400
+DIAGNOSTIC_VELOCITY = 100
 
 
 def clamp(value, minimum, maximum):
@@ -122,6 +130,11 @@ def get_global_channel_capacity(config_or_pca):
 
 
 def split_global_channel(channel, config_or_pca):
+    """Resolve a software channel number to one PCA9685 address and pin.
+
+    The boards share the Arduino's I2C bus in parallel. "Global channel" is
+    just the project's numbering scheme across every addressed PCA9685 board.
+    """
     channel = int(channel)
     board_addresses = get_pca_board_addresses(config_or_pca)
     capacity = len(board_addresses) * PCA9685_CHANNELS_PER_BOARD
@@ -821,6 +834,107 @@ def get_mapping_note_numbers(mapping_config):
     if mapping_config["mode"] == "explicit_note_map":
         return sorted(int(note) for note in mapping_config.get("note_to_channel", {}))
     return []
+
+
+def get_note_color_pitch_classes(key_color: str):
+    normalized = str(key_color).strip().lower()
+    if normalized == "white":
+        return WHITE_KEY_PITCH_CLASSES
+    if normalized == "black":
+        return BLACK_KEY_PITCH_CLASSES
+    raise ValueError(f"Unsupported troubleshooting key color: {key_color}")
+
+
+def get_mapping_note_numbers_by_color(mapping_config, key_color: str):
+    pitch_classes = get_note_color_pitch_classes(key_color)
+    return [note for note in get_mapping_note_numbers(mapping_config) if note % 12 in pitch_classes]
+
+
+def build_diagnostic_phases(note_numbers, key_color: str):
+    """Build ordered troubleshooting patterns for the selected note color."""
+    label_prefix = f"{str(key_color).strip().title()} keys"
+    phases = [
+        {
+            "name": "ascending singles",
+            "label": f"{label_prefix}: bottom to top one at a time",
+            "groups": [[note] for note in note_numbers],
+        }
+    ]
+
+    thirds = [[note_numbers[index], note_numbers[index + 2]] for index in range(len(note_numbers) - 2)]
+    if thirds:
+        phases.append(
+            {
+                "name": "ascending thirds",
+                "label": f"{label_prefix}: moving thirds",
+                "groups": thirds,
+            }
+        )
+
+    outer_in_groups = []
+    left_index = 0
+    right_index = len(note_numbers) - 1
+    while left_index < right_index:
+        outer_in_groups.append([note_numbers[left_index], note_numbers[right_index]])
+        left_index += 1
+        right_index -= 1
+    if left_index == right_index and note_numbers:
+        outer_in_groups.append([note_numbers[left_index]])
+    if outer_in_groups:
+        phases.append(
+            {
+                "name": "outer in pairs",
+                "label": f"{label_prefix}: widest pairs moving inward",
+                "groups": outer_in_groups,
+            }
+        )
+
+    return phases
+
+
+def build_diagnostic_note_intervals(note_numbers, key_color: str):
+    """Create a synthetic note plan for troubleshooting sticking keys."""
+    if not note_numbers:
+        raise ValueError(f"No {key_color} keys are available in the current playable mapping.")
+
+    phases = build_diagnostic_phases(note_numbers, key_color)
+    note_intervals = []
+    step_plan = []
+    current_start_ms = 0
+    step_index = 1
+
+    for phase_index, phase in enumerate(phases):
+        if phase_index > 0:
+            current_start_ms += DIAGNOSTIC_PHASE_GAP_MS
+
+        for group in phase["groups"]:
+            end_ms = current_start_ms + DIAGNOSTIC_NOTE_DURATION_MS
+            note_labels = [midi_note_name(note) for note in group]
+            step_plan.append(
+                {
+                    "index": step_index,
+                    "phase_name": phase["name"],
+                    "phase_label": phase["label"],
+                    "notes": list(group),
+                    "note_labels": note_labels,
+                    "start_ms": current_start_ms,
+                    "end_ms": end_ms,
+                }
+            )
+            for note in group:
+                note_intervals.append(
+                    {
+                        "note": int(note),
+                        "source_note": int(note),
+                        "velocity": DIAGNOSTIC_VELOCITY,
+                        "start_ms": current_start_ms,
+                        "end_ms": end_ms,
+                    }
+                )
+            current_start_ms += DIAGNOSTIC_STEP_MS
+            step_index += 1
+
+    return note_intervals, phases, step_plan
 
 
 def summarize_playable_layout(mapping_config):
@@ -1801,6 +1915,8 @@ def parse_i2c_response(response):
         "expected_addresses": parse_hex_address_list(fields.get("expected")),
         "missing_addresses": parse_hex_address_list(fields.get("missing")),
         "count": int(fields.get("count", 0)),
+        "all_detected_addresses": parse_hex_address_list(fields.get("all")),
+        "all_count": int(fields.get("all_count", 0)),
     }
 
 
@@ -1808,23 +1924,38 @@ def build_i2c_mismatch_warning(i2c_info):
     expected = i2c_info.get("expected_addresses", [])
     detected = i2c_info.get("detected_addresses", [])
     missing = i2c_info.get("missing_addresses", [])
+    all_detected = i2c_info.get("all_detected_addresses", [])
 
     if expected and detected == expected and not missing:
         return None
 
     if not detected:
-        return (
+        message = (
             "No configured PCA9685 addresses responded on I2C. "
             f"Expected {format_i2c_address_list(expected)}."
         )
+        if all_detected:
+            message += (
+                " Full PCA scan saw "
+                f"{format_i2c_address_list(all_detected)} instead. "
+                "If you intentionally moved boards to higher addresses, update the repo config and Arduino runtime to match."
+            )
+        return message
 
-    return (
+    message = (
         "Detected PCA9685 addresses do not match the configured hardware. "
         f"Detected {format_i2c_address_list(detected)}; "
         f"expected {format_i2c_address_list(expected)}; "
         f"missing {format_i2c_address_list(missing)}. "
         "If multiple boards are firing together, check the A0-A5 address jumpers so each board has a unique I2C address."
     )
+    if all_detected and all_detected != detected:
+        message += (
+            " Full PCA scan saw "
+            f"{format_i2c_address_list(all_detected)}. "
+            "If those are the real board addresses, the software can use them once config and runtime are updated."
+        )
+    return message
 
 
 def parse_status_response(response):
@@ -2331,6 +2462,7 @@ def run_conversion_workflow(
 
     return {
         "cancelled": False,
+        "workflow_kind": "conversion",
         "selected_midi": selected_midi,
         "selected_midi_source": selected_midi_source,
         "selection_reason": selection_reason,
@@ -2340,6 +2472,253 @@ def run_conversion_workflow(
         "playable_layout_summary": playable_layout_summary,
         "tempo_override": tempo_override,
         "fit_selection": fit_selection,
+        "output_version_label": output_version_label,
+        "header_path": header_path,
+        "json_path": json_path,
+        "active_header_path": active_header_path,
+        "active_json_path": active_json_path,
+        "deployment_paths": deployment_paths,
+        "payload": payload,
+        "stream_manifest": stream_manifest,
+    }
+
+
+def run_troubleshooting_workflow(
+    key_color,
+    active_channel_count=None,
+    preferred_range=None,
+    preferred_tempo=None,
+    port=None,
+    dry_run=False,
+    export_only=False,
+    allow_prompts=False,
+    config=None,
+    user_preferences=None,
+    deployment_config=None,
+    reporter=print,
+):
+    """Build and optionally play a synthetic troubleshooting sequence."""
+    if config is None:
+        config = load_config()
+    if user_preferences is None:
+        user_preferences = load_user_preferences()
+    if deployment_config is None:
+        deployment_config = load_deployment_config()
+    else:
+        deployment_config = copy.deepcopy(deployment_config)
+
+    if port:
+        deployment_config.setdefault("serial_runtime", {})
+        deployment_config["serial_runtime"]["preferred_port"] = port
+
+    key_color = str(key_color).strip().lower()
+    key_label = key_color.title()
+    selection_reason = f"generated troubleshooting sequence for {key_label.lower()} keys"
+    selected_sequence = MIDI_DIR / f"troubleshooting_{sanitize_name(key_color)}_keys.mid"
+
+    base_mapping, active_channel_sequence = apply_active_channel_limit(
+        config["mapping"],
+        config["pca9685"],
+        active_channel_count=active_channel_count,
+    )
+    hardware_channel_summary = summarize_active_channel_sequence(active_channel_sequence, config["pca9685"])
+
+    if preferred_range is None:
+        preferred_range = user_preferences["playback"].get("default_playable_range", "")
+    if allow_prompts or preferred_range not in (None, ""):
+        effective_mapping, playable_layout_summary, mapping_overridden = prompt_for_playable_range(
+            base_mapping,
+            preset=preferred_range,
+        )
+    else:
+        effective_mapping = copy.deepcopy(base_mapping)
+        playable_layout_summary = summarize_playable_layout(effective_mapping)
+        mapping_overridden = False
+
+    effective_config = dict(config)
+    effective_config["mapping"] = effective_mapping
+
+    note_numbers = get_mapping_note_numbers_by_color(effective_mapping, key_color)
+    if not note_numbers:
+        raise ValueError(
+            f"No mapped {key_color} keys are available with the current hardware count and playable range."
+        )
+
+    note_intervals, phases, step_plan = build_diagnostic_note_intervals(note_numbers, key_color)
+
+    if preferred_tempo is None:
+        preferred_tempo = user_preferences["playback"].get("default_tempo", "")
+    if allow_prompts or preferred_tempo not in (None, ""):
+        tempo_override = prompt_for_tempo_override(DIAGNOSTIC_BASE_BPM, preset=preferred_tempo)
+    else:
+        tempo_override = parse_tempo_override_input("", DIAGNOSTIC_BASE_BPM)
+
+    scaled_intervals = scale_intervals(note_intervals, tempo_override["scale"])
+    scheduled_notes, scheduling_stats = schedule_notes(scaled_intervals, effective_config)
+    if not scheduled_notes:
+        raise ValueError("No troubleshooting notes could be scheduled with the current hardware mapping.")
+
+    timeline, scheduled_note_metadata, playback_stats = build_playback_events(scheduled_notes, effective_config)
+    delta_events = convert_to_delta_events(timeline)
+
+    output_version_label = None
+    header_path = None
+    json_path = None
+    active_header_path = None
+    active_json_path = None
+    deployment_paths = None
+    payload = None
+    stream_manifest = None
+
+    note_range_label = format_note_range(note_numbers[0], note_numbers[-1])
+    filtered_note_set_label = f"{len(note_numbers)} mapped {key_color} keys from {note_range_label}"
+    mapping_lines = describe_mapping(effective_config["mapping"], effective_config["pca9685"])
+    channel_lines = build_channel_lines(
+        scheduling_stats["channels_used"],
+        effective_config["mapping"],
+        effective_config["pca9685"],
+    )
+    actuation_lines = build_actuation_lines(scheduling_stats["channels_used"], effective_config)
+    playback_summary = format_playable_count(len(note_intervals), len(note_intervals))
+    metadata = {
+        "project_mode": config["project_mode"],
+        "output_version_label": output_version_label,
+        "original_bpm": DIAGNOSTIC_BASE_BPM,
+        "tempo_label": tempo_override["label"],
+        "effective_bpm": tempo_override["target_bpm"],
+        "tempo_change_count": 0,
+        "active_hardware_channel_count": len(active_channel_sequence),
+        "active_hardware_channel_summary": hardware_channel_summary,
+        "source_range_label": note_range_label,
+        "playable_layout_label": playable_layout_summary["label"],
+        "fit_mode": "troubleshooting",
+        "fit_mode_label": f"{key_label} troubleshooting pattern",
+        "transpose_semitones": 0,
+        "transpose_strategy": "none",
+        "transpose_remapped_note_events": 0,
+        "transpose_shift_counts": {},
+        "transpose_shift_summary": "not applicable for troubleshooting sequence",
+        "transpose_skipped_for_timing": 0,
+        "strict_playable_count": len(note_intervals),
+        "strict_playable_summary": playback_summary,
+        "transpose_playable_count": len(note_intervals),
+        "transpose_playable_summary": playback_summary,
+        "mapping_override_used": mapping_overridden,
+        "selection_reason": selection_reason,
+        "recognizability_summary": "diagnostic sequence",
+        "unmapped_note_lines": [],
+        "source_note_count": len(note_intervals),
+        "scheduled_note_count": len(scheduled_notes),
+        "event_count": len(delta_events),
+        "forced_retriggers": scheduling_stats["forced_retriggers"],
+        "delayed_notes": scheduling_stats["delayed_notes"],
+        "unmapped_notes": scheduling_stats["unmapped_notes"],
+        "unmapped_note_counts": scheduling_stats["unmapped_note_counts"],
+        "unmatched_note_offs": 0,
+        "dangling_note_ons_closed": 0,
+        "percussion_events_skipped": 0,
+        "hold_events": playback_stats["hold_events"],
+        "strike_only_notes": playback_stats["strike_only_notes"],
+        "mapping_lines": mapping_lines,
+        "channel_lines": channel_lines,
+        "actuation_lines": actuation_lines,
+        "channels_used": scheduling_stats["channels_used"],
+        "diagnostic_key_color": key_color,
+        "diagnostic_filtered_note_set_label": filtered_note_set_label,
+        "diagnostic_phase_labels": [phase["label"] for phase in phases],
+        "diagnostic_step_count": len(step_plan),
+        "diagnostic_step_plan": step_plan,
+    }
+
+    report_line(reporter, "")
+    report_line(reporter, f"Troubleshooting routine: {key_label} keys")
+    report_line(reporter, f"Chosen because: {selection_reason}")
+    report_line(reporter, f"Active hardware: {hardware_channel_summary}")
+    report_line(reporter, f"Playable layout: {playable_layout_summary['label']}")
+    report_line(reporter, f"Filtered note set: {filtered_note_set_label}")
+    report_line(reporter, f"Base diagnostic tempo: {DIAGNOSTIC_BASE_BPM:.2f} BPM")
+    report_line(reporter, f"Effective output tempo: {tempo_override['target_bpm']:.2f} BPM")
+    report_line(reporter, f"Range override used: {'yes' if mapping_overridden else 'no'}")
+    report_line(reporter, "Sequence plan:")
+    current_phase_label = None
+    for step in step_plan:
+        if step["phase_label"] != current_phase_label:
+            current_phase_label = step["phase_label"]
+            report_line(reporter, f"  {current_phase_label}")
+        report_line(
+            reporter,
+            f"    Step {step['index']:02d} at {step['start_ms'] / 1000.0:.2f}s: {' + '.join(step['note_labels'])}",
+        )
+    report_line(reporter, "Channel summary:")
+    for line in channel_lines:
+        report_line(reporter, f"  {line}")
+    report_line(reporter, "Actuation summary:")
+    for line in actuation_lines:
+        report_line(reporter, f"  {line}")
+
+    if dry_run:
+        report_line(reporter, "")
+        report_line(reporter, "Troubleshooting dry run complete. No files were written and nothing was sent over USB.")
+    else:
+        header_path, output_version = next_header_path(HEADER_DIR, selected_sequence)
+        output_version_label = "base" if output_version == 0 else f"v{output_version}"
+        metadata["output_version_label"] = output_version_label
+        json_path, active_header_path, active_json_path, deployment_paths, payload = write_outputs(
+            selected_sequence,
+            header_path,
+            delta_events,
+            metadata,
+            effective_config,
+            scheduled_note_metadata,
+            deployment_config,
+        )
+
+    if payload is not None and not export_only:
+        stream_manifest = stream_song_to_arduino(payload, deployment_config)
+
+    if not dry_run:
+        report_line(reporter, "")
+        report_line(reporter, "Troubleshooting export complete.")
+        report_line(reporter, f"Versioned header: {header_path.relative_to(REPO_ROOT)}")
+        report_line(reporter, f"Active Arduino header: {active_header_path.relative_to(REPO_ROOT)}")
+        report_line(reporter, f"Versioned metadata: {json_path.relative_to(REPO_ROOT)}")
+        report_line(reporter, f"Active metadata: {active_json_path.relative_to(REPO_ROOT)}")
+        if deployment_paths is not None:
+            if "sketch_path" in deployment_paths:
+                report_line(reporter, f"Synced Arduino IDE sketch: {deployment_paths['sketch_path']}")
+            if "active_header_path" in deployment_paths:
+                report_line(reporter, f"Synced Arduino IDE active header: {deployment_paths['active_header_path']}")
+            if "sync_skipped" in deployment_paths:
+                report_line(reporter, f"Arduino IDE sync skipped: {deployment_paths['sync_skipped']}")
+            if "sync_error" in deployment_paths:
+                report_line(reporter, f"Arduino IDE sync warning: {deployment_paths['sync_error']}")
+        if stream_manifest is not None:
+            report_line(reporter, f"USB playback sent on port: {stream_manifest['port']}")
+            report_line(
+                reporter,
+                f"Streamed {stream_manifest['sent_event_count']} events with runtime protocol "
+                f"v{stream_manifest['protocol_version']} using a buffer capacity of {stream_manifest['buffer_capacity']}.",
+            )
+        report_line(reporter, f"Output header version: {output_version_label}")
+        report_line(reporter, f"Scheduled note events: {len(scheduled_notes)}")
+        report_line(reporter, f"Generated events: {len(delta_events)}")
+        report_line(reporter, f"Forced retriggers: {scheduling_stats['forced_retriggers']}")
+        report_line(reporter, f"Delayed notes: {scheduling_stats['delayed_notes']}")
+        report_line(reporter, f"Hold events: {playback_stats['hold_events']}")
+        report_line(reporter, f"Strike-only notes: {playback_stats['strike_only_notes']}")
+
+    return {
+        "cancelled": False,
+        "workflow_kind": "troubleshooting",
+        "selected_midi": selected_sequence,
+        "selected_midi_source": selected_sequence,
+        "selection_reason": selection_reason,
+        "active_channel_sequence": active_channel_sequence,
+        "was_imported": False,
+        "metadata": metadata,
+        "playable_layout_summary": playable_layout_summary,
+        "tempo_override": tempo_override,
+        "fit_selection": None,
         "output_version_label": output_version_label,
         "header_path": header_path,
         "json_path": json_path,

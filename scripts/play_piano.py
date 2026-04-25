@@ -17,6 +17,7 @@ CALIBRATION_FLAGS = {
     "--sweep",
     "--calibrate-octave",
     "--calibrate-manual",
+    "--patch-mapping",
     "--tune-channel",
 }
 

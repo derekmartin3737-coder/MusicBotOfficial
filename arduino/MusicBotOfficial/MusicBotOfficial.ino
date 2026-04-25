@@ -8,7 +8,8 @@
   ALL_OFF.
 
   Hardware path:
-    Arduino Uno A4/A5 I2C -> PCA9685 PWM boards -> MOSFET driver board -> solenoids
+    Arduino Uno A4/A5 shared I2C bus -> PCA9685 PWM boards in parallel ->
+    MOSFET driver board -> solenoids
 
   Safety note:
     ALL_OFF sets every PCA9685 output on every board to zero. Use it whenever a test is
@@ -24,11 +25,14 @@ static const uint8_t RUNTIME_PCA_BOARD_COUNT = 4;
 static const uint8_t RUNTIME_PCA_CHANNELS_PER_BOARD = 16;
 static const uint8_t RUNTIME_GLOBAL_CHANNEL_COUNT =
     RUNTIME_PCA_BOARD_COUNT * RUNTIME_PCA_CHANNELS_PER_BOARD;
+static const uint8_t RUNTIME_PCA9685_MIN_I2C_ADDRESS = 0x40;
+static const uint8_t RUNTIME_PCA9685_MAX_I2C_ADDRESS = 0x7F;
 static const uint8_t RUNTIME_PCA9685_I2C_ADDRESSES[RUNTIME_PCA_BOARD_COUNT] = {
+        0x60,
+    0x50,
+    0x48,
     0x40,
-    0x41,
-    0x42,
-    0x43,
+
 };
 static const uint16_t RUNTIME_PCA9685_PWM_FREQUENCY_HZ = 250;
 static const uint32_t RUNTIME_SERIAL_BAUD = 115200;
@@ -97,6 +101,22 @@ bool probeI2cAddress(uint8_t address) {
   return Wire.endTransmission() == 0;
 }
 
+uint8_t scanAllPca9685Addresses(uint8_t *addressesOut, uint8_t capacity) {
+  uint8_t count = 0;
+  for (uint8_t address = RUNTIME_PCA9685_MIN_I2C_ADDRESS;
+       address <= RUNTIME_PCA9685_MAX_I2C_ADDRESS;
+       address++) {
+    if (!probeI2cAddress(address)) {
+      continue;
+    }
+    if (count < capacity) {
+      addressesOut[count] = address;
+    }
+    count++;
+  }
+  return count;
+}
+
 void printAddressList(const uint8_t *addresses, uint8_t count) {
   if (count == 0) {
     Serial.print(F("none"));
@@ -119,8 +139,10 @@ void printAddressList(const uint8_t *addresses, uint8_t count) {
 void sendI2cStatus() {
   uint8_t detectedAddresses[RUNTIME_PCA_BOARD_COUNT];
   uint8_t missingAddresses[RUNTIME_PCA_BOARD_COUNT];
+  uint8_t allDetectedAddresses[RUNTIME_PCA9685_MAX_I2C_ADDRESS - RUNTIME_PCA9685_MIN_I2C_ADDRESS + 1];
   uint8_t detectedCount = 0;
   uint8_t missingCount = 0;
+  uint8_t allDetectedCount = 0;
 
   for (uint8_t boardIndex = 0; boardIndex < RUNTIME_PCA_BOARD_COUNT; boardIndex++) {
     uint8_t address = RUNTIME_PCA9685_I2C_ADDRESSES[boardIndex];
@@ -130,6 +152,8 @@ void sendI2cStatus() {
       missingAddresses[missingCount++] = address;
     }
   }
+  allDetectedCount =
+      scanAllPca9685Addresses(allDetectedAddresses, sizeof(allDetectedAddresses));
 
   Serial.print(F("I2C detected="));
   printAddressList(detectedAddresses, detectedCount);
@@ -138,7 +162,11 @@ void sendI2cStatus() {
   Serial.print(F(" missing="));
   printAddressList(missingAddresses, missingCount);
   Serial.print(F(" count="));
-  Serial.println(detectedCount);
+  Serial.print(detectedCount);
+  Serial.print(F(" all="));
+  printAddressList(allDetectedAddresses, allDetectedCount);
+  Serial.print(F(" all_count="));
+  Serial.println(allDetectedCount);
 }
 
 void setGlobalChannelPwm(uint8_t globalChannel, uint16_t pwmValue) {

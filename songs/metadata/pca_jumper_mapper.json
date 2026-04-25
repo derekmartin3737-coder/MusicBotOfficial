@@ -1,0 +1,51 @@
+{
+  "port": "COM7",
+  "steps": [
+    {
+      "name": "baseline",
+      "detected_addresses": [
+        64
+      ]
+    },
+    {
+      "name": "jumper_1",
+      "detected_addresses": [
+        64
+      ]
+    },
+    {
+      "name": "jumper_2",
+      "detected_addresses": [
+        64
+      ]
+    },
+    {
+      "name": "jumper_3",
+      "detected_addresses": [
+        64
+      ]
+    },
+    {
+      "name": "jumper_4",
+      "detected_addresses": [
+        64
+      ]
+    },
+    {
+      "name": "jumper_5",
+      "detected_addresses": []
+    },
+    {
+      "name": "jumper_6",
+      "detected_addresses": [
+        64
+      ]
+    }
+  ],
+  "summary_lines": [
+    "Baseline one-board scan worked at 0x40.",
+    "These jumper tests did not change the address and still read 0x40: jumper 1, jumper 2, jumper 3, jumper 4, jumper 6.",
+    "These jumper tests made the board disappear entirely: jumper 5. That usually means the bridge touched the wrong metal or caused a bad contact.",
+    "None of the tested jumper pairs changed the address. Either the temporary bridge did not truly short the exposed jumper pair, or the pads you chose are not the address jumpers."
+  ]
+}

@@ -2,7 +2,7 @@
   "playback": {
     "auto_use_newest_download": true,
     "default_fit_mode": "prompt",
-    "default_active_channels": 31,
+    "default_active_channels": 61,
     "default_playable_range": "",
     "default_tempo": "",
     "wait_for_finish": true,

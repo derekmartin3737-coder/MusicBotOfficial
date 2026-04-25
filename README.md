@@ -1,13 +1,13 @@
 # Autonomous Piano Player
 
-This project plays MIDI files on a piano using an Arduino Uno, a PCA9685 PWM driver, and solenoid actuators.
+This project plays MIDI files on a piano using an Arduino Uno, PCA9685 PWM driver boards on a shared I2C bus, and solenoid actuators.
 
 The current software flow is:
 
 1. Upload the fixed Arduino runtime once
 2. Run the Python playback tool on a MIDI file
 3. Python scans the MIDI, asks a few prompts, converts it into timed PWM events, and sends those events over USB serial
-4. The Arduino receives the event stream and drives the solenoids through the PCA9685
+4. The Arduino receives the event stream, addresses the correct PCA9685 board on the shared I2C bus, and drives the solenoids through the MOSFET stage
 
 For normal playback, users should not need to edit Arduino code for each song.
 
@@ -104,7 +104,7 @@ Software:
 Hardware:
 
 - Arduino Uno
-- PCA9685 PWM driver
+- PCA9685 PWM driver board(s) on the Arduino's shared I2C bus
 - MOSFET driver stage for the solenoids
 - external solenoid power supply
 - one flyback diode per solenoid
@@ -116,7 +116,7 @@ Current code assumes:
 
 - Arduino `A4` -> PCA9685 `SDA`
 - Arduino `A5` -> PCA9685 `SCL`
-- PCA9685 address `0x40`
+- one PCA9685 can use address `0x40`, and additional boards share the same SDA/SCL lines in parallel with unique addresses such as `0x41`, `0x42`, and `0x43`
 - PCA9685 PWM frequency `250 Hz`
 
 Important:

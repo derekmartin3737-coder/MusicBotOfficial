@@ -40,6 +40,7 @@ Confirm:
 
 - Arduino `A4` -> PCA9685 `SDA`
 - Arduino `A5` -> PCA9685 `SCL`
+- if multiple PCA9685 boards are installed, they share `SDA`/`SCL` in parallel and each board needs a unique I2C address
 - common ground between Arduino, PCA9685, MOSFET stage, and power supply
 - each solenoid has flyback protection
 - the solenoid supply is separate from the Arduino 5V rail

@@ -1,0 +1,46 @@
+{
+  "port": "COM7",
+  "expected_addresses": [
+    64,
+    65,
+    66,
+    67
+  ],
+  "steps": [
+    {
+      "name": "all_boards_initial",
+      "detected_addresses": [
+        64
+      ],
+      "analysis": "Detected PCA9685 addresses do not match the configured hardware. Detected 0x40; expected 0x40, 0x41, 0x42, 0x43; missing 0x41, 0x42, 0x43. If multiple boards are firing together, check the A0-A5 address jumpers so each board has a unique I2C address."
+    },
+    {
+      "name": "single_board_1",
+      "detected_addresses": [],
+      "analysis": "No board was detected. Check SDA, SCL, VCC, and GND to that board."
+    },
+    {
+      "name": "single_board_2",
+      "detected_addresses": [],
+      "analysis": "No board was detected. Check SDA, SCL, VCC, and GND to that board."
+    },
+    {
+      "name": "single_board_3",
+      "detected_addresses": [],
+      "analysis": "No board was detected. Check SDA, SCL, VCC, and GND to that board."
+    },
+    {
+      "name": "single_board_4",
+      "detected_addresses": [],
+      "analysis": "No board was detected. Check SDA, SCL, VCC, and GND to that board."
+    },
+    {
+      "name": "all_boards_final",
+      "detected_addresses": [
+        64
+      ],
+      "analysis": "Detected PCA9685 addresses do not match the configured hardware. Detected 0x40; expected 0x40, 0x41, 0x42, 0x43; missing 0x41, 0x42, 0x43. If multiple boards are firing together, check the A0-A5 address jumpers so each board has a unique I2C address."
+    }
+  ],
+  "summary": "At least one board did not answer during its one-board test. Fix power or I2C wiring before changing addresses."
+}
