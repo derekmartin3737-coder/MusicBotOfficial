@@ -64,6 +64,7 @@ HEADER_DIR = ARDUINO_PROJECT_DIR / "generated"
 REPO_RUNTIME_SKETCH_PATH = ARDUINO_PROJECT_DIR / "MusicBotOfficial.ino"
 DOWNLOADS_DIR = Path.home() / "Downloads"
 STREAM_MANIFEST_PATH = METADATA_DIR / "last_streamed_song.json"
+MIDI_FILE_SUFFIXES = {".mid", ".midi"}
 
 DEFAULT_USER_PREFERENCES = {
     "playback": {
@@ -333,26 +334,46 @@ def load_deployment_config():
         return json.load(handle)
 
 
-def collect_download_files(directory: Path):
+def is_within_path(path: Path, root: Path):
+    try:
+        path.resolve().relative_to(root.resolve())
+        return True
+    except ValueError:
+        return False
+
+
+def collect_download_files(directory: Path, suffixes=None, recursive=True):
     if not directory.exists():
         return []
+
+    suffixes = {suffix.lower() for suffix in (suffixes or set())}
+    files = []
+    iterator = directory.rglob("*") if recursive else directory.iterdir()
+    for path in iterator:
+        if not path.is_file():
+            continue
+        if suffixes and path.suffix.lower() not in suffixes:
+            continue
+        # This repo lives inside Downloads on this machine, so exclude it from
+        # the Downloads scan to avoid duplicate "Downloads" and "Library"
+        # entries for the same file.
+        if is_within_path(path, REPO_ROOT):
+            continue
+        files.append(path)
+
     return sorted(
-        [path for path in directory.iterdir() if path.is_file()],
+        files,
         key=lambda path: path.stat().st_mtime,
         reverse=True,
     )
 
 
-def collect_download_midis(directory: Path):
-    return [
-        path
-        for path in collect_download_files(directory)
-        if path.suffix.lower() in {".mid", ".midi"}
-    ]
+def collect_download_midis(directory: Path, recursive=True):
+    return collect_download_files(directory, suffixes=MIDI_FILE_SUFFIXES, recursive=recursive)
 
 
-def find_latest_download_zip(directory: Path):
-    for path in collect_download_files(directory):
+def find_latest_download_zip(directory: Path, recursive=True):
+    for path in collect_download_files(directory, suffixes={".zip"}, recursive=recursive):
         if path.suffix.lower() == ".zip":
             return path
     return None
@@ -392,29 +413,31 @@ def import_midi_to_library(source_path: Path):
     return target_path, True
 
 
-def build_song_catalog(user_preferences):
-    download_midis = collect_download_midis(DOWNLOADS_DIR)
+def build_song_catalog(user_preferences, recursive_downloads=True):
+    download_midis = collect_download_midis(DOWNLOADS_DIR, recursive=recursive_downloads)
     project_midis = collect_midis(MIDI_DIR)
-    latest_zip = find_latest_download_zip(DOWNLOADS_DIR)
+    latest_zip = find_latest_download_zip(DOWNLOADS_DIR, recursive=recursive_downloads)
     auto_use_latest = bool(user_preferences["playback"].get("auto_use_newest_download", True))
 
     entries = []
     for path in download_midis:
+        relative_name = path.relative_to(DOWNLOADS_DIR).as_posix()
         entries.append(
             {
                 "path": path,
                 "source": "Downloads",
                 "display_name": path.name,
-                "description": f"Downloads | {path.name}",
+                "description": f"Downloads | {relative_name}",
             }
         )
     for path in project_midis:
+        relative_name = path.relative_to(MIDI_DIR).as_posix()
         entries.append(
             {
                 "path": path,
                 "source": "Library",
                 "display_name": path.name,
-                "description": f"Library | {path.name}",
+                "description": f"Library | {relative_name}",
             }
         )
 
@@ -510,10 +533,10 @@ def collect_midis(directory: Path):
     return sorted(
         [
             path
-            for path in directory.iterdir()
-            if path.is_file() and path.suffix.lower() in {".mid", ".midi"}
+            for path in directory.rglob("*")
+            if path.is_file() and path.suffix.lower() in MIDI_FILE_SUFFIXES
         ],
-        key=lambda path: path.name.lower(),
+        key=lambda path: path.relative_to(directory).as_posix().lower(),
     )
 
 

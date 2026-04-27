@@ -12,111 +12,25 @@ import threading
 import time
 import tkinter as tk
 from pathlib import Path
-from tkinter import filedialog, messagebox, simpledialog, ttk
+from tkinter import filedialog, font as tkfont, messagebox, simpledialog, ttk
 
 import convert_midi as engine
 import piano_tools
 
-
-class SongPickerDialog(tk.Toplevel):
-    def __init__(self, parent, entries):
-        super().__init__(parent)
-        self.title("Choose a Song")
-        self.resizable(True, True)
-        self.transient(parent)
-        self.grab_set()
-
-        self.entries = list(entries)
-        self.filtered_entries = list(entries)
-        self.result = None
-
-        self.columnconfigure(0, weight=1)
-        self.rowconfigure(1, weight=1)
-
-        ttk.Label(self, text="Available songs", font=("Segoe UI", 11, "bold")).grid(
-            row=0, column=0, sticky="w", padx=14, pady=(14, 6)
-        )
-
-        search_frame = ttk.Frame(self)
-        search_frame.grid(row=1, column=0, sticky="nsew", padx=14)
-        search_frame.columnconfigure(0, weight=1)
-        search_frame.rowconfigure(1, weight=1)
-
-        self.search_var = tk.StringVar()
-        search_entry = ttk.Entry(search_frame, textvariable=self.search_var)
-        search_entry.grid(row=0, column=0, sticky="ew", pady=(0, 8))
-        search_entry.bind("<KeyRelease>", self.refresh_list)
-
-        self.listbox = tk.Listbox(search_frame, height=18)
-        self.listbox.grid(row=1, column=0, sticky="nsew")
-        self.listbox.bind("<Double-Button-1>", self.use_selected)
-
-        scrollbar = ttk.Scrollbar(search_frame, orient="vertical", command=self.listbox.yview)
-        scrollbar.grid(row=1, column=1, sticky="ns")
-        self.listbox.configure(yscrollcommand=scrollbar.set)
-
-        button_frame = ttk.Frame(self)
-        button_frame.grid(row=2, column=0, sticky="ew", padx=14, pady=14)
-        button_frame.columnconfigure(0, weight=1)
-
-        ttk.Button(button_frame, text="Browse for MIDI...", command=self.browse_for_song).grid(
-            row=0, column=0, sticky="w"
-        )
-        ttk.Button(button_frame, text="Cancel", command=self.cancel).grid(
-            row=0, column=1, padx=(8, 0)
-        )
-        ttk.Button(button_frame, text="Use Selected Song", command=self.use_selected).grid(
-            row=0, column=2, padx=(8, 0)
-        )
-
-        self.refresh_list()
-        search_entry.focus_set()
-
-    def refresh_list(self, _event=None):
-        query = self.search_var.get().strip().lower()
-        self.filtered_entries = [
-            entry
-            for entry in self.entries
-            if not query or query in entry["description"].lower() or query in entry["display_name"].lower()
-        ]
-
-        self.listbox.delete(0, tk.END)
-        for entry in self.filtered_entries:
-            self.listbox.insert(tk.END, entry["description"])
-
-        if self.filtered_entries:
-            self.listbox.selection_set(0)
-
-    def browse_for_song(self):
-        chosen = filedialog.askopenfilename(
-            parent=self,
-            title="Choose a MIDI File",
-            filetypes=[("MIDI files", "*.mid *.midi"), ("All files", "*.*")],
-        )
-        if not chosen:
-            return
-
-        chosen_path = Path(chosen)
-        self.result = {
-            "path": chosen_path,
-            "source": "External file",
-            "display_name": chosen_path.name,
-            "description": f"External file | {chosen_path.name}",
-        }
-        self.destroy()
-
-    def use_selected(self, _event=None):
-        selection = self.listbox.curselection()
-        if not selection:
-            messagebox.showinfo("Choose a song", "Select a song from the list or browse for a MIDI file.", parent=self)
-            return
-
-        self.result = self.filtered_entries[selection[0]]
-        self.destroy()
-
-    def cancel(self):
-        self.result = None
-        self.destroy()
+APP_BG = "#eef2f6"
+PANEL_BG = "#ffffff"
+HERO_BG = "#171b22"
+TEXT_COLOR = "#1c2430"
+MUTED_TEXT = "#667281"
+ACCENT_COLOR = "#198f6a"
+ACCENT_HOVER = "#14795a"
+ACCENT_SOFT = "#dcefe8"
+BORDER_COLOR = "#d6dde5"
+INPUT_BG = "#fbfcfd"
+INPUT_BORDER = "#c7d0da"
+LOG_BG = "#10151c"
+LOG_TEXT = "#e7edf5"
+LOG_MUTED = "#90a0b5"
 
 
 class CalibrationActionDialog(tk.Toplevel):
@@ -126,21 +40,23 @@ class CalibrationActionDialog(tk.Toplevel):
         self.resizable(False, False)
         self.transient(parent)
         self.grab_set()
+        self.configure(bg=APP_BG)
 
         self.result = None
         self.action_var = tk.StringVar(value="manual")
 
-        outer = ttk.Frame(self, padding=16)
+        outer = ttk.Frame(self, padding=18, style="App.TFrame")
         outer.grid(row=0, column=0, sticky="nsew")
 
         ttk.Label(
             outer,
             text="Choose a note mapping action",
-            font=("Segoe UI", 11, "bold"),
+            style="DialogTitle.TLabel",
         ).grid(row=0, column=0, sticky="w")
         ttk.Label(
             outer,
             text="Use manual mapping when the installed notes are not one clean contiguous span.",
+            style="Muted.TLabel",
             wraplength=420,
         ).grid(row=1, column=0, sticky="w", pady=(6, 12))
 
@@ -149,30 +65,34 @@ class CalibrationActionDialog(tk.Toplevel):
             text="Sweep channels only",
             variable=self.action_var,
             value="sweep",
+            style="Dialog.TRadiobutton",
         ).grid(row=2, column=0, sticky="w", pady=2)
         ttk.Radiobutton(
             outer,
             text="Save contiguous octave map",
             variable=self.action_var,
             value="contiguous",
+            style="Dialog.TRadiobutton",
         ).grid(row=3, column=0, sticky="w", pady=2)
         ttk.Radiobutton(
             outer,
             text="Save manual channel-to-note map",
             variable=self.action_var,
             value="manual",
+            style="Dialog.TRadiobutton",
         ).grid(row=4, column=0, sticky="w", pady=2)
         ttk.Radiobutton(
             outer,
             text="Patch existing saved map (unused channels only)",
             variable=self.action_var,
             value="patch",
+            style="Dialog.TRadiobutton",
         ).grid(row=5, column=0, sticky="w", pady=2)
 
-        button_row = ttk.Frame(outer)
+        button_row = ttk.Frame(outer, style="App.TFrame")
         button_row.grid(row=6, column=0, sticky="e", pady=(14, 0))
-        ttk.Button(button_row, text="Cancel", command=self.cancel).grid(row=0, column=0)
-        ttk.Button(button_row, text="Continue", command=self.accept).grid(row=0, column=1, padx=(8, 0))
+        ttk.Button(button_row, text="Cancel", style="Secondary.TButton", command=self.cancel).grid(row=0, column=0)
+        ttk.Button(button_row, text="Continue", style="Primary.TButton", command=self.accept).grid(row=0, column=1, padx=(8, 0))
 
     def accept(self):
         self.result = self.action_var.get()
@@ -190,17 +110,18 @@ class TroubleshootingActionDialog(tk.Toplevel):
         self.resizable(False, False)
         self.transient(parent)
         self.grab_set()
+        self.configure(bg=APP_BG)
 
         self.result = None
         self.key_color_var = tk.StringVar(value="white")
 
-        outer = ttk.Frame(self, padding=16)
+        outer = ttk.Frame(self, padding=18, style="App.TFrame")
         outer.grid(row=0, column=0, sticky="nsew")
 
         ttk.Label(
             outer,
             text="Choose a troubleshooting routine",
-            font=("Segoe UI", 11, "bold"),
+            style="DialogTitle.TLabel",
         ).grid(row=0, column=0, sticky="w")
         ttk.Label(
             outer,
@@ -208,6 +129,7 @@ class TroubleshootingActionDialog(tk.Toplevel):
                 "This uses the same installed-solenoid count, range override, export-only setting, "
                 "and tempo override from the main window. Enter 0.5x there to slow the run down."
             ),
+            style="Muted.TLabel",
             wraplength=440,
         ).grid(row=1, column=0, sticky="w", pady=(6, 12))
 
@@ -216,18 +138,20 @@ class TroubleshootingActionDialog(tk.Toplevel):
             text="White keys: singles, moving thirds, then widest pairs inward",
             variable=self.key_color_var,
             value="white",
+            style="Dialog.TRadiobutton",
         ).grid(row=2, column=0, sticky="w", pady=2)
         ttk.Radiobutton(
             outer,
             text="Black keys: singles, moving thirds, then widest pairs inward",
             variable=self.key_color_var,
             value="black",
+            style="Dialog.TRadiobutton",
         ).grid(row=3, column=0, sticky="w", pady=2)
 
-        button_row = ttk.Frame(outer)
+        button_row = ttk.Frame(outer, style="App.TFrame")
         button_row.grid(row=4, column=0, sticky="e", pady=(14, 0))
-        ttk.Button(button_row, text="Cancel", command=self.cancel).grid(row=0, column=0)
-        ttk.Button(button_row, text="Run", command=self.accept).grid(row=0, column=1, padx=(8, 0))
+        ttk.Button(button_row, text="Cancel", style="Secondary.TButton", command=self.cancel).grid(row=0, column=0)
+        ttk.Button(button_row, text="Run", style="Primary.TButton", command=self.accept).grid(row=0, column=1, padx=(8, 0))
 
     def accept(self):
         self.result = self.key_color_var.get()
@@ -242,16 +166,20 @@ class PianoPlayerApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Autonomous Piano Player")
-        self.geometry("820x720")
-        self.minsize(720, 620)
+        self.geometry("1020x920")
+        self.minsize(900, 780)
+        self._configure_theme()
 
         self.user_preferences = engine.load_user_preferences()
         self.config_data = engine.load_config()
         self.song_catalog = None
         self.selected_song_path = None
         self.selection_reason = ""
+        self.song_selection_is_manual = False
         self.worker = None
         self.message_queue = queue.Queue()
+        self.filtered_song_entries = []
+        self.song_catalog_refresh_in_progress = False
         playback_preferences = self.user_preferences.get("playback", {})
         default_active_channels = playback_preferences.get(
             "default_active_channels",
@@ -265,6 +193,8 @@ class PianoPlayerApp(tk.Tk):
         self.song_name_var = tk.StringVar(value="No song selected")
         self.song_reason_var = tk.StringVar(value="")
         self.song_info_var = tk.StringVar(value="No MIDI selected yet.")
+        self.song_catalog_status_var = tk.StringVar(value="Loading available songs...")
+        self.song_search_var = tk.StringVar(value="")
         self.active_channels_var = tk.StringVar(value=str(default_active_channels))
         self.tempo_var = tk.StringVar(value="")
         self.range_var = tk.StringVar(value=str(default_playable_range))
@@ -272,125 +202,440 @@ class PianoPlayerApp(tk.Tk):
         self.export_only_var = tk.BooleanVar(value=False)
 
         self._build_layout()
-        self.refresh_song_catalog(use_suggested=True)
+        self.refresh_song_catalog(use_suggested=True, recursive_downloads=False)
+        self.refresh_song_catalog_async(use_suggested=True)
         self.after(100, self.process_worker_messages)
+
+    def _configure_theme(self):
+        self.configure(bg=APP_BG)
+
+        default_font = tkfont.nametofont("TkDefaultFont")
+        default_font.configure(family="Segoe UI", size=10)
+        tkfont.nametofont("TkTextFont").configure(family="Segoe UI", size=10)
+        tkfont.nametofont("TkFixedFont").configure(family="Consolas", size=10)
+        tkfont.nametofont("TkHeadingFont").configure(family="Segoe UI", size=10, weight="bold")
+
+        style = ttk.Style(self)
+        self.style = style
+        if "clam" in style.theme_names():
+            style.theme_use("clam")
+
+        style.configure("App.TFrame", background=APP_BG)
+        style.configure("Hero.TFrame", background=HERO_BG)
+        style.configure("Panel.TFrame", background=PANEL_BG)
+        style.configure("Section.TLabelframe", background=APP_BG, borderwidth=1, relief="solid")
+        style.configure(
+            "Section.TLabelframe.Label",
+            background=APP_BG,
+            foreground=TEXT_COLOR,
+            font=("Segoe UI", 10, "bold"),
+        )
+
+        style.configure("HeroTitle.TLabel", background=HERO_BG, foreground="#ffffff", font=("Segoe UI", 19, "bold"))
+        style.configure("HeroSubtitle.TLabel", background=HERO_BG, foreground="#c1cad6", font=("Segoe UI", 10))
+        style.configure("HeroMeta.TLabel", background=HERO_BG, foreground="#9fb0c5", font=("Segoe UI", 9))
+
+        style.configure("Panel.TLabel", background=PANEL_BG, foreground=TEXT_COLOR, font=("Segoe UI", 10))
+        style.configure("Muted.Panel.TLabel", background=PANEL_BG, foreground=MUTED_TEXT, font=("Segoe UI", 9))
+        style.configure("Status.Panel.TLabel", background=PANEL_BG, foreground=ACCENT_COLOR, font=("Segoe UI", 9, "bold"))
+        style.configure("Value.Panel.TLabel", background=PANEL_BG, foreground=TEXT_COLOR, font=("Segoe UI", 12, "bold"))
+
+        style.configure("App.TLabel", background=APP_BG, foreground=TEXT_COLOR, font=("Segoe UI", 10))
+        style.configure("Muted.TLabel", background=APP_BG, foreground=MUTED_TEXT, font=("Segoe UI", 9))
+        style.configure("DialogTitle.TLabel", background=APP_BG, foreground=TEXT_COLOR, font=("Segoe UI", 11, "bold"))
+
+        button_padding = (14, 9)
+        style.configure(
+            "Primary.TButton",
+            background=ACCENT_COLOR,
+            foreground="#ffffff",
+            borderwidth=0,
+            focusthickness=0,
+            padding=button_padding,
+            font=("Segoe UI", 10, "bold"),
+        )
+        style.map(
+            "Primary.TButton",
+            background=[("active", ACCENT_HOVER), ("pressed", ACCENT_HOVER), ("disabled", "#b9cdc5")],
+            foreground=[("disabled", "#eef4f1")],
+        )
+
+        style.configure(
+            "Secondary.TButton",
+            background=PANEL_BG,
+            foreground=TEXT_COLOR,
+            borderwidth=1,
+            relief="solid",
+            bordercolor=BORDER_COLOR,
+            lightcolor=BORDER_COLOR,
+            darkcolor=BORDER_COLOR,
+            padding=button_padding,
+            font=("Segoe UI", 10),
+        )
+        style.map(
+            "Secondary.TButton",
+            background=[("active", "#f6f8fa"), ("pressed", "#edf2f6"), ("disabled", "#f3f5f7")],
+            foreground=[("disabled", "#9aa5b1")],
+            bordercolor=[("focus", ACCENT_COLOR), ("active", INPUT_BORDER)],
+        )
+
+        style.configure(
+            "Panel.TEntry",
+            fieldbackground=INPUT_BG,
+            foreground=TEXT_COLOR,
+            bordercolor=INPUT_BORDER,
+            lightcolor=INPUT_BORDER,
+            darkcolor=INPUT_BORDER,
+            insertcolor=TEXT_COLOR,
+            padding=(10, 8),
+        )
+        style.map("Panel.TEntry", bordercolor=[("focus", ACCENT_COLOR)])
+
+        style.configure(
+            "Panel.TCombobox",
+            fieldbackground=INPUT_BG,
+            foreground=TEXT_COLOR,
+            bordercolor=INPUT_BORDER,
+            lightcolor=INPUT_BORDER,
+            darkcolor=INPUT_BORDER,
+            arrowcolor=MUTED_TEXT,
+            padding=(8, 6),
+        )
+        style.map(
+            "Panel.TCombobox",
+            bordercolor=[("focus", ACCENT_COLOR)],
+            fieldbackground=[("readonly", INPUT_BG)],
+            selectbackground=[("readonly", INPUT_BG)],
+            selectforeground=[("readonly", TEXT_COLOR)],
+        )
+
+        style.configure("Panel.TCheckbutton", background=PANEL_BG, foreground=TEXT_COLOR, font=("Segoe UI", 10))
+        style.map("Panel.TCheckbutton", background=[("active", PANEL_BG)])
+        style.configure("Dialog.TRadiobutton", background=APP_BG, foreground=TEXT_COLOR, font=("Segoe UI", 10))
+        style.map("Dialog.TRadiobutton", background=[("active", APP_BG)])
+
+        style.configure(
+            "Panel.Vertical.TScrollbar",
+            background="#cfd7e0",
+            troughcolor="#f4f7fa",
+            bordercolor=BORDER_COLOR,
+            arrowcolor=MUTED_TEXT,
+            lightcolor="#cfd7e0",
+            darkcolor="#cfd7e0",
+        )
+
+    def _create_section_body(self, parent, padding=(16, 16, 16, 16)):
+        parent.columnconfigure(0, weight=1)
+        parent.rowconfigure(0, weight=1)
+        body = ttk.Frame(parent, style="Panel.TFrame", padding=padding)
+        body.grid(row=0, column=0, sticky="nsew")
+        return body
+
+    def _sync_canvas_scrollregion(self, _event=None):
+        self.page_canvas.configure(scrollregion=self.page_canvas.bbox("all"))
+
+    def _sync_canvas_width(self, event):
+        self.page_canvas.itemconfigure(self.page_window, width=event.width)
+
+    def _widget_is_descendant(self, widget, ancestor):
+        current = widget
+        while current is not None:
+            if current == ancestor:
+                return True
+            current = getattr(current, "master", None)
+        return False
+
+    def _dispatch_mousewheel(self, event):
+        widget = event.widget
+        delta = int(-event.delta / 120) if event.delta else 0
+        if delta == 0:
+            return None
+
+        if self._widget_is_descendant(widget, self.song_listbox):
+            self.song_listbox.yview_scroll(delta, "units")
+            return "break"
+
+        if self._widget_is_descendant(widget, self.log_text):
+            self.log_text.yview_scroll(delta, "units")
+            return "break"
+
+        if self._widget_is_descendant(widget, self.page_content):
+            self.page_canvas.yview_scroll(delta, "units")
+            return "break"
+
+        return None
 
     def _build_layout(self):
         self.columnconfigure(0, weight=1)
-        self.rowconfigure(3, weight=1)
+        self.rowconfigure(0, weight=1)
 
-        outer = ttk.Frame(self, padding=18)
-        outer.grid(row=0, column=0, sticky="nsew")
+        shell = ttk.Frame(self, style="App.TFrame")
+        shell.grid(row=0, column=0, sticky="nsew")
+        shell.columnconfigure(0, weight=1)
+        shell.rowconfigure(0, weight=1)
+
+        self.page_canvas = tk.Canvas(
+            shell,
+            bg=APP_BG,
+            highlightthickness=0,
+            bd=0,
+            relief="flat",
+        )
+        self.page_canvas.grid(row=0, column=0, sticky="nsew")
+
+        page_scrollbar = ttk.Scrollbar(
+            shell,
+            orient="vertical",
+            style="Panel.Vertical.TScrollbar",
+            command=self.page_canvas.yview,
+        )
+        page_scrollbar.grid(row=0, column=1, sticky="ns")
+        self.page_canvas.configure(yscrollcommand=page_scrollbar.set)
+
+        outer = ttk.Frame(self.page_canvas, padding=18, style="App.TFrame")
+        self.page_window = self.page_canvas.create_window((0, 0), window=outer, anchor="nw")
+        self.page_content = outer
+
+        outer.bind("<Configure>", self._sync_canvas_scrollregion)
+        self.page_canvas.bind("<Configure>", self._sync_canvas_width)
+        self.bind_all("<MouseWheel>", self._dispatch_mousewheel, add="+")
+
         outer.columnconfigure(0, weight=1)
-        outer.rowconfigure(3, weight=1)
+        outer.rowconfigure(4, weight=4, minsize=320)
+        outer.rowconfigure(5, weight=1, minsize=160)
 
-        header = ttk.Frame(outer)
+        header = ttk.Frame(outer, style="Hero.TFrame", padding=(22, 20, 22, 20))
         header.grid(row=0, column=0, sticky="ew")
         header.columnconfigure(0, weight=1)
-        ttk.Label(header, text="Autonomous Piano Player", font=("Segoe UI", 16, "bold")).grid(
-            row=0, column=0, sticky="w"
-        )
+        ttk.Label(header, text="Autonomous Piano Player", style="HeroTitle.TLabel").grid(row=0, column=0, sticky="w")
         ttk.Label(
             header,
-            text="Suggested song first, then a few playback choices.",
-        ).grid(row=1, column=0, sticky="w", pady=(4, 0))
+            text="Song choice, playback controls, and debugging live together in one clean workspace.",
+            style="HeroSubtitle.TLabel",
+        ).grid(row=1, column=0, sticky="w", pady=(6, 4))
+        ttk.Label(
+            header,
+            text="Choose a song, adjust playback, then run or troubleshoot without jumping between windows.",
+            style="HeroMeta.TLabel",
+        ).grid(row=2, column=0, sticky="w")
 
-        song_frame = ttk.LabelFrame(outer, text="Song")
-        song_frame.grid(row=1, column=0, sticky="ew", pady=(14, 10))
-        song_frame.columnconfigure(1, weight=1)
-        ttk.Label(song_frame, text="Latest found MIDI song:").grid(row=0, column=0, sticky="w", padx=12, pady=(12, 4))
-        ttk.Label(song_frame, textvariable=self.song_name_var, font=("Segoe UI", 11, "bold")).grid(
-            row=0, column=1, sticky="w", padx=(0, 12), pady=(12, 4)
+        info_frame = ttk.LabelFrame(outer, text="Information", style="Section.TLabelframe")
+        info_frame.grid(row=1, column=0, sticky="ew", pady=(14, 10))
+        info_body = self._create_section_body(info_frame)
+        info_body.columnconfigure(1, weight=1)
+        ttk.Label(info_body, text="Current selected song", style="Muted.Panel.TLabel").grid(row=0, column=0, sticky="w")
+        ttk.Label(info_body, textvariable=self.song_name_var, style="Value.Panel.TLabel").grid(
+            row=1, column=0, columnspan=2, sticky="w", pady=(2, 4)
         )
-        ttk.Label(song_frame, textvariable=self.song_reason_var).grid(
-            row=1, column=1, sticky="w", padx=(0, 12), pady=(0, 8)
+        ttk.Label(info_body, textvariable=self.song_reason_var, style="Status.Panel.TLabel").grid(
+            row=2, column=0, columnspan=2, sticky="w", pady=(0, 8)
         )
-        ttk.Label(song_frame, textvariable=self.song_info_var, wraplength=720).grid(
-            row=2, column=0, columnspan=2, sticky="w", padx=12, pady=(0, 12)
-        )
-
-        song_button_row = ttk.Frame(song_frame)
-        song_button_row.grid(row=0, column=2, rowspan=3, sticky="ne", padx=12, pady=12)
-        ttk.Button(song_button_row, text="Choose Different Song...", command=self.choose_song).grid(
-            row=0, column=0, sticky="ew"
-        )
-        ttk.Button(song_button_row, text="Refresh List", command=self.refresh_song_catalog).grid(
-            row=1, column=0, sticky="ew", pady=(8, 0)
+        ttk.Label(info_body, textvariable=self.song_info_var, wraplength=900, style="Muted.Panel.TLabel").grid(
+            row=3, column=0, columnspan=2, sticky="w"
         )
 
-        options_frame = ttk.LabelFrame(outer, text="Playback Options")
+        options_frame = ttk.LabelFrame(outer, text="Controls", style="Section.TLabelframe")
         options_frame.grid(row=2, column=0, sticky="ew", pady=(0, 10))
-        options_frame.columnconfigure(1, weight=1)
+        options_body = self._create_section_body(options_frame)
+        options_body.columnconfigure(1, weight=1)
 
-        ttk.Label(options_frame, text="Installed solenoids:").grid(row=0, column=0, sticky="w", padx=12, pady=(12, 4))
-        ttk.Entry(options_frame, textvariable=self.active_channels_var).grid(
-            row=0, column=1, sticky="ew", padx=(0, 12), pady=(12, 4)
+        ttk.Label(options_body, text="Installed solenoids", style="Panel.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 4))
+        ttk.Entry(options_body, textvariable=self.active_channels_var, style="Panel.TEntry").grid(
+            row=0, column=1, sticky="ew", padx=(16, 0), pady=(0, 4)
         )
         ttk.Label(
-            options_frame,
+            options_body,
             text="How many hardware channels are active right now. The current bench default is 61.",
+            style="Muted.Panel.TLabel",
             wraplength=620,
-        ).grid(row=1, column=1, sticky="w", padx=(0, 12), pady=(0, 8))
+        ).grid(row=1, column=1, sticky="w", padx=(16, 0), pady=(0, 12))
 
-        ttk.Label(options_frame, text="Tempo override:").grid(row=2, column=0, sticky="w", padx=12, pady=(4, 4))
-        ttk.Entry(options_frame, textvariable=self.tempo_var).grid(row=2, column=1, sticky="ew", padx=(0, 12), pady=(4, 4))
+        ttk.Label(options_body, text="Tempo override", style="Panel.TLabel").grid(row=2, column=0, sticky="w", pady=(0, 4))
+        ttk.Entry(options_body, textvariable=self.tempo_var, style="Panel.TEntry").grid(
+            row=2, column=1, sticky="ew", padx=(16, 0), pady=(0, 4)
+        )
         ttk.Label(
-            options_frame,
+            options_body,
             text="Leave blank for the original timing. You can enter 140, 0.85x, or 92bpm.",
-        ).grid(row=3, column=1, sticky="w", padx=(0, 12), pady=(0, 8))
+            style="Muted.Panel.TLabel",
+        ).grid(row=3, column=1, sticky="w", padx=(16, 0), pady=(0, 12))
 
-        ttk.Label(options_frame, text="Available note range:").grid(row=4, column=0, sticky="w", padx=12, pady=(4, 4))
-        ttk.Entry(options_frame, textvariable=self.range_var).grid(row=4, column=1, sticky="ew", padx=(0, 12), pady=(4, 4))
+        ttk.Label(options_body, text="Available note range", style="Panel.TLabel").grid(row=4, column=0, sticky="w", pady=(0, 4))
+        ttk.Entry(options_body, textvariable=self.range_var, style="Panel.TEntry").grid(
+            row=4, column=1, sticky="ew", padx=(16, 0), pady=(0, 4)
+        )
         ttk.Label(
-            options_frame,
+            options_body,
             text=(
                 "Leave blank to use the saved note mapping. "
                 "For calibration and for your current 61-solenoid bench, blank is the correct default "
                 "unless you intentionally want a temporary contiguous override."
             ),
+            style="Muted.Panel.TLabel",
             wraplength=620,
-        ).grid(row=5, column=1, sticky="w", padx=(0, 12), pady=(0, 8))
+        ).grid(row=5, column=1, sticky="w", padx=(16, 0), pady=(0, 12))
 
-        ttk.Label(options_frame, text="Out-of-range notes:").grid(row=6, column=0, sticky="w", padx=12, pady=(4, 12))
+        ttk.Label(options_body, text="Out-of-range notes", style="Panel.TLabel").grid(row=6, column=0, sticky="w", pady=(0, 4))
         fit_mode_box = ttk.Combobox(
-            options_frame,
+            options_body,
             state="readonly",
             values=("transpose", "strict"),
             textvariable=self.fit_mode_var,
+            style="Panel.TCombobox",
         )
-        fit_mode_box.grid(row=6, column=1, sticky="w", padx=(0, 12), pady=(4, 12))
+        fit_mode_box.grid(row=6, column=1, sticky="w", padx=(16, 0), pady=(0, 12))
         ttk.Checkbutton(
-            options_frame,
+            options_body,
             text="Export only (prepare files but do not send to Arduino)",
             variable=self.export_only_var,
-        ).grid(row=7, column=1, sticky="w", padx=(0, 12), pady=(0, 12))
+            style="Panel.TCheckbutton",
+        ).grid(row=7, column=1, sticky="w", padx=(16, 0))
 
-        action_frame = ttk.Frame(outer)
-        action_frame.grid(row=3, column=0, sticky="ew")
-        ttk.Button(action_frame, text="Run Dry Check", command=lambda: self.start_run(dry_run=True)).grid(
+        run_frame = ttk.LabelFrame(outer, text="Run Options", style="Section.TLabelframe")
+        run_frame.grid(row=3, column=0, sticky="ew", pady=(0, 10))
+        run_body = self._create_section_body(run_frame)
+        run_body.columnconfigure(0, weight=1)
+        run_body.columnconfigure(1, weight=1)
+        ttk.Label(
+            run_body,
+            text="Start with a dry check if you want to inspect the plan before sending anything to the Arduino.",
+            style="Muted.Panel.TLabel",
+            wraplength=860,
+        ).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 12))
+        ttk.Button(run_body, text="Run Dry Check", style="Secondary.TButton", command=lambda: self.start_run(dry_run=True)).grid(
+            row=1, column=0, sticky="ew"
+        )
+        ttk.Button(run_body, text="Play / Send to Arduino", style="Primary.TButton", command=lambda: self.start_run(dry_run=False)).grid(
+            row=1, column=1, sticky="ew", padx=(12, 0)
+        )
+
+        song_selection_frame = ttk.LabelFrame(outer, text="Song Selection", style="Section.TLabelframe")
+        song_selection_frame.grid(row=4, column=0, sticky="nsew", pady=(0, 10))
+        song_body = self._create_section_body(song_selection_frame)
+        song_body.columnconfigure(0, weight=1)
+        song_body.rowconfigure(3, weight=1, minsize=180)
+
+        ttk.Label(
+            song_body,
+            text="Search the project library below, refresh the list, or browse to an outside MIDI file.",
+            style="Muted.Panel.TLabel",
+        ).grid(row=0, column=0, sticky="w", pady=(0, 4))
+        ttk.Label(song_body, textvariable=self.song_catalog_status_var, style="Status.Panel.TLabel").grid(
+            row=1, column=0, sticky="w", pady=(0, 10)
+        )
+
+        search_row = ttk.Frame(song_body, style="Panel.TFrame")
+        search_row.grid(row=2, column=0, sticky="ew", pady=(0, 10))
+        search_row.columnconfigure(0, weight=1)
+        search_entry = ttk.Entry(search_row, textvariable=self.song_search_var, style="Panel.TEntry")
+        search_entry.grid(row=0, column=0, sticky="ew")
+        search_entry.bind("<KeyRelease>", self.refresh_song_list)
+        ttk.Button(
+            search_row,
+            text="Refresh List",
+            style="Secondary.TButton",
+            command=lambda: self.refresh_song_catalog_async(use_suggested=False),
+        ).grid(
+            row=0, column=1, padx=(8, 0)
+        )
+        ttk.Button(search_row, text="Browse for MIDI...", style="Secondary.TButton", command=self.browse_for_song).grid(
+            row=0, column=2, padx=(8, 0)
+        )
+        ttk.Button(search_row, text="Use Selected Song", style="Primary.TButton", command=self.use_selected_song_from_list).grid(
+            row=0, column=3, padx=(8, 0)
+        )
+
+        song_list_frame = ttk.Frame(song_body, style="Panel.TFrame")
+        song_list_frame.grid(row=3, column=0, sticky="nsew")
+        song_list_frame.columnconfigure(0, weight=1)
+        song_list_frame.rowconfigure(0, weight=1)
+
+        self.song_listbox = tk.Listbox(
+            song_list_frame,
+            height=12,
+            bg=INPUT_BG,
+            fg=TEXT_COLOR,
+            selectbackground=ACCENT_SOFT,
+            selectforeground=TEXT_COLOR,
+            highlightbackground=BORDER_COLOR,
+            highlightcolor=ACCENT_COLOR,
+            highlightthickness=1,
+            relief="flat",
+            bd=0,
+            activestyle="none",
+            font=("Segoe UI", 10),
+        )
+        self.song_listbox.grid(row=0, column=0, sticky="nsew")
+        self.song_listbox.bind("<Double-Button-1>", self.use_selected_song_from_list)
+
+        song_scrollbar = ttk.Scrollbar(
+            song_list_frame,
+            orient="vertical",
+            style="Panel.Vertical.TScrollbar",
+            command=self.song_listbox.yview,
+        )
+        song_scrollbar.grid(row=0, column=1, sticky="ns")
+        self.song_listbox.configure(yscrollcommand=song_scrollbar.set)
+
+        debug_frame = ttk.LabelFrame(outer, text="Debugging", style="Section.TLabelframe")
+        debug_frame.grid(row=5, column=0, sticky="nsew", pady=(0, 0))
+        debug_body = self._create_section_body(debug_frame)
+        debug_body.columnconfigure(0, weight=1)
+        debug_body.rowconfigure(2, weight=1, minsize=140)
+
+        ttk.Label(
+            debug_body,
+            text="Use these tools when you are calibrating, validating, or diagnosing the bench.",
+            style="Muted.Panel.TLabel",
+            wraplength=860,
+        ).grid(row=0, column=0, sticky="w", pady=(0, 12))
+
+        debug_button_row = ttk.Frame(debug_body, style="Panel.TFrame")
+        debug_button_row.grid(row=1, column=0, sticky="w", pady=(0, 10))
+        ttk.Button(
+            debug_button_row,
+            text="Calibrate Note Mapping...",
+            style="Secondary.TButton",
+            command=self.start_note_mapping_calibration,
+        ).grid(
             row=0, column=0, sticky="w"
         )
-        ttk.Button(action_frame, text="Play / Send to Arduino", command=lambda: self.start_run(dry_run=False)).grid(
+        ttk.Button(
+            debug_button_row,
+            text="Troubleshoot Keys...",
+            style="Secondary.TButton",
+            command=self.start_troubleshooting_run,
+        ).grid(
             row=0, column=1, sticky="w", padx=(8, 0)
         )
-        ttk.Button(action_frame, text="Calibrate Note Mapping...", command=self.start_note_mapping_calibration).grid(
-            row=0, column=2, sticky="w", padx=(8, 0)
-        )
-        ttk.Button(action_frame, text="Troubleshoot Keys...", command=self.start_troubleshooting_run).grid(
-            row=0, column=3, sticky="w", padx=(8, 0)
-        )
 
-        log_frame = ttk.LabelFrame(outer, text="Status")
-        log_frame.grid(row=4, column=0, sticky="nsew", pady=(12, 0))
-        log_frame.columnconfigure(0, weight=1)
-        log_frame.rowconfigure(0, weight=1)
+        log_frame = ttk.LabelFrame(debug_body, text="Status", style="Section.TLabelframe")
+        log_frame.grid(row=2, column=0, sticky="nsew")
+        log_body = self._create_section_body(log_frame, padding=(14, 14, 14, 14))
+        log_body.columnconfigure(0, weight=1)
+        log_body.rowconfigure(0, weight=1)
 
-        self.log_text = tk.Text(log_frame, height=18, wrap="word")
-        self.log_text.grid(row=0, column=0, sticky="nsew", padx=12, pady=12)
+        self.log_text = tk.Text(
+            log_body,
+            height=7,
+            wrap="word",
+            bg=LOG_BG,
+            fg=LOG_TEXT,
+            insertbackground=LOG_TEXT,
+            selectbackground="#31485e",
+            selectforeground=LOG_TEXT,
+            relief="flat",
+            bd=0,
+            highlightthickness=0,
+            font=("Consolas", 10),
+            padx=10,
+            pady=10,
+        )
+        self.log_text.grid(row=0, column=0, sticky="nsew")
         self.log_text.configure(state="disabled")
 
-        scrollbar = ttk.Scrollbar(log_frame, orient="vertical", command=self.log_text.yview)
-        scrollbar.grid(row=0, column=1, sticky="ns", pady=12)
+        scrollbar = ttk.Scrollbar(log_body, orient="vertical", style="Panel.Vertical.TScrollbar", command=self.log_text.yview)
+        scrollbar.grid(row=0, column=1, sticky="ns", padx=(10, 0))
         self.log_text.configure(yscrollcommand=scrollbar.set)
 
     def set_controls_enabled(self, enabled):
@@ -402,6 +647,8 @@ class PianoPlayerApp(tk.Tk):
         try:
             if isinstance(widget, (ttk.Button, ttk.Entry, ttk.Combobox, ttk.Checkbutton)):
                 widget.configure(state=state if not isinstance(widget, ttk.Combobox) else ("readonly" if state == "normal" else "disabled"))
+            elif isinstance(widget, tk.Listbox):
+                widget.configure(state=state)
         except tk.TclError:
             pass
         for child in widget.winfo_children():
@@ -413,14 +660,36 @@ class PianoPlayerApp(tk.Tk):
         self.log_text.see(tk.END)
         self.log_text.configure(state="disabled")
 
-    def refresh_song_catalog(self, use_suggested=False):
-        self.song_catalog = engine.build_song_catalog(self.user_preferences)
-        if use_suggested or self.selected_song_path is None:
+    def update_song_catalog_status(self):
+        entries = self.song_catalog.get("entries", []) if self.song_catalog else []
+        download_count = sum(1 for entry in entries if entry.get("source") == "Downloads")
+        library_count = sum(1 for entry in entries if entry.get("source") == "Library")
+
+        if not entries:
+            status = "No MIDI files found yet."
+        else:
+            source_parts = []
+            if library_count:
+                source_parts.append(f"{library_count} in Library")
+            if download_count:
+                source_parts.append(f"{download_count} in Downloads")
+            status = f"{len(entries)} song(s) available"
+            if source_parts:
+                status += f" ({', '.join(source_parts)})"
+
+        if self.song_catalog_refresh_in_progress:
+            status += " Scanning Downloads in the background..."
+
+        self.song_catalog_status_var.set(status)
+
+    def apply_song_catalog(self, catalog, use_suggested=False):
+        self.song_catalog = catalog
+
+        if use_suggested and not self.song_selection_is_manual:
             suggested_path = self.song_catalog.get("suggested_path")
             suggested_reason = self.song_catalog.get("suggested_reason")
             if suggested_path is not None:
-                self.set_selected_song(suggested_path, suggested_reason)
-                return
+                self.set_selected_song(suggested_path, suggested_reason, manual=False)
 
         if self.selected_song_path is None:
             self.song_name_var.set("No MIDI files found")
@@ -428,20 +697,95 @@ class PianoPlayerApp(tk.Tk):
             if latest_zip is not None:
                 self.song_reason_var.set(f"Newest download looks like a ZIP archive: {latest_zip.name}")
             else:
-                self.song_reason_var.set("Use Choose Different Song... to browse for a MIDI file.")
+                self.song_reason_var.set("Use the Song Selection section below to choose or browse for a MIDI file.")
             self.song_info_var.set("No project-library or Downloads MIDI files were found yet.")
 
-    def choose_song(self):
-        entries = self.song_catalog.get("entries", []) if self.song_catalog else []
-        dialog = SongPickerDialog(self, entries)
-        self.wait_window(dialog)
-        if dialog.result is None:
-            return
-        self.set_selected_song(dialog.result["path"], f"manually chosen from {dialog.result['source']}")
+        self.update_song_catalog_status()
+        if hasattr(self, "song_listbox"):
+            self.refresh_song_list()
+        return self.song_catalog.get("entries", [])
 
-    def set_selected_song(self, midi_path, reason):
+    def refresh_song_catalog(self, use_suggested=False, recursive_downloads=True):
+        catalog = engine.build_song_catalog(
+            self.user_preferences,
+            recursive_downloads=recursive_downloads,
+        )
+        return self.apply_song_catalog(catalog, use_suggested=use_suggested)
+
+    def refresh_song_catalog_async(self, use_suggested=False):
+        if self.song_catalog_refresh_in_progress:
+            return
+
+        self.song_catalog_refresh_in_progress = True
+        self.update_song_catalog_status()
+        worker = threading.Thread(
+            target=self._refresh_song_catalog_worker,
+            args=(use_suggested,),
+            daemon=True,
+        )
+        worker.start()
+
+    def _refresh_song_catalog_worker(self, use_suggested):
+        try:
+            catalog = engine.build_song_catalog(
+                self.user_preferences,
+                recursive_downloads=True,
+            )
+        except Exception as error:
+            self.message_queue.put(("song_catalog_error", str(error)))
+            return
+
+        self.message_queue.put(("song_catalog", {"catalog": catalog, "use_suggested": use_suggested}))
+
+    def refresh_song_list(self, _event=None):
+        entries = self.song_catalog.get("entries", []) if self.song_catalog else []
+        query = self.song_search_var.get().strip().lower()
+        self.filtered_song_entries = [
+            entry
+            for entry in entries
+            if not query or query in entry["description"].lower() or query in entry["display_name"].lower()
+        ]
+
+        self.song_listbox.delete(0, tk.END)
+        selected_index = None
+        selected_path = self.selected_song_path.resolve() if self.selected_song_path is not None else None
+        for index, entry in enumerate(self.filtered_song_entries):
+            self.song_listbox.insert(tk.END, entry["description"])
+            if selected_path is not None and Path(entry["path"]).resolve() == selected_path:
+                selected_index = index
+
+        if selected_index is None and self.filtered_song_entries:
+            selected_index = 0
+
+        if selected_index is not None:
+            self.song_listbox.selection_set(selected_index)
+            self.song_listbox.see(selected_index)
+
+    def browse_for_song(self):
+        chosen = filedialog.askopenfilename(
+            parent=self,
+            title="Choose a MIDI File",
+            filetypes=[("MIDI files", "*.mid *.midi"), ("All files", "*.*")],
+        )
+        if not chosen:
+            return
+
+        chosen_path = Path(chosen)
+        self.set_selected_song(chosen_path, "manually chosen from an external file", manual=True)
+
+    def use_selected_song_from_list(self, _event=None):
+        selection = self.song_listbox.curselection()
+        if not selection:
+            messagebox.showinfo("Choose a song", "Select a song from the list or browse for a MIDI file.", parent=self)
+            return
+
+        entry = self.filtered_song_entries[selection[0]]
+        self.set_selected_song(entry["path"], f"manually chosen from {entry['source']}", manual=True)
+
+    def set_selected_song(self, midi_path, reason, manual=False):
         self.selected_song_path = Path(midi_path)
         self.selection_reason = reason
+        self.song_selection_is_manual = manual
         self.song_name_var.set(self.selected_song_path.name)
         self.song_reason_var.set(reason)
         self.update_song_preview()
@@ -942,6 +1286,13 @@ class PianoPlayerApp(tk.Tk):
                 message_type, payload = self.message_queue.get_nowait()
                 if message_type == "log":
                     self.append_log(payload)
+                elif message_type == "song_catalog":
+                    self.song_catalog_refresh_in_progress = False
+                    self.apply_song_catalog(payload["catalog"], use_suggested=payload.get("use_suggested", False))
+                elif message_type == "song_catalog_error":
+                    self.song_catalog_refresh_in_progress = False
+                    self.update_song_catalog_status()
+                    self.append_log(f"Song catalog refresh error: {payload}")
                 elif message_type == "error":
                     self.set_controls_enabled(True)
                     self.append_log(f"Error: {payload}")
