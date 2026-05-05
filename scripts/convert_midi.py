@@ -19,6 +19,7 @@ import argparse
 import copy
 import filecmp
 import json
+import math
 import os
 import re
 import shutil
@@ -696,6 +697,234 @@ def scale_pedal_events(pedal_events, scale: float):
             }
         )
     return scaled
+
+
+def build_measure_sustain_events(note_intervals, beat_ms, beats_per_measure=4):
+    if not note_intervals:
+        return []
+
+    measure_ms = max(1, int(round(float(beat_ms) * int(beats_per_measure))))
+    first_start_ms = min(int(interval["start_ms"]) for interval in note_intervals)
+    last_end_ms = max(int(interval["end_ms"]) for interval in note_intervals)
+    current_ms = (first_start_ms // measure_ms) * measure_ms
+    final_release_ms = ((last_end_ms + measure_ms - 1) // measure_ms) * measure_ms
+
+    events = []
+    while current_ms < final_release_ms:
+        next_ms = current_ms + measure_ms
+        events.append(
+            {
+                "time_ms": current_ms,
+                "down": True,
+                "value": 127,
+                "source_channel": None,
+                "generated": "measure_sustain",
+            }
+        )
+        events.append(
+            {
+                "time_ms": next_ms,
+                "down": False,
+                "value": 0,
+                "source_channel": None,
+                "generated": "measure_sustain",
+            }
+        )
+        current_ms = next_ms
+    return events
+
+
+def get_performance_feel_config(config):
+    defaults = {
+        "enabled": False,
+        "rubato": {
+            "enabled": True,
+            "max_shift_ms": 14,
+            "phrase_beats": 16,
+        },
+        "articulation": {
+            "enabled": True,
+            "repeated_note_gap_beats": 1.25,
+            "repeated_duration_ratio": 0.78,
+            "lyrical_min_duration_beats": 0.75,
+            "lyrical_extension_ratio": 0.08,
+            "lyrical_extension_max_ms": 80,
+            "min_duration_ms": 80,
+        },
+        "accent": {
+            "enabled": True,
+            "downbeat_boost": 8,
+            "melody_boost": 6,
+            "phrase_peak_boost": 4,
+        },
+        "pedal": {
+            "enabled": True,
+            "down_lead_ms": 30,
+            "up_lag_ms": 70,
+        },
+        "register_velocity": {
+            "enabled": True,
+            "bass_floor_note": 24,
+            "bass_note_max": 47,
+            "bass_boost": 4,
+            "bass_max_trim": 0,
+            "treble_note_min": 72,
+            "treble_trim": -2,
+        },
+    }
+    loaded = copy.deepcopy(config.get("performance_feel", {}))
+    merged = copy.deepcopy(defaults)
+    for key, value in loaded.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key].update(value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def is_performance_feel_enabled(config):
+    return bool(get_performance_feel_config(config).get("enabled", False))
+
+
+def group_intervals_by_start(note_intervals, tolerance_ms=35):
+    groups = []
+    for interval in sorted(note_intervals, key=lambda item: (item["start_ms"], item["note"], item["end_ms"])):
+        if groups and abs(interval["start_ms"] - groups[-1]["start_ms"]) <= tolerance_ms:
+            groups[-1]["items"].append(interval)
+        else:
+            groups.append({"start_ms": interval["start_ms"], "items": [interval]})
+    return groups
+
+
+def apply_performance_feel(note_intervals, pedal_events, config, beat_ms):
+    """Apply deterministic phrasing and articulation before hardware scheduling."""
+    feel_config = get_performance_feel_config(config)
+    if not feel_config.get("enabled", False):
+        return note_intervals, pedal_events, {
+            "enabled": False,
+            "timing_adjusted_notes": 0,
+            "articulation_adjusted_notes": 0,
+            "velocity_adjusted_notes": 0,
+            "pedal_adjusted_events": 0,
+        }
+
+    beat_ms = max(1.0, float(beat_ms))
+    groups = group_intervals_by_start(note_intervals)
+    group_count = len(groups)
+    group_indexes = {id(interval): index for index, group in enumerate(groups) for interval in group["items"]}
+    group_max_notes = {index: max(int(item["note"]) for item in group["items"]) for index, group in enumerate(groups)}
+    previous_note_end = {}
+    adjusted_intervals = []
+    timing_adjusted = 0
+    articulation_adjusted = 0
+    velocity_adjusted = 0
+
+    for interval in sorted(note_intervals, key=lambda item: (item["start_ms"], item["note"], item["end_ms"])):
+        adjusted = dict(interval)
+        note = int(adjusted["note"])
+        group_index = group_indexes[id(interval)]
+        original_start = int(adjusted["start_ms"])
+        original_end = int(adjusted["end_ms"])
+        original_velocity = int(adjusted["velocity"])
+
+        rubato = feel_config["rubato"]
+        if rubato.get("enabled", True) and group_count > 1:
+            phrase_beats = max(1.0, float(rubato.get("phrase_beats", 16)))
+            phrase_ms = phrase_beats * beat_ms
+            phase = (original_start % phrase_ms) / phrase_ms
+            max_shift = int(rubato.get("max_shift_ms", 14))
+            # Start phrases with a slight lift, relax after the crest, then lean back in.
+            shift_ms = int(round(math.sin((phase * 2.0 * math.pi) - (math.pi / 2.0)) * max_shift))
+            if shift_ms:
+                adjusted["start_ms"] = max(0, original_start + shift_ms)
+                adjusted["end_ms"] = max(adjusted["start_ms"] + 1, original_end + shift_ms)
+                timing_adjusted += 1
+
+        articulation = feel_config["articulation"]
+        if articulation.get("enabled", True):
+            start_ms = int(adjusted["start_ms"])
+            end_ms = int(adjusted["end_ms"])
+            duration_ms = max(1, end_ms - start_ms)
+            min_duration_ms = int(articulation.get("min_duration_ms", 80))
+            previous_end = previous_note_end.get(note)
+            repeated_gap_ms = float(articulation.get("repeated_note_gap_beats", 1.25)) * beat_ms
+            if previous_end is not None and start_ms - previous_end <= repeated_gap_ms:
+                duration_ms = max(min_duration_ms, int(round(duration_ms * float(articulation.get("repeated_duration_ratio", 0.78)))))
+                adjusted["end_ms"] = start_ms + duration_ms
+                articulation_adjusted += 1
+            elif duration_ms >= float(articulation.get("lyrical_min_duration_beats", 0.75)) * beat_ms:
+                extension_ms = min(
+                    int(articulation.get("lyrical_extension_max_ms", 80)),
+                    int(round(duration_ms * float(articulation.get("lyrical_extension_ratio", 0.08)))),
+                )
+                if extension_ms > 0:
+                    adjusted["end_ms"] = end_ms + extension_ms
+                    articulation_adjusted += 1
+            previous_note_end[note] = int(adjusted["end_ms"])
+
+        velocity_delta = 0
+        accent = feel_config["accent"]
+        if accent.get("enabled", True):
+            start_ms = int(adjusted["start_ms"])
+            measure_ms = max(beat_ms, beat_ms * 4.0)
+            distance_to_downbeat = min(start_ms % measure_ms, measure_ms - (start_ms % measure_ms))
+            if distance_to_downbeat <= max(35.0, beat_ms * 0.08):
+                velocity_delta += int(accent.get("downbeat_boost", 8))
+            if note == group_max_notes.get(group_index):
+                velocity_delta += int(accent.get("melody_boost", 6))
+            previous_group_note = group_max_notes.get(group_index - 1)
+            next_group_note = group_max_notes.get(group_index + 1)
+            if previous_group_note is not None and next_group_note is not None:
+                if note >= previous_group_note and note > next_group_note:
+                    velocity_delta += int(accent.get("phrase_peak_boost", 4))
+
+        register = feel_config["register_velocity"]
+        if register.get("enabled", True):
+            bass_note_max = int(register.get("bass_note_max", 47))
+            if note <= bass_note_max:
+                bass_floor_note = int(register.get("bass_floor_note", 24))
+                bass_span = max(1, bass_note_max - bass_floor_note)
+                lower_register_amount = clamp((bass_note_max - note) / bass_span, 0.0, 1.0)
+                bass_base_adjust = int(register.get("bass_boost", 4))
+                bass_extra_trim = int(round(float(register.get("bass_max_trim", 0)) * lower_register_amount))
+                velocity_delta += bass_base_adjust - bass_extra_trim
+            elif note >= int(register.get("treble_note_min", 72)):
+                velocity_delta += int(register.get("treble_trim", -2))
+
+        if velocity_delta:
+            adjusted["velocity"] = clamp(original_velocity + velocity_delta, 1, 127)
+            if adjusted["velocity"] != original_velocity:
+                velocity_adjusted += 1
+
+        adjusted_intervals.append(adjusted)
+
+    adjusted_intervals.sort(key=lambda item: (item["start_ms"], item["note"], item["end_ms"]))
+
+    pedal = feel_config["pedal"]
+    adjusted_pedal_events = []
+    pedal_adjusted = 0
+    for event in pedal_events:
+        adjusted_event = dict(event)
+        if pedal.get("enabled", True):
+            if adjusted_event.get("generated") == "measure_sustain":
+                if not adjusted_event.get("down"):
+                    adjusted_event["time_ms"] = max(0, int(adjusted_event["time_ms"]) - 45)
+            elif adjusted_event.get("down"):
+                adjusted_event["time_ms"] = max(0, int(adjusted_event["time_ms"]) - int(pedal.get("down_lead_ms", 30)))
+            else:
+                adjusted_event["time_ms"] = max(0, int(adjusted_event["time_ms"]) + int(pedal.get("up_lag_ms", 70)))
+            if adjusted_event["time_ms"] != event["time_ms"]:
+                pedal_adjusted += 1
+        adjusted_pedal_events.append(adjusted_event)
+    adjusted_pedal_events.sort(key=lambda item: item["time_ms"])
+
+    return adjusted_intervals, adjusted_pedal_events, {
+        "enabled": True,
+        "timing_adjusted_notes": timing_adjusted,
+        "articulation_adjusted_notes": articulation_adjusted,
+        "velocity_adjusted_notes": velocity_adjusted,
+        "pedal_adjusted_events": pedal_adjusted,
+    }
 
 
 def extract_note_intervals(mid: MidiFile):
@@ -1877,6 +2106,8 @@ def render_header_text(selected_midi, delta_events, metadata, config):
         f"// Strict coverage: {metadata['strict_playable_summary']}",
         f"// Octave transpose coverage: {metadata['transpose_playable_summary']}",
         f"// Octave transpose remap summary: {metadata['transpose_shift_summary']}",
+        f"// Performance feel: {'enabled' if metadata.get('performance_feel', {}).get('enabled') else 'disabled'}",
+        f"// Auto measure sustain: {'enabled' if metadata.get('auto_measure_pedal_enabled') else 'disabled'}",
         f"// Mapping mode: {config['mapping']['mode']}",
         f"// Forced retriggers: {metadata['forced_retriggers']}",
         f"// Delayed notes: {metadata['delayed_notes']}",
@@ -2408,6 +2639,8 @@ def run_conversion_workflow(
     dry_run=False,
     export_only=False,
     allow_prompts=True,
+    performance_feel_enabled=None,
+    auto_measure_pedal=False,
     config=None,
     user_preferences=None,
     deployment_config=None,
@@ -2460,8 +2693,11 @@ def run_conversion_workflow(
         effective_mapping = copy.deepcopy(base_mapping)
         playable_layout_summary = summarize_playable_layout(effective_mapping)
         mapping_overridden = False
-    effective_config = dict(config)
+    effective_config = copy.deepcopy(config)
     effective_config["mapping"] = effective_mapping
+    if performance_feel_enabled is not None:
+        effective_config.setdefault("performance_feel", {})
+        effective_config["performance_feel"]["enabled"] = bool(performance_feel_enabled)
 
     if preferred_fit_mode is None:
         preferred_fit_mode = user_preferences["playback"].get("default_fit_mode", "prompt")
@@ -2490,10 +2726,21 @@ def run_conversion_workflow(
         tempo_override = parse_tempo_override_input("", tempo_info["first_bpm"])
     scaled_intervals = scale_intervals(note_intervals, tempo_override["scale"])
     scaled_pedal_events = scale_pedal_events(pedal_events, tempo_override["scale"])
+    beat_ms = 60000.0 / max(1.0, float(tempo_override["target_bpm"]))
+    generated_measure_pedal_events = []
+    if auto_measure_pedal and not scaled_pedal_events:
+        generated_measure_pedal_events = build_measure_sustain_events(scaled_intervals, beat_ms)
+        scaled_pedal_events = generated_measure_pedal_events
+    performance_intervals, performance_pedal_events, performance_feel_stats = apply_performance_feel(
+        scaled_intervals,
+        scaled_pedal_events,
+        effective_config,
+        beat_ms,
+    )
     if fit_selection["mode"] == "strict":
-        scheduled_notes, scheduling_stats = schedule_notes(scaled_intervals, effective_config)
+        scheduled_notes, scheduling_stats = schedule_notes(performance_intervals, effective_config)
     else:
-        scheduled_notes, scheduling_stats = schedule_notes_with_octave_transpose(scaled_intervals, effective_config)
+        scheduled_notes, scheduling_stats = schedule_notes_with_octave_transpose(performance_intervals, effective_config)
         transpose_stats = build_transpose_stats_from_scheduled_notes(
             scheduled_notes,
             skipped_for_timing=scheduling_stats.get("skipped_transposed_notes_for_timing", 0),
@@ -2503,9 +2750,9 @@ def run_conversion_workflow(
             "No playable notes remained after applying the selected fit mode. Try transpose, a different playable range, or another song."
         )
     timeline, scheduled_note_metadata, playback_stats = build_playback_events(
-        scheduled_notes, effective_config, scaled_pedal_events
+        scheduled_notes, effective_config, performance_pedal_events
     )
-    if scaled_pedal_events and playback_stats["pedal_events"] == 0:
+    if performance_pedal_events and playback_stats["pedal_events"] == 0:
         pedal_channel = get_pedal_channel(effective_config["mapping"])
         if pedal_channel is None:
             raise RuntimeError(
@@ -2589,8 +2836,11 @@ def run_conversion_workflow(
         "hold_events": playback_stats["hold_events"],
         "strike_only_notes": playback_stats["strike_only_notes"],
         "source_pedal_event_count": len(pedal_events),
+        "generated_measure_pedal_event_count": len(generated_measure_pedal_events),
+        "auto_measure_pedal_enabled": bool(auto_measure_pedal),
         "scheduled_pedal_event_count": playback_stats["pedal_events"],
         "scheduled_pedal_events": playback_stats["scheduled_pedal_events"],
+        "performance_feel": performance_feel_stats,
         "mapping_lines": mapping_lines,
         "channel_lines": channel_lines,
         "actuation_lines": actuation_lines,
@@ -2693,6 +2943,21 @@ def run_conversion_workflow(
         report_line(reporter, f"Scheduled notes: {len(scheduled_notes)}")
         report_line(reporter, f"Generated events: {len(delta_events)}")
         report_line(reporter, f"Sustain pedal events: {playback_stats['pedal_events']}")
+        if generated_measure_pedal_events:
+            report_line(
+                reporter,
+                f"Auto measure sustain: generated {len(generated_measure_pedal_events)} pedal events "
+                "because the MIDI did not include sustain pedal data.",
+            )
+        if performance_feel_stats.get("enabled"):
+            report_line(
+                reporter,
+                "Performance feel: "
+                f"timing {performance_feel_stats['timing_adjusted_notes']}, "
+                f"articulation {performance_feel_stats['articulation_adjusted_notes']}, "
+                f"velocity {performance_feel_stats['velocity_adjusted_notes']}, "
+                f"pedal {performance_feel_stats['pedal_adjusted_events']}",
+            )
         report_line(reporter, f"Forced retriggers: {scheduling_stats['forced_retriggers']}")
         report_line(reporter, f"Delayed notes: {scheduling_stats['delayed_notes']}")
         report_line(reporter, f"Hold events: {playback_stats['hold_events']}")
@@ -3033,6 +3298,16 @@ def build_arg_parser():
         action="store_true",
         help="Convert and write files, but do not send the song over USB.",
     )
+    parser.add_argument(
+        "--no-feel",
+        action="store_true",
+        help="Disable performance-feel timing, articulation, accents, pedal breathing, and register shaping for this run.",
+    )
+    parser.add_argument(
+        "--auto-measure-pedal",
+        action="store_true",
+        help="If the MIDI has no sustain pedal events, synthesize sustain down/up events once per 4-beat measure.",
+    )
     return parser
 
 
@@ -3064,6 +3339,8 @@ def main():
         dry_run=args.dry_run,
         export_only=args.export_only,
         allow_prompts=True,
+        performance_feel_enabled=False if args.no_feel else None,
+        auto_measure_pedal=args.auto_measure_pedal,
         config=config,
         user_preferences=user_preferences,
         deployment_config=deployment_config,

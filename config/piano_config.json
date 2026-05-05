@@ -269,9 +269,9 @@
     }
   },
   "actuation": {
-    "strike_min_pwm": 2700,
-    "strike_max_pwm": 3950,
-    "velocity_curve": 1.35,
+    "strike_min_pwm": 2900,
+    "strike_max_pwm": 3900,
+    "velocity_curve": 1.0,
     "strike_ms": 45,
     "hold_min_pwm": 1200,
     "hold_max_pwm": 2000,
@@ -383,6 +383,43 @@
         "hold_ratio": 0.66,
         "temporary_debug_note": "C6 was releasing early after strike; stronger hold keeps the key depressed"
       }
+    }
+  },
+  "performance_feel": {
+    "enabled": true,
+    "rubato": {
+      "enabled": true,
+      "max_shift_ms": 14,
+      "phrase_beats": 16
+    },
+    "articulation": {
+      "enabled": true,
+      "repeated_note_gap_beats": 1.25,
+      "repeated_duration_ratio": 0.78,
+      "lyrical_min_duration_beats": 0.75,
+      "lyrical_extension_ratio": 0.08,
+      "lyrical_extension_max_ms": 80,
+      "min_duration_ms": 80
+    },
+    "accent": {
+      "enabled": true,
+      "downbeat_boost": 8,
+      "melody_boost": 6,
+      "phrase_peak_boost": 4
+    },
+    "pedal": {
+      "enabled": true,
+      "down_lead_ms": 30,
+      "up_lag_ms": 70
+    },
+    "register_velocity": {
+      "enabled": true,
+      "bass_floor_note": 24,
+      "bass_note_max": 71,
+      "bass_boost": -12,
+      "bass_max_trim": 40,
+      "treble_note_min": 72,
+      "treble_trim": -2
     }
   },
   "pedal": {

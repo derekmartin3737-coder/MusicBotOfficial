@@ -403,6 +403,10 @@ class PianoPlayerApp(tk.Tk):
         self.tempo_var = tk.StringVar(value="")
         self.range_var = tk.StringVar(value=str(default_playable_range))
         self.fit_mode_var = tk.StringVar(value=default_fit_mode)
+        self.performance_feel_var = tk.BooleanVar(
+            value=bool(engine.get_performance_feel_config(self.config_data).get("enabled", False))
+        )
+        self.auto_measure_pedal_var = tk.BooleanVar(value=False)
         self.export_only_var = tk.BooleanVar(value=False)
 
         self._build_layout()
@@ -692,10 +696,22 @@ class PianoPlayerApp(tk.Tk):
         fit_mode_box.grid(row=6, column=1, sticky="w", padx=(16, 0), pady=(0, 12))
         ttk.Checkbutton(
             options_body,
+            text="Performance feel (rubato, articulation, accents, pedal breathing)",
+            variable=self.performance_feel_var,
+            style="Panel.TCheckbutton",
+        ).grid(row=7, column=1, sticky="w", padx=(16, 0), pady=(0, 4))
+        ttk.Checkbutton(
+            options_body,
+            text="Add sustain every measure when MIDI has no pedal",
+            variable=self.auto_measure_pedal_var,
+            style="Panel.TCheckbutton",
+        ).grid(row=8, column=1, sticky="w", padx=(16, 0), pady=(0, 4))
+        ttk.Checkbutton(
+            options_body,
             text="Export only (prepare files but do not send to Arduino)",
             variable=self.export_only_var,
             style="Panel.TCheckbutton",
-        ).grid(row=7, column=1, sticky="w", padx=(16, 0))
+        ).grid(row=9, column=1, sticky="w", padx=(16, 0))
 
         run_frame = ttk.LabelFrame(outer, text="Run Options", style="Section.TLabelframe")
         run_frame.grid(row=3, column=0, sticky="ew", pady=(0, 10))
@@ -1426,6 +1442,8 @@ class PianoPlayerApp(tk.Tk):
             "dry_run": dry_run,
             "export_only": run_options["export_only"],
             "allow_prompts": False,
+            "performance_feel_enabled": run_options["performance_feel_enabled"],
+            "auto_measure_pedal": run_options["auto_measure_pedal"],
             "reporter": lambda message: self.message_queue.put(("log", message)),
         }
 
@@ -1463,6 +1481,8 @@ class PianoPlayerApp(tk.Tk):
             "active_channel_count": active_channel_count,
             "preferred_range": preferred_range,
             "preferred_tempo": preferred_tempo,
+            "performance_feel_enabled": self.performance_feel_var.get(),
+            "auto_measure_pedal": self.auto_measure_pedal_var.get(),
             "export_only": self.export_only_var.get(),
         }
 
