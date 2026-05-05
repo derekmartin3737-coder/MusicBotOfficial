@@ -44,6 +44,8 @@ ACTIVE_HEADER_NAME = "current_song.h"
 ACTIVE_METADATA_NAME = "current_song.json"
 PCA9685_CHANNELS_PER_BOARD = 16
 MAX_PCA9685_BOARDS = 4
+MIDI_SUSTAIN_CONTROLLER = 64
+DEFAULT_SUSTAIN_THRESHOLD = 64
 
 VERSION_RE = re.compile(r"^(?P<name>.+?)(?:_v(?P<version>\d+))?$")
 NOTE_TOKEN_RE = re.compile(r"^\s*([A-Ga-g])([#b]?)(-?\d+)\s*$")
@@ -59,8 +61,9 @@ USER_PREFERENCES_PATH = REPO_ROOT / "config" / "user_preferences.json"
 CALIBRATED_MAPPING_PATH = REPO_ROOT / "config" / "calibrated_mapping.json"
 MIDI_DIR = REPO_ROOT / "songs" / "midi"
 METADATA_DIR = REPO_ROOT / "songs" / "metadata"
+HEADER_ARCHIVE_DIR = REPO_ROOT / "songs" / "headers"
 ARDUINO_PROJECT_DIR = REPO_ROOT / "arduino" / "MusicBotOfficial"
-HEADER_DIR = ARDUINO_PROJECT_DIR / "generated"
+ACTIVE_HEADER_DIR = ARDUINO_PROJECT_DIR / "generated"
 REPO_RUNTIME_SKETCH_PATH = ARDUINO_PROJECT_DIR / "MusicBotOfficial.ino"
 DOWNLOADS_DIR = Path.home() / "Downloads"
 STREAM_MANIFEST_PATH = METADATA_DIR / "last_streamed_song.json"
@@ -70,7 +73,7 @@ DEFAULT_USER_PREFERENCES = {
     "playback": {
         "auto_use_newest_download": True,
         "default_fit_mode": "strict",
-        "default_active_channels": 61,
+        "default_active_channels": 62,
         "default_playable_range": "",
         "default_tempo": "",
         "wait_for_finish": True,
@@ -179,6 +182,10 @@ def validate_mapping_channels(mapping_config, pca_config):
     for channel in mapping_config.get("channel_sequence", []):
         validate_channel_value(channel, "channel_sequence")
 
+    pedal_config = mapping_config.get("pedal") or {}
+    if pedal_config.get("enabled", False) and "channel" in pedal_config:
+        validate_channel_value(pedal_config["channel"], "Sustain pedal")
+
 
 def midi_note_name(note: int):
     names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
@@ -265,7 +272,13 @@ def format_playable_count(playable_count: int, total_count: int):
 
 
 def sanitize_name(name: str) -> str:
-    return name.replace(" ", "_")
+    safe_name = re.sub(r"[^A-Za-z0-9_]+", "_", name)
+    safe_name = re.sub(r"_+", "_", safe_name).strip("_")
+    if not safe_name:
+        safe_name = "song"
+    if safe_name[0].isdigit():
+        safe_name = f"song_{safe_name}"
+    return safe_name
 
 
 def parse_versioned_stem(stem: str):
@@ -673,6 +686,18 @@ def scale_intervals(note_intervals, scale: float):
     return scaled
 
 
+def scale_pedal_events(pedal_events, scale: float):
+    scaled = []
+    for event in pedal_events:
+        scaled.append(
+            {
+                **event,
+                "time_ms": max(0, int(round(event["time_ms"] * scale))),
+            }
+        )
+    return scaled
+
+
 def extract_note_intervals(mid: MidiFile):
     """Return note intervals in milliseconds from the merged MIDI timeline.
 
@@ -758,6 +783,43 @@ def extract_note_intervals(mid: MidiFile):
     }
 
 
+def extract_sustain_pedal_events(mid: MidiFile):
+    """Return MIDI CC64 sustain pedal state changes in milliseconds."""
+    merged = mido.merge_tracks(mid.tracks)
+    tempo = DEFAULT_TEMPO_US_PER_BEAT
+    current_ms = 0
+    events = []
+    pedal_down = False
+
+    for msg in merged:
+        if msg.time:
+            delta_seconds = mido.tick2second(msg.time, mid.ticks_per_beat, tempo)
+            current_ms += int(round(delta_seconds * 1000.0))
+
+        if msg.type == "set_tempo":
+            tempo = msg.tempo
+            continue
+
+        if msg.type != "control_change" or int(msg.control) != MIDI_SUSTAIN_CONTROLLER:
+            continue
+
+        is_down = int(msg.value) >= DEFAULT_SUSTAIN_THRESHOLD
+        if is_down == pedal_down:
+            continue
+
+        pedal_down = is_down
+        events.append(
+            {
+                "time_ms": current_ms,
+                "down": pedal_down,
+                "value": int(msg.value),
+                "source_channel": int(getattr(msg, "channel", -1)),
+            }
+        )
+
+    return events
+
+
 def get_mapping_channel_order(mapping_config):
     """Return the hardware channels in the order calibration should visit them."""
     channel_sequence = mapping_config.get("channel_sequence")
@@ -782,6 +844,21 @@ def get_mapping_channel_order(mapping_config):
         return channel_order
 
     raise ValueError(f"Unsupported mapping mode: {mode}")
+
+
+def get_pedal_channel(mapping_config):
+    pedal_config = mapping_config.get("pedal") or {}
+    if not pedal_config.get("enabled", False) or "channel" not in pedal_config:
+        return None
+    return int(pedal_config["channel"])
+
+
+def get_playable_channel_order(mapping_config):
+    channel_order = get_mapping_channel_order(mapping_config)
+    pedal_channel = get_pedal_channel(mapping_config)
+    if pedal_channel is None:
+        return channel_order
+    return [channel for channel in channel_order if int(channel) != pedal_channel]
 
 
 def get_available_channel_sequence(mapping_config, pca_config):
@@ -836,6 +913,10 @@ def apply_active_channel_limit(mapping_config, pca_config, active_channel_count=
                 if note in limited_mapping["note_to_channel"]
             }
 
+        pedal_channel = get_pedal_channel(limited_mapping)
+        if pedal_channel is not None and pedal_channel not in active_channels:
+            limited_mapping.setdefault("pedal", {})["enabled"] = False
+
     return limited_mapping, resolved_sequence
 
 
@@ -865,16 +946,32 @@ def get_note_color_pitch_classes(key_color: str):
         return WHITE_KEY_PITCH_CLASSES
     if normalized == "black":
         return BLACK_KEY_PITCH_CLASSES
+    if normalized == "full":
+        return set(range(12))
     raise ValueError(f"Unsupported troubleshooting key color: {key_color}")
 
 
 def get_mapping_note_numbers_by_color(mapping_config, key_color: str):
+    normalized = str(key_color).strip().lower()
+    if normalized == "full":
+        return get_mapping_note_numbers(mapping_config)
     pitch_classes = get_note_color_pitch_classes(key_color)
     return [note for note in get_mapping_note_numbers(mapping_config) if note % 12 in pitch_classes]
 
 
 def build_diagnostic_phases(note_numbers, key_color: str):
     """Build ordered troubleshooting patterns for the selected note color."""
+    normalized = str(key_color).strip().lower()
+
+    if normalized == "full":
+        return [
+            {
+                "name": "chromatic full sweep",
+                "label": "All keys: chromatic bottom to top one at a time",
+                "groups": [[note] for note in sorted(note_numbers)],
+            }
+        ]
+
     label_prefix = f"{str(key_color).strip().title()} keys"
     phases = [
         {
@@ -1005,7 +1102,7 @@ def summarize_playable_layout(mapping_config):
 
 
 def build_contiguous_mapping(mapping_config, bottom_note: int, top_note: int):
-    channel_order = get_mapping_channel_order(mapping_config)
+    channel_order = get_playable_channel_order(mapping_config)
     note_count = top_note - bottom_note + 1
     if note_count != len(channel_order):
         raise ValueError(
@@ -1024,13 +1121,14 @@ def build_contiguous_mapping(mapping_config, bottom_note: int, top_note: int):
         "note_to_channel": note_to_channel,
         "note_labels": note_labels,
         "channel_labels": dict(mapping_config.get("channel_labels", {})),
-        "channel_sequence": channel_order,
+        "channel_sequence": get_mapping_channel_order(mapping_config),
+        "pedal": copy.deepcopy(mapping_config.get("pedal", {})),
     }
 
 
 def prompt_for_playable_range(mapping_config, preset=None):
     """Let users keep the saved layout or temporarily fit it to another octave."""
-    channel_order = get_mapping_channel_order(mapping_config)
+    channel_order = get_playable_channel_order(mapping_config)
     if len(channel_order) <= 1:
         return mapping_config, summarize_playable_layout(mapping_config), False
 
@@ -1328,6 +1426,10 @@ def describe_mapping(mapping_config, pca_config=None):
         lines.append(
             f"MIDI note {note} ({note_label}) -> {describe_global_channel(channel, pca_config)} ({label})"
         )
+    pedal_channel = get_pedal_channel(mapping_config)
+    if pedal_channel is not None:
+        label = channel_labels.get(str(pedal_channel), f"Channel {pedal_channel}")
+        lines.append(f"Sustain pedal -> {describe_global_channel(pedal_channel, pca_config)} ({label})")
     return lines
 
 
@@ -1358,7 +1460,82 @@ def resolve_channel_actuation(channel, config):
     channel_overrides = config["actuation"].get("channel_overrides", {})
     resolved.update(channel_overrides.get(str(channel), {}))
     resolved.pop("channel_overrides", None)
+    resolved.pop("note_color_overrides", None)
     return resolved
+
+
+def resolve_note_actuation(note, channel, config):
+    resolved = dict(config["actuation"])
+    color_overrides = config["actuation"].get("note_color_overrides", {})
+    pitch_class = int(note) % 12
+    if pitch_class in BLACK_KEY_PITCH_CLASSES:
+        resolved.update(color_overrides.get("black", {}))
+    elif pitch_class in WHITE_KEY_PITCH_CLASSES:
+        resolved.update(color_overrides.get("white", {}))
+    channel_overrides = config["actuation"].get("channel_overrides", {})
+    resolved.update(channel_overrides.get(str(channel), {}))
+    resolved.pop("channel_overrides", None)
+    resolved.pop("note_color_overrides", None)
+    return resolved
+
+
+def get_pedal_config(config):
+    pedal_config = copy.deepcopy(config.get("pedal", {}))
+    mapping_pedal = config.get("mapping", {}).get("pedal", {})
+    if mapping_pedal:
+        pedal_config.update(mapping_pedal)
+    return pedal_config
+
+
+def build_pedal_timeline_events(pedal_events, config):
+    pedal_config = get_pedal_config(config)
+    channel = pedal_config.get("channel")
+    if not pedal_config.get("enabled", False) or channel is None:
+        return [], []
+
+    channel = int(channel)
+    if channel not in set(get_mapping_channel_order(config["mapping"])):
+        return [], []
+
+    down_pwm = int(pedal_config.get("down_pwm", config["actuation"]["hold_max_pwm"]))
+    up_pwm = int(pedal_config.get("up_pwm", 0))
+    lead_ms = int(pedal_config.get("lead_ms", 0))
+    timeline = []
+    metadata = []
+
+    for event in pedal_events:
+        scheduled_time_ms = max(0, int(event["time_ms"]) - lead_ms)
+        pwm = down_pwm if event["down"] else up_pwm
+        timeline.append((scheduled_time_ms, channel, pwm))
+        metadata.append(
+            {
+                "source_time_ms": event["time_ms"],
+                "scheduled_time_ms": scheduled_time_ms,
+                "down": bool(event["down"]),
+                "value": event["value"],
+                "channel": channel,
+                "pwm": pwm,
+                "source_channel": event.get("source_channel"),
+            }
+        )
+
+    if metadata and metadata[-1]["down"]:
+        final_release_ms = metadata[-1]["scheduled_time_ms"] + int(pedal_config.get("failsafe_release_ms", 1000))
+        timeline.append((final_release_ms, channel, up_pwm))
+        metadata.append(
+            {
+                "source_time_ms": final_release_ms,
+                "scheduled_time_ms": final_release_ms,
+                "down": False,
+                "value": 0,
+                "channel": channel,
+                "pwm": up_pwm,
+                "source_channel": None,
+                "failsafe_release": True,
+            }
+        )
+
+    return timeline, metadata
 
 
 def schedule_notes(note_intervals, config):
@@ -1566,6 +1743,9 @@ def velocity_to_strike_pwm(velocity, actuation_config):
     minimum_pwm = int(actuation_config["strike_min_pwm"])
     maximum_pwm = int(actuation_config["strike_max_pwm"])
     normalized_velocity = 0.0 if velocity <= 1 else (velocity - 1) / 126.0
+    velocity_curve = float(actuation_config.get("velocity_curve", 1.0))
+    if velocity_curve > 0:
+        normalized_velocity = normalized_velocity**velocity_curve
     pwm_value = minimum_pwm + int(round((maximum_pwm - minimum_pwm) * normalized_velocity))
     return clamp(pwm_value, minimum_pwm, maximum_pwm)
 
@@ -1580,7 +1760,7 @@ def strike_to_hold_pwm(strike_pwm, actuation_config):
     )
 
 
-def build_playback_events(scheduled_notes, config):
+def build_playback_events(scheduled_notes, config, pedal_events=None):
     """Convert scheduled notes into low-level PWM events.
 
     Each playable note becomes a strong strike, an optional lower-power hold,
@@ -1588,11 +1768,12 @@ def build_playback_events(scheduled_notes, config):
     """
     timeline = []
     scheduled_note_metadata = []
+    scheduled_pedal_metadata = []
     hold_event_count = 0
     strike_only_note_count = 0
 
     for note_event in scheduled_notes:
-        channel_actuation = resolve_channel_actuation(note_event["channel"], config)
+        channel_actuation = resolve_note_actuation(note_event["note"], note_event["channel"], config)
         strike_ms = int(channel_actuation["strike_ms"])
         release_delay_ms = int(channel_actuation["release_delay_ms"])
         strike_pwm = velocity_to_strike_pwm(note_event["velocity"], channel_actuation)
@@ -1632,10 +1813,14 @@ def build_playback_events(scheduled_notes, config):
             }
         )
 
+    pedal_timeline, scheduled_pedal_metadata = build_pedal_timeline_events(pedal_events or [], config)
+    timeline.extend(pedal_timeline)
     timeline.sort(key=lambda item: (item[0], 0 if item[2] == 0 else 1, item[1]))
     return timeline, scheduled_note_metadata, {
         "hold_events": hold_event_count,
         "strike_only_notes": strike_only_note_count,
+        "pedal_events": len(scheduled_pedal_metadata),
+        "scheduled_pedal_events": scheduled_pedal_metadata,
     }
 
 
@@ -1695,6 +1880,7 @@ def render_header_text(selected_midi, delta_events, metadata, config):
         f"// Mapping mode: {config['mapping']['mode']}",
         f"// Forced retriggers: {metadata['forced_retriggers']}",
         f"// Delayed notes: {metadata['delayed_notes']}",
+        f"// Sustain pedal events: {metadata.get('scheduled_pedal_event_count', 0)}",
         f"// Unmapped notes skipped: {metadata['unmapped_notes']}",
         f"// Unmatched note_off events ignored: {metadata['unmatched_note_offs']}",
         f"// Dangling note_on events auto-closed: {metadata['dangling_note_ons_closed']}",
@@ -1801,11 +1987,18 @@ def build_channel_lines(channels_used, mapping_config, pca_config):
 
 def build_actuation_lines(channels_used, config):
     lines = []
+    color_overrides = config.get("actuation", {}).get("note_color_overrides", {})
+    for color_name in ("white", "black"):
+        override = color_overrides.get(color_name)
+        if override:
+            fields = ", ".join(f"{key} {value}" for key, value in sorted(override.items()))
+            lines.append(f"{color_name.title()} key override: {fields}")
     for channel in channels_used:
         actuation = resolve_channel_actuation(channel, config)
         lines.append(
             "Channel "
             f"{channel}: strike {actuation['strike_min_pwm']}-{actuation['strike_max_pwm']}, "
+            f"velocity curve {actuation.get('velocity_curve', 1.0)}, "
             f"hold {actuation['hold_min_pwm']}-{actuation['hold_max_pwm']}, "
             f"hold ratio {actuation['hold_ratio']}, "
             f"strike {actuation['strike_ms']} ms, "
@@ -2147,6 +2340,9 @@ def sync_arduino_ide_runtime(header_text, deployment_config):
     deployed_header_path = generated_dir / ACTIVE_HEADER_NAME
 
     try:
+        for stale_header_path in generated_dir.glob("*.h"):
+            if stale_header_path.name != ACTIVE_HEADER_NAME:
+                stale_header_path.unlink()
         sketch_path.write_text(runtime_text, encoding="utf-8")
         deployed_header_path.write_text(header_text, encoding="utf-8")
     except PermissionError as error:
@@ -2163,13 +2359,14 @@ def sync_arduino_ide_runtime(header_text, deployment_config):
 
 
 def write_outputs(selected_midi, header_path, delta_events, metadata, config, scheduled_notes, deployment_config):
-    HEADER_DIR.mkdir(parents=True, exist_ok=True)
+    HEADER_ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+    ACTIVE_HEADER_DIR.mkdir(parents=True, exist_ok=True)
     METADATA_DIR.mkdir(parents=True, exist_ok=True)
 
     header_text = render_header_text(selected_midi, delta_events, metadata, config)
     header_path.write_text(header_text, encoding="utf-8")
 
-    active_header_path = HEADER_DIR / ACTIVE_HEADER_NAME
+    active_header_path = ACTIVE_HEADER_DIR / ACTIVE_HEADER_NAME
     active_header_path.write_text(header_text, encoding="utf-8")
 
     payload = {
@@ -2241,6 +2438,7 @@ def run_conversion_workflow(
 
     tempo_info = scan_tempo_info(mid)
     note_intervals, interval_stats = extract_note_intervals(mid)
+    pedal_events = extract_sustain_pedal_events(mid)
     if not note_intervals:
         raise ValueError("No note_on events were found in the selected MIDI file.")
 
@@ -2291,6 +2489,7 @@ def run_conversion_workflow(
     else:
         tempo_override = parse_tempo_override_input("", tempo_info["first_bpm"])
     scaled_intervals = scale_intervals(note_intervals, tempo_override["scale"])
+    scaled_pedal_events = scale_pedal_events(pedal_events, tempo_override["scale"])
     if fit_selection["mode"] == "strict":
         scheduled_notes, scheduling_stats = schedule_notes(scaled_intervals, effective_config)
     else:
@@ -2304,8 +2503,19 @@ def run_conversion_workflow(
             "No playable notes remained after applying the selected fit mode. Try transpose, a different playable range, or another song."
         )
     timeline, scheduled_note_metadata, playback_stats = build_playback_events(
-        scheduled_notes, effective_config
+        scheduled_notes, effective_config, scaled_pedal_events
     )
+    if scaled_pedal_events and playback_stats["pedal_events"] == 0:
+        pedal_channel = get_pedal_channel(effective_config["mapping"])
+        if pedal_channel is None:
+            raise RuntimeError(
+                "This MIDI contains sustain pedal events, but the sustain pedal channel is not enabled in the active mapping."
+            )
+        raise RuntimeError(
+            "This MIDI contains sustain pedal events, but the configured sustain pedal channel "
+            f"{pedal_channel} is outside the active hardware channels. Set Installed solenoids to include channel "
+            f"{pedal_channel}."
+        )
     delta_events = convert_to_delta_events(timeline)
     unmapped_note_lines = build_unmapped_note_lines(
         {int(note): count for note, count in scheduling_stats["unmapped_note_counts"].items()}
@@ -2313,15 +2523,20 @@ def run_conversion_workflow(
     selected_playable_count = len(scheduled_notes)
     recognizability_summary = describe_recognizability(selected_playable_count, len(note_intervals))
 
-    header_path, output_version = next_header_path(HEADER_DIR, selected_midi)
+    header_path, output_version = next_header_path(HEADER_ARCHIVE_DIR, selected_midi)
     output_version_label = "base" if output_version == 0 else f"v{output_version}"
     mapping_lines = describe_mapping(effective_config["mapping"], effective_config["pca9685"])
+    pedal_channel = get_pedal_channel(effective_config["mapping"])
+    channels_used = set(scheduling_stats["channels_used"])
+    if playback_stats["pedal_events"] and pedal_channel is not None:
+        channels_used.add(pedal_channel)
+    channels_used = sorted(channels_used)
     channel_lines = build_channel_lines(
-        scheduling_stats["channels_used"],
+        channels_used,
         effective_config["mapping"],
         effective_config["pca9685"],
     )
-    actuation_lines = build_actuation_lines(scheduling_stats["channels_used"], effective_config)
+    actuation_lines = build_actuation_lines(channels_used, effective_config)
 
     if fit_selection["mode"] == "strict":
         fit_mode_label = "strict (original pitches, skip out-of-range notes)"
@@ -2373,10 +2588,13 @@ def run_conversion_workflow(
         "percussion_events_skipped": interval_stats["percussion_events_skipped"],
         "hold_events": playback_stats["hold_events"],
         "strike_only_notes": playback_stats["strike_only_notes"],
+        "source_pedal_event_count": len(pedal_events),
+        "scheduled_pedal_event_count": playback_stats["pedal_events"],
+        "scheduled_pedal_events": playback_stats["scheduled_pedal_events"],
         "mapping_lines": mapping_lines,
         "channel_lines": channel_lines,
         "actuation_lines": actuation_lines,
-        "channels_used": scheduling_stats["channels_used"],
+        "channels_used": channels_used,
     }
 
     report_line(reporter, "")
@@ -2474,6 +2692,7 @@ def run_conversion_workflow(
         report_line(reporter, f"Input note intervals: {len(note_intervals)}")
         report_line(reporter, f"Scheduled notes: {len(scheduled_notes)}")
         report_line(reporter, f"Generated events: {len(delta_events)}")
+        report_line(reporter, f"Sustain pedal events: {playback_stats['pedal_events']}")
         report_line(reporter, f"Forced retriggers: {scheduling_stats['forced_retriggers']}")
         report_line(reporter, f"Delayed notes: {scheduling_stats['delayed_notes']}")
         report_line(reporter, f"Hold events: {playback_stats['hold_events']}")
@@ -2535,8 +2754,12 @@ def run_troubleshooting_workflow(
         deployment_config["serial_runtime"]["preferred_port"] = port
 
     key_color = str(key_color).strip().lower()
-    key_label = key_color.title()
-    selection_reason = f"generated troubleshooting sequence for {key_label.lower()} keys"
+    key_label = "Full sweep" if key_color == "full" else key_color.title()
+    selection_reason = (
+        "generated full sweep troubleshooting sequence (chromatic bottom to top)"
+        if key_color == "full"
+        else f"generated troubleshooting sequence for {key_label.lower()} keys"
+    )
     selected_sequence = MIDI_DIR / f"troubleshooting_{sanitize_name(key_color)}_keys.mid"
 
     base_mapping, active_channel_sequence = apply_active_channel_limit(
@@ -2594,7 +2817,11 @@ def run_troubleshooting_workflow(
     stream_manifest = None
 
     note_range_label = format_note_range(note_numbers[0], note_numbers[-1])
-    filtered_note_set_label = f"{len(note_numbers)} mapped {key_color} keys from {note_range_label}"
+    filtered_note_set_label = (
+        f"{len(note_numbers)} mapped notes (full range) from {note_range_label}"
+        if key_color == "full"
+        else f"{len(note_numbers)} mapped {key_color} keys from {note_range_label}"
+    )
     mapping_lines = describe_mapping(effective_config["mapping"], effective_config["pca9685"])
     channel_lines = build_channel_lines(
         scheduling_stats["channels_used"],
@@ -2615,7 +2842,7 @@ def run_troubleshooting_workflow(
         "source_range_label": note_range_label,
         "playable_layout_label": playable_layout_summary["label"],
         "fit_mode": "troubleshooting",
-        "fit_mode_label": f"{key_label} troubleshooting pattern",
+        "fit_mode_label": f"{key_label} troubleshooting sweep" if key_color == "full" else f"{key_label} troubleshooting pattern",
         "transpose_semitones": 0,
         "transpose_strategy": "none",
         "transpose_remapped_note_events": 0,
@@ -2654,7 +2881,7 @@ def run_troubleshooting_workflow(
     }
 
     report_line(reporter, "")
-    report_line(reporter, f"Troubleshooting routine: {key_label} keys")
+    report_line(reporter, f"Troubleshooting routine: {key_label}")
     report_line(reporter, f"Chosen because: {selection_reason}")
     report_line(reporter, f"Active hardware: {hardware_channel_summary}")
     report_line(reporter, f"Playable layout: {playable_layout_summary['label']}")
@@ -2683,7 +2910,7 @@ def run_troubleshooting_workflow(
         report_line(reporter, "")
         report_line(reporter, "Troubleshooting dry run complete. No files were written and nothing was sent over USB.")
     else:
-        header_path, output_version = next_header_path(HEADER_DIR, selected_sequence)
+        header_path, output_version = next_header_path(HEADER_ARCHIVE_DIR, selected_sequence)
         output_version_label = "base" if output_version == 0 else f"v{output_version}"
         metadata["output_version_label"] = output_version_label
         json_path, active_header_path, active_json_path, deployment_paths, payload = write_outputs(

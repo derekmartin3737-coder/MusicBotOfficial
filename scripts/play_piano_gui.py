@@ -7,6 +7,7 @@ song, tempo, and current hardware note range without answering terminal prompts.
 
 from __future__ import annotations
 
+import copy
 import queue
 import threading
 import time
@@ -147,14 +148,216 @@ class TroubleshootingActionDialog(tk.Toplevel):
             value="black",
             style="Dialog.TRadiobutton",
         ).grid(row=3, column=0, sticky="w", pady=2)
+        ttk.Radiobutton(
+            outer,
+            text="Sustain pedal: strength ramp on configured channel",
+            variable=self.key_color_var,
+            value="pedal",
+            style="Dialog.TRadiobutton",
+        ).grid(row=4, column=0, sticky="w", pady=2)
+        ttk.Radiobutton(
+            outer,
+            text="Full sweep: C upward in chromatic order",
+            variable=self.key_color_var,
+            value="full",
+            style="Dialog.TRadiobutton",
+        ).grid(row=5, column=0, sticky="w", pady=2)
 
         button_row = ttk.Frame(outer, style="App.TFrame")
-        button_row.grid(row=4, column=0, sticky="e", pady=(14, 0))
+        button_row.grid(row=6, column=0, sticky="e", pady=(14, 0))
         ttk.Button(button_row, text="Cancel", style="Secondary.TButton", command=self.cancel).grid(row=0, column=0)
         ttk.Button(button_row, text="Run", style="Primary.TButton", command=self.accept).grid(row=0, column=1, padx=(8, 0))
 
     def accept(self):
         self.result = self.key_color_var.get()
+        self.destroy()
+
+    def cancel(self):
+        self.result = None
+        self.destroy()
+
+
+class PedalStrengthDialog(tk.Toplevel):
+    def __init__(self, parent, defaults):
+        super().__init__(parent)
+        self.title("Sustain Pedal Strength Test")
+        self.resizable(False, False)
+        self.transient(parent)
+        self.grab_set()
+        self.configure(bg=APP_BG)
+
+        self.result = None
+        self.start_pwm_var = tk.StringVar(value=str(defaults["start_pwm"]))
+        self.end_pwm_var = tk.StringVar(value=str(defaults["end_pwm"]))
+        self.step_pwm_var = tk.StringVar(value=str(defaults["step_pwm"]))
+        self.hold_ms_var = tk.StringVar(value=str(defaults["hold_ms"]))
+        self.rest_ms_var = tk.StringVar(value=str(defaults["rest_ms"]))
+        self.scan_channels_var = tk.BooleanVar(value=defaults["scan_channels"])
+
+        outer = ttk.Frame(self, padding=18, style="App.TFrame")
+        outer.grid(row=0, column=0, sticky="nsew")
+        outer.columnconfigure(1, weight=1)
+
+        ttk.Label(outer, text="Tune sustain pedal strength", style="DialogTitle.TLabel").grid(
+            row=0,
+            column=0,
+            columnspan=2,
+            sticky="w",
+        )
+        ttk.Label(
+            outer,
+            text=(
+                "This ramps PWM upward so you can find the lowest value that depresses the pedal. "
+                "Use short holds and let the solenoid cool between runs."
+            ),
+            style="Muted.TLabel",
+            wraplength=440,
+        ).grid(row=1, column=0, columnspan=2, sticky="w", pady=(6, 12))
+
+        fields = [
+            ("Start PWM", self.start_pwm_var),
+            ("End PWM", self.end_pwm_var),
+            ("Step PWM", self.step_pwm_var),
+            ("Hold ms", self.hold_ms_var),
+            ("Rest ms", self.rest_ms_var),
+        ]
+        for row_index, (label, variable) in enumerate(fields, start=2):
+            ttk.Label(outer, text=label, style="App.TLabel").grid(row=row_index, column=0, sticky="w", pady=3)
+            ttk.Entry(outer, textvariable=variable, style="Panel.TEntry", width=16).grid(
+                row=row_index,
+                column=1,
+                sticky="ew",
+                padx=(14, 0),
+                pady=3,
+            )
+
+        ttk.Checkbutton(
+            outer,
+            text="Also scan final-board candidate channels",
+            variable=self.scan_channels_var,
+            style="Dialog.TCheckbutton",
+        ).grid(row=7, column=0, columnspan=2, sticky="w", pady=(8, 0))
+
+        button_row = ttk.Frame(outer, style="App.TFrame")
+        button_row.grid(row=8, column=0, columnspan=2, sticky="e", pady=(14, 0))
+        ttk.Button(button_row, text="Cancel", style="Secondary.TButton", command=self.cancel).grid(row=0, column=0)
+        ttk.Button(button_row, text="Run Ramp", style="Primary.TButton", command=self.accept).grid(row=0, column=1, padx=(8, 0))
+
+    def _parse_int(self, variable, label, minimum, maximum):
+        raw = variable.get().strip()
+        try:
+            value = int(raw)
+        except ValueError as error:
+            raise ValueError(f"{label} must be a whole number.") from error
+        if value < minimum or value > maximum:
+            raise ValueError(f"{label} must be between {minimum} and {maximum}.")
+        return value
+
+    def accept(self):
+        try:
+            start_pwm = self._parse_int(self.start_pwm_var, "Start PWM", 0, 4095)
+            end_pwm = self._parse_int(self.end_pwm_var, "End PWM", 0, 4095)
+            step_pwm = self._parse_int(self.step_pwm_var, "Step PWM", 1, 4095)
+            hold_ms = self._parse_int(self.hold_ms_var, "Hold ms", 50, 5000)
+            rest_ms = self._parse_int(self.rest_ms_var, "Rest ms", 250, 10000)
+            if end_pwm < start_pwm:
+                raise ValueError("End PWM must be greater than or equal to Start PWM.")
+            test_count = ((end_pwm - start_pwm + step_pwm - 1) // step_pwm) + 1
+            if test_count > 30:
+                raise ValueError("Use a larger Step PWM or narrower range so the ramp has 30 tests or fewer.")
+            self.result = {
+                "start_pwm": start_pwm,
+                "end_pwm": end_pwm,
+                "step_pwm": step_pwm,
+                "hold_ms": hold_ms,
+                "rest_ms": rest_ms,
+                "scan_channels": self.scan_channels_var.get(),
+            }
+        except ValueError as error:
+            messagebox.showerror("Invalid pedal strength value", str(error), parent=self)
+            return
+        self.destroy()
+
+    def cancel(self):
+        self.result = None
+        self.destroy()
+
+
+class MosfetTestDialog(tk.Toplevel):
+    def __init__(self, parent, defaults):
+        super().__init__(parent)
+        self.title("MOSFET Test")
+        self.resizable(False, False)
+        self.transient(parent)
+        self.grab_set()
+        self.configure(bg=APP_BG)
+
+        self.result = None
+        self.channel_var = tk.StringVar(value=str(defaults["channel"]))
+        self.strike_pwm_var = tk.StringVar(value=str(defaults["strike_pwm"]))
+        self.hold_pwm_var = tk.StringVar(value=str(defaults["hold_pwm"]))
+        self.strike_ms_var = tk.StringVar(value=str(defaults["strike_ms"]))
+        self.hold_ms_var = tk.StringVar(value=str(defaults["hold_ms"]))
+        self.release_ms_var = tk.StringVar(value=str(defaults["release_ms"]))
+
+        outer = ttk.Frame(self, padding=18, style="App.TFrame")
+        outer.grid(row=0, column=0, sticky="nsew")
+        outer.columnconfigure(1, weight=1)
+
+        ttk.Label(outer, text="Pulse one MOSFET channel", style="DialogTitle.TLabel").grid(row=0, column=0, columnspan=2, sticky="w")
+        ttk.Label(
+            outer,
+            text="This sends one FIRE command to the uploaded runtime, then turns all PCA outputs off.",
+            style="Muted.TLabel",
+            wraplength=420,
+        ).grid(row=1, column=0, columnspan=2, sticky="w", pady=(6, 12))
+
+        fields = [
+            ("Global channel", self.channel_var),
+            ("Strike PWM", self.strike_pwm_var),
+            ("Hold PWM", self.hold_pwm_var),
+            ("Strike ms", self.strike_ms_var),
+            ("Hold ms", self.hold_ms_var),
+            ("Release ms", self.release_ms_var),
+        ]
+        for row_index, (label, variable) in enumerate(fields, start=2):
+            ttk.Label(outer, text=label, style="App.TLabel").grid(row=row_index, column=0, sticky="w", pady=3)
+            ttk.Entry(outer, textvariable=variable, style="Panel.TEntry", width=16).grid(
+                row=row_index,
+                column=1,
+                sticky="ew",
+                padx=(14, 0),
+                pady=3,
+            )
+
+        button_row = ttk.Frame(outer, style="App.TFrame")
+        button_row.grid(row=8, column=0, columnspan=2, sticky="e", pady=(14, 0))
+        ttk.Button(button_row, text="Cancel", style="Secondary.TButton", command=self.cancel).grid(row=0, column=0)
+        ttk.Button(button_row, text="Fire Test", style="Primary.TButton", command=self.accept).grid(row=0, column=1, padx=(8, 0))
+
+    def _parse_int(self, variable, label, minimum, maximum):
+        raw = variable.get().strip()
+        try:
+            value = int(raw)
+        except ValueError as error:
+            raise ValueError(f"{label} must be a whole number.") from error
+        if value < minimum or value > maximum:
+            raise ValueError(f"{label} must be between {minimum} and {maximum}.")
+        return value
+
+    def accept(self):
+        try:
+            self.result = {
+                "channel": self._parse_int(self.channel_var, "Global channel", 0, 63),
+                "strike_pwm": self._parse_int(self.strike_pwm_var, "Strike PWM", 0, 4095),
+                "hold_pwm": self._parse_int(self.hold_pwm_var, "Hold PWM", 0, 4095),
+                "strike_ms": self._parse_int(self.strike_ms_var, "Strike ms", 0, 5000),
+                "hold_ms": self._parse_int(self.hold_ms_var, "Hold ms", 0, 10000),
+                "release_ms": self._parse_int(self.release_ms_var, "Release ms", 0, 10000),
+            }
+        except ValueError as error:
+            messagebox.showerror("Invalid MOSFET test value", str(error), parent=self)
+            return
         self.destroy()
 
     def cancel(self):
@@ -180,6 +383,7 @@ class PianoPlayerApp(tk.Tk):
         self.message_queue = queue.Queue()
         self.filtered_song_entries = []
         self.song_catalog_refresh_in_progress = False
+        self.mosfet_test_defaults = None
         playback_preferences = self.user_preferences.get("playback", {})
         default_active_channels = playback_preferences.get(
             "default_active_channels",
@@ -313,6 +517,8 @@ class PianoPlayerApp(tk.Tk):
         style.map("Panel.TCheckbutton", background=[("active", PANEL_BG)])
         style.configure("Dialog.TRadiobutton", background=APP_BG, foreground=TEXT_COLOR, font=("Segoe UI", 10))
         style.map("Dialog.TRadiobutton", background=[("active", APP_BG)])
+        style.configure("Dialog.TCheckbutton", background=APP_BG, foreground=TEXT_COLOR, font=("Segoe UI", 10))
+        style.map("Dialog.TCheckbutton", background=[("active", APP_BG)])
 
         style.configure(
             "Panel.Vertical.TScrollbar",
@@ -445,7 +651,7 @@ class PianoPlayerApp(tk.Tk):
         )
         ttk.Label(
             options_body,
-            text="How many hardware channels are active right now. The current bench default is 61.",
+            text="How many hardware channels are active right now. The current bench default is 62, including the sustain pedal.",
             style="Muted.Panel.TLabel",
             wraplength=620,
         ).grid(row=1, column=1, sticky="w", padx=(16, 0), pady=(0, 12))
@@ -468,7 +674,7 @@ class PianoPlayerApp(tk.Tk):
             options_body,
             text=(
                 "Leave blank to use the saved note mapping. "
-                "For calibration and for your current 61-solenoid bench, blank is the correct default "
+                "For calibration and for your current 62-actuator bench, blank is the correct default "
                 "unless you intentionally want a temporary contiguous override."
             ),
             style="Muted.Panel.TLabel",
@@ -607,6 +813,14 @@ class PianoPlayerApp(tk.Tk):
             command=self.start_troubleshooting_run,
         ).grid(
             row=0, column=1, sticky="w", padx=(8, 0)
+        )
+        ttk.Button(
+            debug_button_row,
+            text="Test MOSFET...",
+            style="Secondary.TButton",
+            command=self.start_mosfet_test,
+        ).grid(
+            row=0, column=2, sticky="w", padx=(8, 0)
         )
 
         log_frame = ttk.LabelFrame(debug_body, text="Status", style="Section.TLabelframe")
@@ -819,6 +1033,16 @@ class PianoPlayerApp(tk.Tk):
         config = engine.load_config()
         return piano_tools.build_calibration_config(config, active_channel_count)
 
+    def build_sweep_mapping_config(self, active_channel_count):
+        config = engine.load_config()
+        mapping, active_sequence = engine.apply_active_channel_limit(
+            config["mapping"],
+            config["pca9685"],
+            active_channel_count=active_channel_count,
+        )
+        config["mapping"] = mapping
+        return config, active_sequence
+
     def build_patch_mapping_config(self, active_channel_count):
         config = engine.load_config()
         return piano_tools.build_patch_mapping_config(config, active_channel_count)
@@ -828,17 +1052,14 @@ class PianoPlayerApp(tk.Tk):
             self.append_log(f"  {line}")
 
     def run_sweep_calibration(self, connection, config):
-        self.append_log("Sweeping active hardware channels in global channel order.")
-        for channel, mapped_notes in piano_tools.iter_calibration_channels(config["mapping"]):
+        self.append_log("Sweeping saved note mapping in musical order.")
+        for note, channel in piano_tools.iter_mapping_in_note_order(config["mapping"]):
             actuation = engine.resolve_channel_actuation(channel, config)
             pulse = piano_tools.build_calibration_pulse(actuation)
             label = config["mapping"].get("channel_labels", {}).get(str(channel), f"Channel {channel}")
             channel_target = engine.describe_global_channel(channel, config["pca9685"])
-            if len(mapped_notes) == 1:
-                self.append_log(f"  Testing {engine.midi_note_name(mapped_notes[0])} on {channel_target}: {label}")
-            elif len(mapped_notes) > 1:
-                notes = ", ".join(engine.midi_note_name(note) for note in mapped_notes)
-                self.append_log(f"  Firing {channel_target}: {label} (currently mapped to {notes})")
+            if note is not None:
+                self.append_log(f"  Testing {engine.midi_note_name(note)} on {channel_target}: {label}")
             else:
                 self.append_log(f"  Firing {channel_target}: {label}")
             piano_tools.fire_channel(connection, channel, pulse)
@@ -882,6 +1103,7 @@ class PianoPlayerApp(tk.Tk):
         note_labels = {}
         channel_labels = dict(config["mapping"].get("channel_labels", {}))
         channel_sequence = engine.get_mapping_channel_order(config["mapping"])
+        pedal_channel = engine.get_pedal_channel(config["mapping"])
 
         self.append_log("Manual channel mapping started.")
         self.append_log("Each channel will fire once. Enter the piano note it moved, or leave blank to skip it.")
@@ -895,6 +1117,9 @@ class PianoPlayerApp(tk.Tk):
             piano_tools.fire_channel(connection, channel, pulse)
             self.update()
             time.sleep(piano_tools.CALIBRATION_INTER_FIRE_DELAY_SECONDS)
+            if pedal_channel is not None and int(channel) == int(pedal_channel):
+                self.append_log("  Saved as the sustain pedal channel, not a piano note.")
+                continue
 
             while True:
                 raw = simpledialog.askstring(
@@ -929,6 +1154,7 @@ class PianoPlayerApp(tk.Tk):
             "note_labels": note_labels,
             "channel_labels": channel_labels,
             "channel_sequence": channel_sequence,
+            "pedal": copy.deepcopy(config["mapping"].get("pedal", {})),
         }
         mapping_lines = piano_tools.build_mapping_lines(mapping)
 
@@ -956,6 +1182,7 @@ class PianoPlayerApp(tk.Tk):
         note_labels = dict(existing_mapping.get("note_labels", {}))
         channel_labels = dict(existing_mapping.get("channel_labels", {}))
         channel_sequence = [int(channel) for channel in existing_mapping.get("channel_sequence", [])]
+        pedal_channel = engine.get_pedal_channel(existing_mapping)
         missing_notes = piano_tools.infer_missing_notes(existing_mapping)
         added_assignments = []
 
@@ -977,6 +1204,9 @@ class PianoPlayerApp(tk.Tk):
             piano_tools.fire_channel(connection, channel, pulse)
             self.update()
             time.sleep(piano_tools.CALIBRATION_INTER_FIRE_DELAY_SECONDS)
+            if pedal_channel is not None and int(channel) == int(pedal_channel):
+                self.append_log("  This is the sustain pedal channel, so it stays out of the note map.")
+                continue
 
             while True:
                 prompt_lines = [
@@ -1031,6 +1261,7 @@ class PianoPlayerApp(tk.Tk):
             "note_labels": note_labels,
             "channel_labels": channel_labels,
             "channel_sequence": channel_sequence,
+            "pedal": copy.deepcopy(existing_mapping.get("pedal", {})),
         }
         mapping_lines = piano_tools.build_mapping_lines(mapping)
 
@@ -1078,6 +1309,8 @@ class PianoPlayerApp(tk.Tk):
                 calibration_config, patch_channels, missing_notes = self.build_patch_mapping_config(active_channel_count)
                 if not patch_channels:
                     raise RuntimeError("The saved mapping does not have any unused channels to patch.")
+            elif dialog.result == "sweep":
+                calibration_config, active_sequence = self.build_sweep_mapping_config(active_channel_count)
             else:
                 calibration_config, active_sequence = self.build_active_calibration_config(active_channel_count)
         except ValueError as error:
@@ -1233,6 +1466,195 @@ class PianoPlayerApp(tk.Tk):
             "export_only": self.export_only_var.get(),
         }
 
+    def build_pedal_troubleshooting_channels(self, config, active_channel_count):
+        capacity = engine.get_global_channel_capacity(config["pca9685"])
+        configured_channel = engine.get_pedal_channel(config["mapping"])
+        if configured_channel is None:
+            configured_channel = max(0, int(active_channel_count) - 1)
+
+        final_board_start = (configured_channel // engine.PCA9685_CHANNELS_PER_BOARD) * engine.PCA9685_CHANNELS_PER_BOARD
+        final_board_end = min(final_board_start + engine.PCA9685_CHANNELS_PER_BOARD, capacity)
+        candidates = [configured_channel, final_board_end - 1]
+        candidates.extend(range(final_board_start, final_board_end))
+
+        seen = set()
+        return [
+            int(channel)
+            for channel in candidates
+            if 0 <= int(channel) < capacity and not (int(channel) in seen or seen.add(int(channel)))
+        ]
+
+    def build_pedal_strength_defaults(self):
+        config = engine.load_config()
+        pedal_config = engine.get_pedal_config(config)
+        down_pwm = int(pedal_config.get("down_pwm", config["actuation"]["strike_max_pwm"]))
+        start_pwm = max(0, min(4095, down_pwm // 2))
+        start_pwm = (start_pwm // 100) * 100
+        return {
+            "start_pwm": start_pwm,
+            "end_pwm": max(start_pwm, min(4095, down_pwm)),
+            "step_pwm": 250,
+            "hold_ms": 900,
+            "rest_ms": 1200,
+            "scan_channels": False,
+        }
+
+    def build_pedal_strength_values(self, pedal_test):
+        start_pwm = int(pedal_test["start_pwm"])
+        end_pwm = int(pedal_test["end_pwm"])
+        step_pwm = int(pedal_test["step_pwm"])
+        values = list(range(start_pwm, end_pwm + 1, step_pwm))
+        if values[-1] != end_pwm:
+            values.append(end_pwm)
+        return values
+
+    def run_pedal_troubleshooting_workflow(self, active_channel_count, pedal_test, reporter):
+        config = engine.load_config()
+        if pedal_test["scan_channels"]:
+            candidates = self.build_pedal_troubleshooting_channels(config, active_channel_count)
+        else:
+            configured = engine.get_pedal_channel(config["mapping"])
+            candidates = [configured if configured is not None else max(0, int(active_channel_count) - 1)]
+        configured_channel = engine.get_pedal_channel(config["mapping"])
+        channel_labels = config["mapping"].get("channel_labels", {})
+        strength_values = self.build_pedal_strength_values(pedal_test)
+
+        connection = None
+        try:
+            connection, port, ready_info = piano_tools.open_runtime_connection()
+            piano_tools.ensure_calibration_hardware_ready(ready_info, config["pca9685"], candidates)
+            reporter("")
+            reporter("Sustain pedal troubleshooting")
+            reporter(f"Serial port: {port}")
+            if configured_channel is None:
+                reporter("No pedal channel is configured, so testing around the last active channel.")
+            else:
+                reporter(f"Configured pedal channel: {engine.describe_global_channel(configured_channel, config['pca9685'])}")
+            reporter(
+                "Watch the pedal linkage and note the first PWM that fully depresses sustain. "
+                f"Ramp: {strength_values[0]}-{strength_values[-1]}/4095 in {pedal_test['step_pwm']} PWM steps, "
+                f"{pedal_test['hold_ms']} ms hold, {pedal_test['rest_ms']} ms rest."
+            )
+
+            tested_channels = []
+            tested_strengths = []
+            for channel in candidates:
+                actuation = engine.resolve_channel_actuation(channel, config)
+                label = channel_labels.get(str(channel), f"Channel {channel}")
+                channel_target = engine.describe_global_channel(channel, config["pca9685"])
+                reporter(f"Testing {channel_target}: {label}")
+                for strength_pwm in strength_values:
+                    pulse = {
+                        "strike_pwm": strength_pwm,
+                        "hold_pwm": strength_pwm,
+                        "strike_ms": max(120, int(actuation["strike_ms"])),
+                        "hold_ms": int(pedal_test["hold_ms"]),
+                        "release_ms": int(pedal_test["rest_ms"]),
+                    }
+                    reporter(f"  Sustain strength {strength_pwm}/4095")
+                    piano_tools.fire_channel(connection, channel, pulse)
+                    tested_strengths.append(strength_pwm)
+                tested_channels.append(channel)
+
+            reporter("Pedal troubleshooting complete.")
+            return {
+                "cancelled": False,
+                "workflow_kind": "pedal_troubleshooting",
+                "configured_channel": configured_channel,
+                "tested_channels": tested_channels,
+                "tested_strengths": tested_strengths,
+                "pedal_test": dict(pedal_test),
+                "port": port,
+            }
+        finally:
+            if connection is not None:
+                try:
+                    engine.send_serial_command(connection, "ALL_OFF", ("OK ALL_OFF",), timeout_seconds=2.0)
+                except Exception:
+                    pass
+                connection.close()
+
+    def build_mosfet_test_defaults(self):
+        if self.mosfet_test_defaults is not None:
+            return dict(self.mosfet_test_defaults)
+
+        config = engine.load_config()
+        actuation = engine.resolve_channel_actuation(0, config)
+        return {
+            "channel": 0,
+            "strike_pwm": int(actuation["strike_max_pwm"]),
+            "hold_pwm": 0,
+            "strike_ms": max(60, int(actuation["strike_ms"])),
+            "hold_ms": 0,
+            "release_ms": 300,
+        }
+
+    def run_mosfet_test_workflow(self, pulse, reporter):
+        config = engine.load_config()
+        channel = int(pulse["channel"])
+        capacity = engine.get_global_channel_capacity(config["pca9685"])
+        if channel < 0 or channel >= capacity:
+            raise RuntimeError(f"Channel {channel} is outside the configured PCA9685 range 0-{capacity - 1}.")
+
+        connection = None
+        try:
+            connection, port, ready_info = piano_tools.open_runtime_connection()
+            piano_tools.ensure_calibration_hardware_ready(ready_info, config["pca9685"], [channel])
+
+            channel_target = engine.describe_global_channel(channel, config["pca9685"])
+            label = config["mapping"].get("channel_labels", {}).get(str(channel), f"Channel {channel}")
+            reporter("")
+            reporter("MOSFET test")
+            reporter(f"Serial port: {port}")
+            reporter(f"Testing {channel_target}: {label}")
+            reporter(
+                "Pulse: "
+                f"strike {pulse['strike_pwm']}/4095 for {pulse['strike_ms']} ms, "
+                f"hold {pulse['hold_pwm']}/4095 for {pulse['hold_ms']} ms, "
+                f"release wait {pulse['release_ms']} ms."
+            )
+
+            piano_tools.fire_channel(connection, channel, pulse)
+            reporter("MOSFET test complete. All outputs are off.")
+            return {
+                "cancelled": False,
+                "workflow_kind": "mosfet_test",
+                "channel": channel,
+                "channel_target": channel_target,
+                "pulse": dict(pulse),
+                "port": port,
+            }
+        finally:
+            if connection is not None:
+                try:
+                    engine.send_serial_command(connection, "ALL_OFF", ("OK ALL_OFF",), timeout_seconds=2.0)
+                except Exception:
+                    pass
+                connection.close()
+
+    def start_mosfet_test(self):
+        if self.worker is not None and self.worker.is_alive():
+            messagebox.showinfo("Already running", "Wait for the current playback job to finish first.", parent=self)
+            return
+
+        dialog = MosfetTestDialog(self, self.build_mosfet_test_defaults())
+        self.wait_window(dialog)
+        if dialog.result is None:
+            return
+        self.mosfet_test_defaults = dict(dialog.result)
+
+        self.append_log("")
+        self.append_log(f"Starting MOSFET test on global channel {dialog.result['channel']}...")
+        self.set_controls_enabled(False)
+
+        worker_args = {
+            "workflow_kind": "mosfet_test",
+            "pulse": dialog.result,
+            "reporter": lambda message: self.message_queue.put(("log", message)),
+        }
+        self.worker = threading.Thread(target=self._run_workflow, args=(worker_args,), daemon=True)
+        self.worker.start()
+
     def start_troubleshooting_run(self):
         if self.worker is not None and self.worker.is_alive():
             messagebox.showinfo("Already running", "Wait for the current playback job to finish first.", parent=self)
@@ -1246,23 +1668,46 @@ class PianoPlayerApp(tk.Tk):
         run_options = self.collect_run_options(base_tempo_bpm=engine.DIAGNOSTIC_BASE_BPM)
         if run_options is None:
             return
+        pedal_test = None
+        if dialog.result == "pedal":
+            pedal_dialog = PedalStrengthDialog(self, self.build_pedal_strength_defaults())
+            self.wait_window(pedal_dialog)
+            if pedal_dialog.result is None:
+                return
+            pedal_test = dict(pedal_dialog.result)
 
-        key_label = dialog.result.title()
+        key_label = "Full sweep" if dialog.result == "full" else dialog.result.title()
         self.append_log("")
-        self.append_log(f"Starting {key_label.lower()} key troubleshooting...")
+        if dialog.result == "pedal":
+            self.append_log(
+                "Starting sustain pedal strength ramp "
+                f"({pedal_test['start_pwm']}-{pedal_test['end_pwm']}/4095)..."
+            )
+        elif dialog.result == "full":
+            self.append_log("Starting full sweep troubleshooting...")
+        else:
+            self.append_log(f"Starting {key_label.lower()} key troubleshooting...")
         self.set_controls_enabled(False)
 
-        worker_args = {
-            "workflow_kind": "troubleshooting",
-            "key_color": dialog.result,
-            "active_channel_count": run_options["active_channel_count"],
-            "preferred_range": run_options["preferred_range"],
-            "preferred_tempo": run_options["preferred_tempo"],
-            "dry_run": False,
-            "export_only": run_options["export_only"],
-            "allow_prompts": False,
-            "reporter": lambda message: self.message_queue.put(("log", message)),
-        }
+        if dialog.result == "pedal":
+            worker_args = {
+                "workflow_kind": "pedal_troubleshooting",
+                "active_channel_count": run_options["active_channel_count"],
+                "pedal_test": pedal_test,
+                "reporter": lambda message: self.message_queue.put(("log", message)),
+            }
+        else:
+            worker_args = {
+                "workflow_kind": "troubleshooting",
+                "key_color": dialog.result,
+                "active_channel_count": run_options["active_channel_count"],
+                "preferred_range": run_options["preferred_range"],
+                "preferred_tempo": run_options["preferred_tempo"],
+                "dry_run": False,
+                "export_only": run_options["export_only"],
+                "allow_prompts": False,
+                "reporter": lambda message: self.message_queue.put(("log", message)),
+            }
 
         self.worker = threading.Thread(target=self._run_workflow, args=(worker_args,), daemon=True)
         self.worker.start()
@@ -1272,6 +1717,10 @@ class PianoPlayerApp(tk.Tk):
             workflow_kind = worker_args.pop("workflow_kind", "conversion")
             if workflow_kind == "troubleshooting":
                 result = engine.run_troubleshooting_workflow(**worker_args)
+            elif workflow_kind == "pedal_troubleshooting":
+                result = self.run_pedal_troubleshooting_workflow(**worker_args)
+            elif workflow_kind == "mosfet_test":
+                result = self.run_mosfet_test_workflow(**worker_args)
             else:
                 result = engine.run_conversion_workflow(**worker_args)
         except Exception as error:
@@ -1303,16 +1752,37 @@ class PianoPlayerApp(tk.Tk):
                     if result.get("cancelled"):
                         self.append_log("Cancelled before conversion.")
                     else:
-                        if result["workflow_kind"] == "troubleshooting":
+                        if result["workflow_kind"] == "mosfet_test":
+                            title = "MOSFET test complete"
+                            pulse = result["pulse"]
+                            summary = (
+                                f"Finished MOSFET test on channel {result['channel']}\n"
+                                f"{result['channel_target']}\n"
+                                f"Strike: {pulse['strike_pwm']}/4095 for {pulse['strike_ms']} ms"
+                            )
+                        elif result["workflow_kind"] == "pedal_troubleshooting":
+                            title = "Pedal troubleshooting complete"
+                            tested = ", ".join(str(channel) for channel in result["tested_channels"])
+                            configured = result.get("configured_channel")
+                            configured_text = "none" if configured is None else str(configured)
+                            pedal_test = result["pedal_test"]
+                            summary = (
+                                "Finished sustain pedal troubleshooting\n"
+                                f"Configured channel: {configured_text}\n"
+                                f"Tested channels: {tested}\n"
+                                f"Strength ramp: {pedal_test['start_pwm']}-{pedal_test['end_pwm']}/4095"
+                            )
+                        elif result["workflow_kind"] == "troubleshooting":
                             if result["payload"] is None:
                                 title = "Troubleshooting dry run complete"
                             elif result["stream_manifest"] is None:
                                 title = "Troubleshooting export complete"
                             else:
                                 title = "Troubleshooting complete"
-                            key_label = result["metadata"].get("diagnostic_key_color", "selected").title()
+                            _diag_color = result["metadata"].get("diagnostic_key_color", "selected")
+                            key_label = "Full sweep" if _diag_color == "full" else _diag_color.title()
                             summary = (
-                                f"Finished {key_label.lower()} key troubleshooting\n"
+                                f"Finished {key_label.lower()} troubleshooting\n"
                                 f"Active hardware channels: {result['metadata']['active_hardware_channel_count']}\n"
                                 f"Steps: {result['metadata'].get('diagnostic_step_count', 0)}\n"
                                 f"Effective tempo: {result['tempo_override']['target_bpm']:.2f} BPM"

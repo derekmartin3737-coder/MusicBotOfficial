@@ -16,7 +16,7 @@
 #include <avr/pgmspace.h>
 #include <Adafruit_PWMServoDriver.h>
 
-#include "../MusicBotOfficial/generated/CDE_Dynamics_Etude.h"
+#include "../../songs/headers/CDE_Dynamics_Etude.h"
 
 Adafruit_PWMServoDriver pwmBoards[SONG_PCA9685_MAX_BOARD_COUNT] = {
     Adafruit_PWMServoDriver(SONG_PCA9685_BOARD_ADDRESSES[0]),

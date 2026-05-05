@@ -15,7 +15,7 @@ songs/metadata/last_streamed_song.json
 # Repeated imports created while testing downloaded MIDI files. Keep curated
 # project examples in songs/midi, but do not commit every local import attempt.
 songs/midi/*_imported_v*.mid
-arduino/MusicBotOfficial/generated/*_imported_v*.h
+songs/headers/*_imported_v*.h
 songs/metadata/*_imported_v*.json
 songs/midi/local/
 

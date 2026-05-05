@@ -282,7 +282,7 @@ You can:
 
 Even though playback now uses serial, the script still writes export/debug files:
 
-- versioned headers in [arduino/MusicBotOfficial/generated](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/arduino/MusicBotOfficial/generated)
+- versioned headers in [songs/headers](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/songs/headers)
 - active header in [arduino/MusicBotOfficial/generated/current_song.h](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/arduino/MusicBotOfficial/generated/current_song.h)
 - versioned metadata JSON in [songs/metadata](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/songs/metadata)
 - active metadata in [songs/metadata/current_song.json](/C:/Users/derek/Downloads/Capstone/Music%20bot%20official%20directory/songs/metadata/current_song.json)

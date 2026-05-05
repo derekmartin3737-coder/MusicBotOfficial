@@ -1,5 +1,5 @@
 {
-  "project_mode": "full_61_solenoid_calibrated_bench",
+  "project_mode": "full_62_actuator_calibrated_bench",
   "pca9685": {
     "board_addresses": [
       96,
@@ -72,12 +72,14 @@
       57,
       58,
       59,
-      60
+      60,
+      61
     ],
     "note_to_channel": {
       "24": 1,
       "25": 3,
       "26": 0,
+      "27": 2,
       "28": 11,
       "29": 10,
       "31": 9,
@@ -139,6 +141,7 @@
       "24": "C1",
       "25": "C#1",
       "26": "D1",
+      "27": "D#1",
       "28": "E1",
       "29": "F1",
       "31": "G1",
@@ -257,12 +260,18 @@
       "57": "PCA9685 0x40 channel 9",
       "58": "PCA9685 0x40 channel 10",
       "59": "PCA9685 0x40 channel 11",
-      "60": "PCA9685 0x40 channel 12"
+      "60": "PCA9685 0x40 channel 12",
+      "61": "Sustain pedal (PCA9685 0x40 channel 13)"
+    },
+    "pedal": {
+      "enabled": true,
+      "channel": 61
     }
   },
   "actuation": {
-    "strike_min_pwm": 2900,
-    "strike_max_pwm": 3900,
+    "strike_min_pwm": 2700,
+    "strike_max_pwm": 3950,
+    "velocity_curve": 1.35,
     "strike_ms": 45,
     "hold_min_pwm": 1200,
     "hold_max_pwm": 2000,
@@ -270,10 +279,114 @@
     "release_delay_ms": 20,
     "minimum_rearm_gap_ms": 25,
     "retrigger_gap_ms": 16,
-    "channel_overrides": {}
+    "note_color_overrides": {
+      "black": {
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2800,
+        "hold_ratio": 0.72
+      }
+    },
+    "channel_overrides": {
+      "2": {
+        "strike_min_pwm": 4095,
+        "strike_max_pwm": 4095,
+        "strike_ms": 250,
+        "hold_min_pwm": 2600,
+        "hold_max_pwm": 2800,
+        "hold_ratio": 0.68,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 40,
+        "retrigger_gap_ms": 25,
+        "temporary_debug_note": "D#1 channel 2 weak MOSFET path; bench test needed 4095 PWM for 250 ms to snap reliably, with stronger hold so the note does not release early"
+      },
+      "11": {
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2600,
+        "hold_ratio": 0.66,
+        "temporary_debug_note": "E1 was releasing early during full sweep; stronger hold keeps the key depressed after strike"
+      },
+      "20": {
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2600,
+        "hold_ratio": 0.66,
+        "temporary_debug_note": "A2 was releasing early after strike; stronger hold keeps the key depressed"
+      },
+      "24": {
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2600,
+        "hold_ratio": 0.66,
+        "temporary_debug_note": "D3 was releasing early after strike; stronger hold keeps the key depressed"
+      },
+      "28": {
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2600,
+        "hold_ratio": 0.66,
+        "temporary_debug_note": "B3 was releasing early during full sweep; stronger hold keeps the key depressed after strike"
+      },
+      "32": {
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2600,
+        "hold_ratio": 0.66,
+        "temporary_debug_note": "A3 was releasing early after strike; stronger hold keeps the key depressed"
+      },
+      "33": {
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2600,
+        "hold_ratio": 0.66,
+        "temporary_debug_note": "G3 was releasing early after strike; stronger hold keeps the key depressed"
+      },
+      "35": {
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2600,
+        "hold_ratio": 0.66,
+        "temporary_debug_note": "E3 was releasing early during full sweep; stronger hold keeps the key depressed after strike"
+      },
+      "36": {
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2600,
+        "hold_ratio": 0.66,
+        "temporary_debug_note": "D4 was releasing early after strike; stronger hold keeps the key depressed"
+      },
+      "40": {
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2600,
+        "hold_ratio": 0.66,
+        "temporary_debug_note": "A4 was releasing early after strike; stronger hold keeps the key depressed"
+      },
+      "47": {
+        "strike_min_pwm": 4050,
+        "strike_max_pwm": 4095,
+        "strike_ms": 95,
+        "hold_min_pwm": 2700,
+        "hold_max_pwm": 2900,
+        "hold_ratio": 0.72,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 40,
+        "retrigger_gap_ms": 25,
+        "temporary_debug_note": "F#4 was silent during full sweep; stronger and slightly longer strike tests whether the key needs more pull power"
+      },
+      "50": {
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2600,
+        "hold_ratio": 0.66,
+        "temporary_debug_note": "C5 was releasing early after strike; stronger hold keeps the key depressed"
+      },
+      "54": {
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2600,
+        "hold_ratio": 0.66,
+        "temporary_debug_note": "G5 was releasing early after strike; stronger hold keeps the key depressed"
+      },
+      "60": {
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2600,
+        "hold_ratio": 0.66,
+        "temporary_debug_note": "C6 was releasing early after strike; stronger hold keeps the key depressed"
+      }
+    }
   },
   "pedal": {
-    "enabled": false,
+    "enabled": true,
     "servo_signal_pin": 2,
     "servo_model": "9g microservo",
     "horn_length_in": 0.5,
@@ -290,11 +403,17 @@
       "recommended_down_profile_ms": 426,
       "recommended_up_profile_ms": 442,
       "notes": "Reaction-based timings include human response delay. Use these as bench-tuning targets until video-based pedal contact and release timings are captured."
-    }
+    },
+    "channel": 61,
+    "down_pwm": 3250,
+    "strength_percent": 79,
+    "up_pwm": 0,
+    "lead_ms": 0,
+    "failsafe_release_ms": 1000
   },
   "notes": {
-    "current_setup": "The runtime now supports up to four PCA9685 boards sharing the Arduino's I2C bus in parallel as one 64-channel global space. The current bench setup uses 61 solenoids across four PCA9685 boards: channels 0 through 60 are wired, with the final board using only its lower 13 channels.",
+    "current_setup": "The runtime supports up to four PCA9685 boards sharing the Arduino I2C bus as one 64-channel global space. The current bench setup uses 62 actuators: channels 0 through 60 are piano keys and channel 61 is the sustain pedal, one position higher than the highest note.",
     "wiring_assumption": "Global channels 0 through 15 live on the first configured PCA9685 address, 16 through 31 on the second, 32 through 47 on the third, and 48 through 63 on the fourth.",
-    "future_setup": "The committed default mapping now matches the current 61-solenoid bench. If one machine needs local tweaks, it can still save a calibrated_mapping.json override without changing the repo default for everyone else."
+    "future_setup": "The committed default mapping now matches the current 62-actuator bench. If one machine needs local tweaks, it can still save a calibrated_mapping.json override without changing the repo default for everyone else."
   }
 }

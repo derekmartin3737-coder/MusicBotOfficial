@@ -22,24 +22,28 @@ CALIBRATION_INTER_FIRE_DELAY_SECONDS = 0.44
 
 
 def build_calibration_pulse(actuation):
-    """Build a conservative test pulse from the configured actuation limits."""
-    strike_pwm = int(round((int(actuation["strike_min_pwm"]) + int(actuation["strike_max_pwm"])) / 2))
-    hold_pwm = int(round((int(actuation["hold_min_pwm"]) + int(actuation["hold_max_pwm"])) / 2))
+    """Build a short hardware test pulse from the configured actuation limits."""
+    strike_pwm = int(actuation["strike_max_pwm"])
+    hold_pwm = int(actuation["hold_max_pwm"])
     return {
         "strike_pwm": strike_pwm,
         "hold_pwm": hold_pwm,
-        "strike_ms": int(actuation["strike_ms"]),
-        "hold_ms": max(120, int(actuation["strike_ms"]) * 3),
-        "release_ms": 240,
+        "strike_ms": max(60, int(actuation["strike_ms"])),
+        "hold_ms": max(180, int(actuation["strike_ms"]) * 3),
+        "release_ms": 280,
     }
 
 
 def build_calibration_channel_labels(pca_config, active_sequence, existing_labels=None):
     labels = {}
+    existing_labels = existing_labels or {}
     for channel in active_sequence:
         channel_key = str(int(channel))
         target = engine.split_global_channel(channel, pca_config)
-        labels[channel_key] = f"PCA9685 0x{target['i2c_address']:02X} channel {target['local_channel']}"
+        labels[channel_key] = existing_labels.get(
+            channel_key,
+            f"PCA9685 0x{target['i2c_address']:02X} channel {target['local_channel']}",
+        )
     return labels
 
 
@@ -126,8 +130,12 @@ def fire_channel(connection, channel, pulse):
         f"FIRE {channel} {pulse['strike_pwm']} {pulse['hold_pwm']} "
         f"{pulse['strike_ms']} {pulse['hold_ms']} {pulse['release_ms']}"
     )
+    pulse_timeout = max(
+        5.0,
+        (int(pulse["strike_ms"]) + int(pulse["hold_ms"]) + int(pulse["release_ms"])) / 1000.0 + 2.0,
+    )
     try:
-        return engine.send_serial_command(connection, command, ("OK FIRED",), timeout_seconds=5.0)
+        return engine.send_serial_command(connection, command, ("OK FIRED",), timeout_seconds=pulse_timeout)
     finally:
         try:
             engine.send_serial_command(connection, "ALL_OFF", ("OK ALL_OFF",), timeout_seconds=2.0)
@@ -170,6 +178,12 @@ def build_mapping_lines(mapping):
         lines.append(
             f"{engine.midi_note_name(int(note))} ({note}) -> {engine.describe_global_channel(channel, pca_config)} ({channel_label})"
         )
+    pedal_channel = engine.get_pedal_channel(mapping)
+    if pedal_channel is not None:
+        channel_label = channel_labels.get(str(pedal_channel), f"Channel {pedal_channel}")
+        lines.append(
+            f"Sustain pedal -> {engine.describe_global_channel(pedal_channel, pca_config)} ({channel_label})"
+        )
     return lines
 
 
@@ -193,6 +207,9 @@ def get_unused_mapping_channels(mapping, active_channel_count=None):
         channel_sequence = [channel for channel in channel_sequence if channel < int(active_channel_count)]
 
     used_channels = {int(channel) for channel in mapping.get("note_to_channel", {}).values()}
+    pedal_channel = engine.get_pedal_channel(mapping)
+    if pedal_channel is not None:
+        used_channels.add(int(pedal_channel))
     return [channel for channel in channel_sequence if channel not in used_channels]
 
 
@@ -229,9 +246,16 @@ def build_calibration_config(base_config, active_channel_count):
         "mode": "explicit_note_map",
         "note_to_channel": {},
         "note_labels": {},
-        "channel_labels": build_calibration_channel_labels(config["pca9685"], active_sequence),
+        "channel_labels": build_calibration_channel_labels(
+            config["pca9685"],
+            active_sequence,
+            base_config.get("mapping", {}).get("channel_labels", {}),
+        ),
         "channel_sequence": active_sequence,
     }
+    pedal_channel = engine.get_pedal_channel(base_config.get("mapping", {}))
+    if pedal_channel is not None and pedal_channel in active_sequence:
+        config["mapping"]["pedal"] = copy.deepcopy(base_config["mapping"].get("pedal", {}))
 
     return config, active_sequence
 
@@ -266,24 +290,21 @@ def contiguous_octave_mapping(config, bottom_note):
     mapping = engine.build_contiguous_mapping(
         config["mapping"],
         bottom_note,
-        bottom_note + len(engine.get_mapping_channel_order(config["mapping"])) - 1,
+        bottom_note + len(engine.get_playable_channel_order(config["mapping"])) - 1,
     )
     return mapping
 
 
 def run_sweep(connection, config):
-    """Fire every mapped note once so wiring/order mistakes are obvious."""
-    print("\nSweeping active hardware channels in global channel order.")
-    for channel, mapped_notes in iter_calibration_channels(config["mapping"]):
+    """Fire mapped notes once in musical order so missed keys are easy to spot."""
+    print("\nSweeping saved note mapping in musical order.")
+    for note, channel in iter_mapping_in_note_order(config["mapping"]):
         actuation = engine.resolve_channel_actuation(channel, config)
         pulse = build_calibration_pulse(actuation)
         label = config["mapping"].get("channel_labels", {}).get(str(channel), f"Channel {channel}")
         channel_target = engine.describe_global_channel(channel, config["pca9685"])
-        if len(mapped_notes) == 1:
-            print(f"  Testing {engine.midi_note_name(mapped_notes[0])} on {channel_target}: {label}")
-        elif len(mapped_notes) > 1:
-            notes = ", ".join(engine.midi_note_name(note) for note in mapped_notes)
-            print(f"  Firing {channel_target}: {label} (currently mapped to {notes})")
+        if note is not None:
+            print(f"  Testing {engine.midi_note_name(note)} on {channel_target}: {label}")
         else:
             print(f"  Firing {channel_target}: {label}")
         fire_channel(connection, channel, pulse)
@@ -343,6 +364,7 @@ def calibrate_manual_mapping(connection, config, port, ready_info):
     note_labels = {}
     channel_labels = dict(config["mapping"].get("channel_labels", {}))
     channel_sequence = engine.get_mapping_channel_order(config["mapping"])
+    pedal_channel = engine.get_pedal_channel(config["mapping"])
 
     print("\nManual channel mapping:")
     print("A single channel will fire, then you enter the piano key it moved.")
@@ -355,6 +377,9 @@ def calibrate_manual_mapping(connection, config, port, ready_info):
         print(f"\nFiring {engine.describe_global_channel(channel, config['pca9685'])}: {label}")
         fire_channel(connection, channel, pulse)
         time.sleep(CALIBRATION_INTER_FIRE_DELAY_SECONDS)
+        if pedal_channel is not None and int(channel) == int(pedal_channel):
+            print("Saved as the sustain pedal channel, not a piano note.")
+            continue
 
         while True:
             raw = input("Which piano note moved? ").strip()
@@ -381,6 +406,7 @@ def calibrate_manual_mapping(connection, config, port, ready_info):
         "note_labels": note_labels,
         "channel_labels": channel_labels,
         "channel_sequence": channel_sequence,
+        "pedal": copy.deepcopy(config["mapping"].get("pedal", {})),
     }
     mapping_lines = build_mapping_lines(mapping)
     report_payload = {
@@ -410,6 +436,7 @@ def patch_manual_mapping(connection, config, port, ready_info, patch_channels=No
     note_labels = dict(existing_mapping.get("note_labels", {}))
     channel_labels = dict(existing_mapping.get("channel_labels", {}))
     channel_sequence = [int(channel) for channel in existing_mapping.get("channel_sequence", [])]
+    pedal_channel = engine.get_pedal_channel(existing_mapping)
     missing_notes = infer_missing_notes(existing_mapping)
 
     print("\nPatch existing mapping")
@@ -427,6 +454,9 @@ def patch_manual_mapping(connection, config, port, ready_info, patch_channels=No
         print(f"\nFiring {channel_target}: {label}")
         fire_channel(connection, channel, pulse)
         time.sleep(CALIBRATION_INTER_FIRE_DELAY_SECONDS)
+        if pedal_channel is not None and int(channel) == int(pedal_channel):
+            print("This is the sustain pedal channel, so it stays out of the note map.")
+            continue
 
         while True:
             raw = input("Which piano note moved? ").strip()
@@ -454,6 +484,7 @@ def patch_manual_mapping(connection, config, port, ready_info, patch_channels=No
         "note_labels": note_labels,
         "channel_labels": channel_labels,
         "channel_sequence": channel_sequence,
+        "pedal": copy.deepcopy(existing_mapping.get("pedal", {})),
     }
     mapping_lines = build_mapping_lines(mapping)
     report_payload = {

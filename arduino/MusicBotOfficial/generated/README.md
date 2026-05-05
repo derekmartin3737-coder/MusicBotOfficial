@@ -1,13 +1,11 @@
-# Generated Song Headers
+# Active Song Header
 
-This folder stores Arduino header files created by the MIDI converter.
+This folder is inside the Arduino sketch folder, so keep it boring for the
+Arduino IDE.
 
-## Tracked Files
+Only `current_song.h` belongs here during normal playback. It is overwritten by
+the Python converter and is ignored by Git.
 
-Curated example headers are committed so teammates can inspect generated output or use `HeaderPlaybackFallback.ino` without running Python first.
-
-## Ignored Files
-
-`current_song.h` is intentionally ignored. It is the local "last conversion" output and changes every time someone tests a different song.
-
-Repeated downloaded imports such as `*_imported_v*.h` are also ignored. If the team wants to keep a generated header permanently, give the source song a stable project name and commit the curated output intentionally.
+Versioned song headers are archived outside the Arduino sketch folder in
+`songs/headers` so downloaded song names cannot make the Arduino IDE ask to
+rename sketch tabs.
