@@ -442,8 +442,8 @@
       "notes": "Reaction-based timings include human response delay. Use these as bench-tuning targets until video-based pedal contact and release timings are captured."
     },
     "channel": 61,
-    "down_pwm": 3250,
-    "strength_percent": 79,
+    "down_pwm": 3500,
+    "strength_percent": 85,
     "up_pwm": 0,
     "lead_ms": 0,
     "failsafe_release_ms": 1000
