@@ -744,6 +744,13 @@ def get_performance_feel_config(config):
         },
         "articulation": {
             "enabled": True,
+            "staccato_enabled": True,
+            "staccato_max_beats": 0.5,
+            "staccato_duration_ratio": 0.55,
+            "staccato_min_duration_ms": 55,
+            "staccato_max_duration_ms": 120,
+            "staccato_min_gap_ms": 65,
+            "staccato_velocity_boost": 5,
             "repeated_note_gap_beats": 1.25,
             "repeated_duration_ratio": 0.78,
             "lyrical_min_duration_beats": 0.75,
@@ -804,6 +811,7 @@ def apply_performance_feel(note_intervals, pedal_events, config, beat_ms):
             "enabled": False,
             "timing_adjusted_notes": 0,
             "articulation_adjusted_notes": 0,
+            "staccato_adjusted_notes": 0,
             "velocity_adjusted_notes": 0,
             "pedal_adjusted_events": 0,
         }
@@ -817,6 +825,7 @@ def apply_performance_feel(note_intervals, pedal_events, config, beat_ms):
     adjusted_intervals = []
     timing_adjusted = 0
     articulation_adjusted = 0
+    staccato_adjusted = 0
     velocity_adjusted = 0
 
     for interval in sorted(note_intervals, key=lambda item: (item["start_ms"], item["note"], item["end_ms"])):
@@ -841,14 +850,30 @@ def apply_performance_feel(note_intervals, pedal_events, config, beat_ms):
                 timing_adjusted += 1
 
         articulation = feel_config["articulation"]
+        articulation_velocity_delta = 0
         if articulation.get("enabled", True):
             start_ms = int(adjusted["start_ms"])
             end_ms = int(adjusted["end_ms"])
             duration_ms = max(1, end_ms - start_ms)
             min_duration_ms = int(articulation.get("min_duration_ms", 80))
+            staccato_min_duration_ms = int(articulation.get("staccato_min_duration_ms", 55))
+            staccato_max_duration_ms = int(articulation.get("staccato_max_duration_ms", 120))
+            staccato_min_gap_ms = int(articulation.get("staccato_min_gap_ms", 65))
+            staccato_max_ms = float(articulation.get("staccato_max_beats", 0.5)) * beat_ms
             previous_end = previous_note_end.get(note)
             repeated_gap_ms = float(articulation.get("repeated_note_gap_beats", 1.25)) * beat_ms
-            if previous_end is not None and start_ms - previous_end <= repeated_gap_ms:
+            if articulation.get("staccato_enabled", True) and duration_ms <= staccato_max_ms:
+                staccato_duration_ms = int(round(duration_ms * float(articulation.get("staccato_duration_ratio", 0.55))))
+                staccato_duration_ms = max(staccato_min_duration_ms, min(staccato_max_duration_ms, staccato_duration_ms))
+                if duration_ms - staccato_duration_ms < staccato_min_gap_ms and duration_ms > staccato_min_duration_ms + staccato_min_gap_ms:
+                    staccato_duration_ms = duration_ms - staccato_min_gap_ms
+                staccato_duration_ms = max(1, min(duration_ms, staccato_duration_ms))
+                if staccato_duration_ms < duration_ms:
+                    adjusted["end_ms"] = start_ms + staccato_duration_ms
+                    articulation_adjusted += 1
+                    staccato_adjusted += 1
+                    articulation_velocity_delta += int(articulation.get("staccato_velocity_boost", 5))
+            elif previous_end is not None and start_ms - previous_end <= repeated_gap_ms:
                 duration_ms = max(min_duration_ms, int(round(duration_ms * float(articulation.get("repeated_duration_ratio", 0.78)))))
                 adjusted["end_ms"] = start_ms + duration_ms
                 articulation_adjusted += 1
@@ -862,7 +887,7 @@ def apply_performance_feel(note_intervals, pedal_events, config, beat_ms):
                     articulation_adjusted += 1
             previous_note_end[note] = int(adjusted["end_ms"])
 
-        velocity_delta = 0
+        velocity_delta = articulation_velocity_delta
         accent = feel_config["accent"]
         if accent.get("enabled", True):
             start_ms = int(adjusted["start_ms"])
@@ -922,6 +947,7 @@ def apply_performance_feel(note_intervals, pedal_events, config, beat_ms):
         "enabled": True,
         "timing_adjusted_notes": timing_adjusted,
         "articulation_adjusted_notes": articulation_adjusted,
+        "staccato_adjusted_notes": staccato_adjusted,
         "velocity_adjusted_notes": velocity_adjusted,
         "pedal_adjusted_events": pedal_adjusted,
     }
@@ -1716,6 +1742,80 @@ def get_pedal_config(config):
     return pedal_config
 
 
+def pedal_motion_ms(pedal_config, key, reaction_key=None):
+    raw_value = pedal_config.get(key)
+    if raw_value is None and reaction_key is not None:
+        reaction = pedal_config.get("reaction_characterization") or {}
+        raw_value = reaction.get(reaction_key)
+    if raw_value is None:
+        return 0
+    return max(0, int(round(float(raw_value))))
+
+
+def build_pedal_intervals(pedal_events, minimum_down_ms=0, merge_gap_ms=0, failsafe_release_ms=1000):
+    intervals = []
+    active_down_event = None
+
+    for event in sorted(pedal_events, key=lambda item: int(item["time_ms"])):
+        if bool(event["down"]):
+            if active_down_event is None:
+                active_down_event = event
+            continue
+
+        if active_down_event is None:
+            continue
+
+        down_time_ms = int(active_down_event["time_ms"])
+        source_release_time_ms = int(event["time_ms"])
+        release_time_ms = max(source_release_time_ms, down_time_ms + minimum_down_ms)
+        intervals.append(
+            {
+                "down_event": active_down_event,
+                "up_event": event,
+                "down_time_ms": down_time_ms,
+                "release_time_ms": release_time_ms,
+                "source_release_time_ms": source_release_time_ms,
+                "minimum_hold_extended": release_time_ms > source_release_time_ms,
+                "merged_short_gap": False,
+            }
+        )
+        active_down_event = None
+
+    if active_down_event is not None:
+        down_time_ms = int(active_down_event["time_ms"])
+        intervals.append(
+            {
+                "down_event": active_down_event,
+                "up_event": None,
+                "down_time_ms": down_time_ms,
+                "release_time_ms": down_time_ms + max(failsafe_release_ms, minimum_down_ms),
+                "source_release_time_ms": None,
+                "minimum_hold_extended": False,
+                "merged_short_gap": False,
+            }
+        )
+
+    if not intervals or merge_gap_ms <= 0:
+        return intervals
+
+    merged_intervals = [intervals[0]]
+    for interval in intervals[1:]:
+        previous = merged_intervals[-1]
+        if int(interval["down_time_ms"]) <= int(previous["release_time_ms"]) + merge_gap_ms:
+            if int(interval["release_time_ms"]) > int(previous["release_time_ms"]):
+                previous["release_time_ms"] = interval["release_time_ms"]
+                previous["up_event"] = interval.get("up_event")
+                previous["source_release_time_ms"] = interval.get("source_release_time_ms")
+            previous["minimum_hold_extended"] = bool(
+                previous.get("minimum_hold_extended") or interval.get("minimum_hold_extended")
+            )
+            previous["merged_short_gap"] = True
+        else:
+            merged_intervals.append(interval)
+
+    return merged_intervals
+
+
 def build_pedal_timeline_events(pedal_events, config):
     pedal_config = get_pedal_config(config)
     channel = pedal_config.get("channel")
@@ -1729,38 +1829,52 @@ def build_pedal_timeline_events(pedal_events, config):
     down_pwm = int(pedal_config.get("down_pwm", config["actuation"]["hold_max_pwm"]))
     up_pwm = int(pedal_config.get("up_pwm", 0))
     lead_ms = int(pedal_config.get("lead_ms", 0))
+    minimum_down_ms = pedal_motion_ms(
+        pedal_config,
+        "minimum_down_ms",
+        reaction_key="recommended_down_profile_ms",
+    )
+    merge_gap_ms = pedal_motion_ms(pedal_config, "merge_gap_ms")
+    failsafe_release_ms = int(pedal_config.get("failsafe_release_ms", 1000))
     timeline = []
     metadata = []
 
-    for event in pedal_events:
-        scheduled_time_ms = max(0, int(event["time_ms"]) - lead_ms)
-        pwm = down_pwm if event["down"] else up_pwm
-        timeline.append((scheduled_time_ms, channel, pwm))
+    for interval in build_pedal_intervals(pedal_events, minimum_down_ms, merge_gap_ms, failsafe_release_ms):
+        down_event = interval["down_event"]
+        up_event = interval.get("up_event")
+        down_source_time_ms = int(down_event["time_ms"])
+        up_source_time_ms = int(up_event["time_ms"]) if up_event is not None else interval["release_time_ms"]
+        down_scheduled_time_ms = max(0, int(interval["down_time_ms"]) - lead_ms)
+        up_scheduled_time_ms = max(0, int(interval["release_time_ms"]) - lead_ms)
+
+        timeline.append((down_scheduled_time_ms, channel, down_pwm))
         metadata.append(
             {
-                "source_time_ms": event["time_ms"],
-                "scheduled_time_ms": scheduled_time_ms,
-                "down": bool(event["down"]),
-                "value": event["value"],
+                "source_time_ms": down_source_time_ms,
+                "scheduled_time_ms": down_scheduled_time_ms,
+                "down": True,
+                "value": down_event["value"],
                 "channel": channel,
-                "pwm": pwm,
-                "source_channel": event.get("source_channel"),
+                "pwm": down_pwm,
+                "source_channel": down_event.get("source_channel"),
             }
         )
-
-    if metadata and metadata[-1]["down"]:
-        final_release_ms = metadata[-1]["scheduled_time_ms"] + int(pedal_config.get("failsafe_release_ms", 1000))
-        timeline.append((final_release_ms, channel, up_pwm))
+        timeline.append((up_scheduled_time_ms, channel, up_pwm))
         metadata.append(
             {
-                "source_time_ms": final_release_ms,
-                "scheduled_time_ms": final_release_ms,
+                "source_time_ms": up_source_time_ms,
+                "scheduled_time_ms": up_scheduled_time_ms,
                 "down": False,
-                "value": 0,
+                "value": int(up_event["value"]) if up_event is not None else 0,
                 "channel": channel,
                 "pwm": up_pwm,
-                "source_channel": None,
-                "failsafe_release": True,
+                "source_channel": up_event.get("source_channel") if up_event is not None else None,
+                "source_duration_ms": max(0, up_source_time_ms - down_source_time_ms),
+                "scheduled_duration_ms": max(0, up_scheduled_time_ms - down_scheduled_time_ms),
+                "minimum_down_ms": minimum_down_ms,
+                "minimum_hold_extended": bool(interval.get("minimum_hold_extended")),
+                "merged_short_gap": bool(interval.get("merged_short_gap")),
+                "failsafe_release": up_event is None,
             }
         )
 
@@ -2451,17 +2565,79 @@ def send_event_chunk(connection, events, start_index, chunk_size):
     return end_index
 
 
-def wait_for_playback_done(connection, timeout_seconds):
+def playback_control_pause_requested(playback_control):
+    if playback_control is None:
+        return False
+    pause_requested = getattr(playback_control, "pause_requested", None)
+    if callable(pause_requested):
+        return bool(pause_requested())
+    return False
+
+
+def playback_control_consume_action(playback_control):
+    if playback_control is None:
+        return None
+    consume_action = getattr(playback_control, "consume_action", None)
+    if callable(consume_action):
+        return consume_action()
+    return None
+
+
+def playback_control_set_paused(playback_control, paused):
+    if playback_control is None:
+        return
+    set_paused = getattr(playback_control, "set_paused", None)
+    if callable(set_paused):
+        set_paused(paused)
+
+
+def handle_playback_control(connection, playback_control, paused):
+    action = playback_control_consume_action(playback_control)
+    if action in {"skip", "replay"}:
+        try:
+            send_serial_command(connection, "STOP", ("OK STOPPED",), timeout_seconds=2.0)
+            send_serial_command(connection, "CLEAR", ("OK CLEARED",), timeout_seconds=2.0)
+        finally:
+            playback_control_set_paused(playback_control, False)
+        return action, False
+
+    pause_requested = playback_control_pause_requested(playback_control)
+    if pause_requested and not paused:
+        send_serial_command(connection, "PAUSE", ("OK PAUSED",), timeout_seconds=2.0)
+        playback_control_set_paused(playback_control, True)
+        return None, True
+    if not pause_requested and paused:
+        send_serial_command(connection, "RESUME", ("OK RESUMED",), timeout_seconds=2.0)
+        playback_control_set_paused(playback_control, False)
+        return None, False
+
+    return None, paused
+
+
+def wait_for_playback_done(connection, timeout_seconds, playback_control=None, paused=False):
     deadline = time.time() + timeout_seconds
     while True:
-        response = read_serial_response(connection, deadline)
+        control_action, paused = handle_playback_control(connection, playback_control, paused)
+        if control_action is not None:
+            return None, control_action, paused
+        if paused:
+            time.sleep(0.05)
+            deadline += 0.05
+            continue
+
+        try:
+            response = read_serial_response(connection, min(deadline, time.time() + 0.2))
+        except TimeoutError:
+            if time.time() >= deadline:
+                raise
+            continue
         if response.startswith("ERROR "):
             raise RuntimeError(f"Arduino runtime returned an error while waiting for playback completion: {response}")
         if response.startswith("OK PLAYBACK_DONE"):
-            return response
+            return response, None, paused
 
 
-def stream_song_to_arduino(payload, deployment_config):
+def stream_song_to_arduino(payload, deployment_config, playback_control=None):
     """Stream generated events to the fixed Arduino runtime over serial.
 
     The Uno cannot store a large song in RAM, so Python fills the Arduino's small
@@ -2480,6 +2656,8 @@ def stream_song_to_arduino(payload, deployment_config):
     events = payload["events"]
 
     playback_done_response = None
+    control_action = None
+    paused = False
     with serial.Serial(port=port, baudrate=baud_rate, timeout=0.5) as connection:
         try:
             time.sleep(startup_wait_ms / 1000.0)
@@ -2502,6 +2680,10 @@ def stream_song_to_arduino(payload, deployment_config):
             play_response = send_serial_command(connection, "PLAY", ("OK PLAYING",), timeout_seconds=2.0)
 
             while sent_event_count < len(events):
+                control_action, paused = handle_playback_control(connection, playback_control, paused)
+                if control_action is not None:
+                    break
+
                 status_response = send_serial_command(connection, "STATUS", ("STATUS",), timeout_seconds=2.0)
                 status_fields = parse_status_response(status_response)
                 free_slots = int(status_fields.get("free", 0))
@@ -2512,11 +2694,13 @@ def stream_song_to_arduino(payload, deployment_config):
                 sent_event_count = send_event_chunk(connection, events, sent_event_count, free_slots)
                 send_serial_command(connection, "COMMIT", ("OK ACCEPTED",), timeout_seconds=2.0)
 
-            if wait_for_finish:
+            if control_action is None and wait_for_finish:
                 total_runtime_seconds = sum(event["dt_ms"] for event in events) / 1000.0
-                playback_done_response = wait_for_playback_done(
+                playback_done_response, control_action, paused = wait_for_playback_done(
                     connection,
                     timeout_seconds=max(10.0, total_runtime_seconds + 15.0),
+                    playback_control=playback_control,
+                    paused=paused,
                 )
         except Exception:
             # If Python loses the serial connection mid-song, make a best-effort
@@ -2538,6 +2722,7 @@ def stream_song_to_arduino(payload, deployment_config):
         "sent_event_count": sent_event_count,
         "stream_response": play_response,
         "playback_done_response": playback_done_response,
+        "control_action": control_action,
     }
     STREAM_MANIFEST_PATH.write_text(json.dumps(manifest_payload, indent=2), encoding="utf-8")
 
@@ -2641,6 +2826,7 @@ def run_conversion_workflow(
     allow_prompts=True,
     performance_feel_enabled=None,
     auto_measure_pedal=False,
+    playback_control=None,
     config=None,
     user_preferences=None,
     deployment_config=None,
@@ -2911,7 +3097,7 @@ def run_conversion_workflow(
 
     stream_manifest = None
     if payload is not None and not export_only:
-        stream_manifest = stream_song_to_arduino(payload, deployment_config)
+        stream_manifest = stream_song_to_arduino(payload, deployment_config, playback_control=playback_control)
 
     if not dry_run:
         report_line(reporter, "")
@@ -2931,6 +3117,8 @@ def run_conversion_workflow(
                 report_line(reporter, f"Arduino IDE sync warning: {deployment_paths['sync_error']}")
         if stream_manifest is not None:
             report_line(reporter, f"USB playback sent on port: {stream_manifest['port']}")
+            if stream_manifest.get("control_action"):
+                report_line(reporter, f"Playback control action: {stream_manifest['control_action']}")
             report_line(
                 reporter,
                 f"Streamed {stream_manifest['sent_event_count']} events with runtime protocol "
@@ -2955,6 +3143,7 @@ def run_conversion_workflow(
                 "Performance feel: "
                 f"timing {performance_feel_stats['timing_adjusted_notes']}, "
                 f"articulation {performance_feel_stats['articulation_adjusted_notes']}, "
+                f"staccato {performance_feel_stats.get('staccato_adjusted_notes', 0)}, "
                 f"velocity {performance_feel_stats['velocity_adjusted_notes']}, "
                 f"pedal {performance_feel_stats['pedal_adjusted_events']}",
             )

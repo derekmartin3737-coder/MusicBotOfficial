@@ -394,6 +394,13 @@
     },
     "articulation": {
       "enabled": true,
+      "staccato_enabled": true,
+      "staccato_max_beats": 0.5,
+      "staccato_duration_ratio": 0.55,
+      "staccato_min_duration_ms": 55,
+      "staccato_max_duration_ms": 120,
+      "staccato_min_gap_ms": 65,
+      "staccato_velocity_boost": 5,
       "repeated_note_gap_beats": 1.25,
       "repeated_duration_ratio": 0.78,
       "lyrical_min_duration_beats": 0.75,
@@ -446,6 +453,8 @@
     "strength_percent": 85,
     "up_pwm": 0,
     "lead_ms": 0,
+    "minimum_down_ms": 500,
+    "merge_gap_ms": 120,
     "failsafe_release_ms": 1000
   },
   "notes": {

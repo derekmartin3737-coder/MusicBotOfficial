@@ -32,6 +32,7 @@ INPUT_BORDER = "#c7d0da"
 LOG_BG = "#10151c"
 LOG_TEXT = "#e7edf5"
 LOG_MUTED = "#90a0b5"
+QUEUE_INTER_SONG_DELAY_SECONDS = 3.0
 
 
 class CalibrationActionDialog(tk.Toplevel):
@@ -365,6 +366,54 @@ class MosfetTestDialog(tk.Toplevel):
         self.destroy()
 
 
+class PlaybackControlState:
+    def __init__(self):
+        self.lock = threading.Lock()
+        self._pause_requested = False
+        self._paused = False
+        self._action = None
+
+    def request_pause(self):
+        with self.lock:
+            self._pause_requested = True
+
+    def request_resume(self):
+        with self.lock:
+            self._pause_requested = False
+
+    def request_skip(self):
+        with self.lock:
+            self._action = "skip"
+            self._pause_requested = False
+
+    def request_replay(self):
+        with self.lock:
+            self._action = "replay"
+            self._pause_requested = False
+
+    def pause_requested(self):
+        with self.lock:
+            return self._pause_requested
+
+    def consume_action(self):
+        with self.lock:
+            action = self._action
+            self._action = None
+            return action
+
+    def set_paused(self, paused):
+        with self.lock:
+            self._paused = bool(paused)
+
+    def is_paused(self):
+        with self.lock:
+            return self._paused
+
+    def is_pause_requested(self):
+        with self.lock:
+            return self._pause_requested
+
+
 class PianoPlayerApp(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -383,6 +432,15 @@ class PianoPlayerApp(tk.Tk):
         self.message_queue = queue.Queue()
         self.filtered_song_entries = []
         self.song_catalog_refresh_in_progress = False
+        self.pending_song_catalog_refresh = None
+        self.selection_flash_after_id = None
+        self.completion_dialog = None
+        self.playback_queue = []
+        self.queue_lock = threading.Lock()
+        self.current_queue_item = None
+        self.queue_is_playing = False
+        self.playback_control = None
+        self.playback_locked_widgets = []
         self.mosfet_test_defaults = None
         playback_preferences = self.user_preferences.get("playback", {})
         default_active_channels = playback_preferences.get(
@@ -399,6 +457,7 @@ class PianoPlayerApp(tk.Tk):
         self.song_info_var = tk.StringVar(value="No MIDI selected yet.")
         self.song_catalog_status_var = tk.StringVar(value="Loading available songs...")
         self.song_search_var = tk.StringVar(value="")
+        self.queue_status_var = tk.StringVar(value="Queue empty.")
         self.active_channels_var = tk.StringVar(value=str(default_active_channels))
         self.tempo_var = tk.StringVar(value="")
         self.range_var = tk.StringVar(value=str(default_playable_range))
@@ -447,6 +506,8 @@ class PianoPlayerApp(tk.Tk):
         style.configure("Muted.Panel.TLabel", background=PANEL_BG, foreground=MUTED_TEXT, font=("Segoe UI", 9))
         style.configure("Status.Panel.TLabel", background=PANEL_BG, foreground=ACCENT_COLOR, font=("Segoe UI", 9, "bold"))
         style.configure("Value.Panel.TLabel", background=PANEL_BG, foreground=TEXT_COLOR, font=("Segoe UI", 12, "bold"))
+        style.configure("Selected.Value.Panel.TLabel", background=ACCENT_SOFT, foreground=TEXT_COLOR, font=("Segoe UI", 12, "bold"))
+        style.configure("Selected.Status.Panel.TLabel", background=ACCENT_SOFT, foreground=ACCENT_COLOR, font=("Segoe UI", 9, "bold"))
 
         style.configure("App.TLabel", background=APP_BG, foreground=TEXT_COLOR, font=("Segoe UI", 10))
         style.configure("Muted.TLabel", background=APP_BG, foreground=MUTED_TEXT, font=("Segoe UI", 9))
@@ -565,6 +626,10 @@ class PianoPlayerApp(tk.Tk):
             self.song_listbox.yview_scroll(delta, "units")
             return "break"
 
+        if hasattr(self, "queue_listbox") and self._widget_is_descendant(widget, self.queue_listbox):
+            self.queue_listbox.yview_scroll(delta, "units")
+            return "break"
+
         if self._widget_is_descendant(widget, self.log_text):
             self.log_text.yview_scroll(delta, "units")
             return "break"
@@ -574,6 +639,27 @@ class PianoPlayerApp(tk.Tk):
             return "break"
 
         return None
+
+    def scroll_page_to_top(self):
+        if hasattr(self, "page_canvas"):
+            self.page_canvas.yview_moveto(0)
+
+    def flash_selected_song_summary(self):
+        if not hasattr(self, "song_name_label"):
+            return
+
+        if self.selection_flash_after_id is not None:
+            self.after_cancel(self.selection_flash_after_id)
+
+        self.song_name_label.configure(style="Selected.Value.Panel.TLabel")
+        self.song_reason_label.configure(style="Selected.Status.Panel.TLabel")
+        self.selection_flash_after_id = self.after(1400, self.clear_selected_song_flash)
+
+    def clear_selected_song_flash(self):
+        self.selection_flash_after_id = None
+        if hasattr(self, "song_name_label"):
+            self.song_name_label.configure(style="Value.Panel.TLabel")
+            self.song_reason_label.configure(style="Status.Panel.TLabel")
 
     def _build_layout(self):
         self.columnconfigure(0, weight=1)
@@ -611,7 +697,7 @@ class PianoPlayerApp(tk.Tk):
         self.bind_all("<MouseWheel>", self._dispatch_mousewheel, add="+")
 
         outer.columnconfigure(0, weight=1)
-        outer.rowconfigure(4, weight=4, minsize=320)
+        outer.rowconfigure(3, weight=4, minsize=320)
         outer.rowconfigure(5, weight=1, minsize=160)
 
         header = ttk.Frame(outer, style="Hero.TFrame", padding=(22, 20, 22, 20))
@@ -634,10 +720,12 @@ class PianoPlayerApp(tk.Tk):
         info_body = self._create_section_body(info_frame)
         info_body.columnconfigure(1, weight=1)
         ttk.Label(info_body, text="Current selected song", style="Muted.Panel.TLabel").grid(row=0, column=0, sticky="w")
-        ttk.Label(info_body, textvariable=self.song_name_var, style="Value.Panel.TLabel").grid(
+        self.song_name_label = ttk.Label(info_body, textvariable=self.song_name_var, style="Value.Panel.TLabel")
+        self.song_name_label.grid(
             row=1, column=0, columnspan=2, sticky="w", pady=(2, 4)
         )
-        ttk.Label(info_body, textvariable=self.song_reason_var, style="Status.Panel.TLabel").grid(
+        self.song_reason_label = ttk.Label(info_body, textvariable=self.song_reason_var, style="Status.Panel.TLabel")
+        self.song_reason_label.grid(
             row=2, column=0, columnspan=2, sticky="w", pady=(0, 8)
         )
         ttk.Label(info_body, textvariable=self.song_info_var, wraplength=900, style="Muted.Panel.TLabel").grid(
@@ -645,12 +733,13 @@ class PianoPlayerApp(tk.Tk):
         )
 
         options_frame = ttk.LabelFrame(outer, text="Controls", style="Section.TLabelframe")
-        options_frame.grid(row=2, column=0, sticky="ew", pady=(0, 10))
+        options_frame.grid(row=4, column=0, sticky="ew", pady=(0, 10))
         options_body = self._create_section_body(options_frame)
         options_body.columnconfigure(1, weight=1)
 
         ttk.Label(options_body, text="Installed solenoids", style="Panel.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 4))
-        ttk.Entry(options_body, textvariable=self.active_channels_var, style="Panel.TEntry").grid(
+        self.active_channels_entry = ttk.Entry(options_body, textvariable=self.active_channels_var, style="Panel.TEntry")
+        self.active_channels_entry.grid(
             row=0, column=1, sticky="ew", padx=(16, 0), pady=(0, 4)
         )
         ttk.Label(
@@ -661,7 +750,8 @@ class PianoPlayerApp(tk.Tk):
         ).grid(row=1, column=1, sticky="w", padx=(16, 0), pady=(0, 12))
 
         ttk.Label(options_body, text="Tempo override", style="Panel.TLabel").grid(row=2, column=0, sticky="w", pady=(0, 4))
-        ttk.Entry(options_body, textvariable=self.tempo_var, style="Panel.TEntry").grid(
+        self.tempo_entry = ttk.Entry(options_body, textvariable=self.tempo_var, style="Panel.TEntry")
+        self.tempo_entry.grid(
             row=2, column=1, sticky="ew", padx=(16, 0), pady=(0, 4)
         )
         ttk.Label(
@@ -671,7 +761,8 @@ class PianoPlayerApp(tk.Tk):
         ).grid(row=3, column=1, sticky="w", padx=(16, 0), pady=(0, 12))
 
         ttk.Label(options_body, text="Available note range", style="Panel.TLabel").grid(row=4, column=0, sticky="w", pady=(0, 4))
-        ttk.Entry(options_body, textvariable=self.range_var, style="Panel.TEntry").grid(
+        self.range_entry = ttk.Entry(options_body, textvariable=self.range_var, style="Panel.TEntry")
+        self.range_entry.grid(
             row=4, column=1, sticky="ew", padx=(16, 0), pady=(0, 4)
         )
         ttk.Label(
@@ -686,35 +777,49 @@ class PianoPlayerApp(tk.Tk):
         ).grid(row=5, column=1, sticky="w", padx=(16, 0), pady=(0, 12))
 
         ttk.Label(options_body, text="Out-of-range notes", style="Panel.TLabel").grid(row=6, column=0, sticky="w", pady=(0, 4))
-        fit_mode_box = ttk.Combobox(
+        self.fit_mode_box = ttk.Combobox(
             options_body,
             state="readonly",
             values=("transpose", "strict"),
             textvariable=self.fit_mode_var,
             style="Panel.TCombobox",
         )
-        fit_mode_box.grid(row=6, column=1, sticky="w", padx=(16, 0), pady=(0, 12))
-        ttk.Checkbutton(
+        self.fit_mode_box.grid(row=6, column=1, sticky="w", padx=(16, 0), pady=(0, 12))
+        self.performance_feel_checkbutton = ttk.Checkbutton(
             options_body,
             text="Performance feel (rubato, articulation, accents, pedal breathing)",
             variable=self.performance_feel_var,
             style="Panel.TCheckbutton",
-        ).grid(row=7, column=1, sticky="w", padx=(16, 0), pady=(0, 4))
-        ttk.Checkbutton(
+        )
+        self.performance_feel_checkbutton.grid(row=7, column=1, sticky="w", padx=(16, 0), pady=(0, 4))
+        self.auto_measure_pedal_checkbutton = ttk.Checkbutton(
             options_body,
             text="Add sustain every measure when MIDI has no pedal",
             variable=self.auto_measure_pedal_var,
             style="Panel.TCheckbutton",
-        ).grid(row=8, column=1, sticky="w", padx=(16, 0), pady=(0, 4))
-        ttk.Checkbutton(
+        )
+        self.auto_measure_pedal_checkbutton.grid(row=8, column=1, sticky="w", padx=(16, 0), pady=(0, 4))
+        self.export_only_checkbutton = ttk.Checkbutton(
             options_body,
             text="Export only (prepare files but do not send to Arduino)",
             variable=self.export_only_var,
             style="Panel.TCheckbutton",
-        ).grid(row=9, column=1, sticky="w", padx=(16, 0))
+        )
+        self.export_only_checkbutton.grid(row=9, column=1, sticky="w", padx=(16, 0))
+        self.playback_locked_widgets.extend(
+            [
+                self.active_channels_entry,
+                self.tempo_entry,
+                self.range_entry,
+                self.fit_mode_box,
+                self.performance_feel_checkbutton,
+                self.auto_measure_pedal_checkbutton,
+                self.export_only_checkbutton,
+            ]
+        )
 
         run_frame = ttk.LabelFrame(outer, text="Run Options", style="Section.TLabelframe")
-        run_frame.grid(row=3, column=0, sticky="ew", pady=(0, 10))
+        run_frame.grid(row=2, column=0, sticky="ew", pady=(0, 10))
         run_body = self._create_section_body(run_frame)
         run_body.columnconfigure(0, weight=1)
         run_body.columnconfigure(1, weight=1)
@@ -724,15 +829,28 @@ class PianoPlayerApp(tk.Tk):
             style="Muted.Panel.TLabel",
             wraplength=860,
         ).grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 12))
-        ttk.Button(run_body, text="Run Dry Check", style="Secondary.TButton", command=lambda: self.start_run(dry_run=True)).grid(
+        self.dry_run_button = ttk.Button(
+            run_body,
+            text="Run Dry Check",
+            style="Secondary.TButton",
+            command=lambda: self.start_run(dry_run=True),
+        )
+        self.dry_run_button.grid(
             row=1, column=0, sticky="ew"
         )
-        ttk.Button(run_body, text="Play / Send to Arduino", style="Primary.TButton", command=lambda: self.start_run(dry_run=False)).grid(
+        self.play_button = ttk.Button(
+            run_body,
+            text="Play Selected / Queue",
+            style="Primary.TButton",
+            command=lambda: self.start_run(dry_run=False),
+        )
+        self.play_button.grid(
             row=1, column=1, sticky="ew", padx=(12, 0)
         )
+        self.playback_locked_widgets.extend([self.dry_run_button, self.play_button])
 
         song_selection_frame = ttk.LabelFrame(outer, text="Song Selection", style="Section.TLabelframe")
-        song_selection_frame.grid(row=4, column=0, sticky="nsew", pady=(0, 10))
+        song_selection_frame.grid(row=3, column=0, sticky="nsew", pady=(0, 10))
         song_body = self._create_section_body(song_selection_frame)
         song_body.columnconfigure(0, weight=1)
         song_body.rowconfigure(3, weight=1, minsize=180)
@@ -756,7 +874,7 @@ class PianoPlayerApp(tk.Tk):
             search_row,
             text="Refresh List",
             style="Secondary.TButton",
-            command=lambda: self.refresh_song_catalog_async(use_suggested=False),
+            command=self.refresh_song_catalog_from_button,
         ).grid(
             row=0, column=1, padx=(8, 0)
         )
@@ -799,6 +917,99 @@ class PianoPlayerApp(tk.Tk):
         song_scrollbar.grid(row=0, column=1, sticky="ns")
         self.song_listbox.configure(yscrollcommand=song_scrollbar.set)
 
+        queue_frame = ttk.LabelFrame(song_body, text="Queue", style="Section.TLabelframe")
+        queue_frame.grid(row=4, column=0, sticky="ew", pady=(12, 0))
+        queue_body = self._create_section_body(queue_frame, padding=(14, 14, 14, 14))
+        queue_body.columnconfigure(0, weight=1)
+
+        ttk.Label(queue_body, textvariable=self.queue_status_var, style="Status.Panel.TLabel").grid(
+            row=0, column=0, sticky="w", pady=(0, 10)
+        )
+
+        queue_button_row = ttk.Frame(queue_body, style="Panel.TFrame")
+        queue_button_row.grid(row=1, column=0, sticky="ew", pady=(0, 10))
+        queue_button_row.columnconfigure(4, weight=1)
+        ttk.Button(
+            queue_button_row,
+            text="Add Selected to Queue",
+            style="Secondary.TButton",
+            command=self.add_selected_song_to_queue,
+        ).grid(row=0, column=0, sticky="w")
+        self.play_queue_button = ttk.Button(
+            queue_button_row,
+            text="Play Queue",
+            style="Primary.TButton",
+            command=self.start_queue_playback,
+        )
+        self.play_queue_button.grid(row=0, column=1, sticky="w", padx=(8, 0))
+        ttk.Button(
+            queue_button_row,
+            text="Remove",
+            style="Secondary.TButton",
+            command=self.remove_selected_queue_item,
+        ).grid(row=0, column=2, sticky="w", padx=(8, 0))
+        ttk.Button(
+            queue_button_row,
+            text="Clear Queue",
+            style="Secondary.TButton",
+            command=self.clear_playback_queue,
+        ).grid(row=0, column=3, sticky="w", padx=(8, 0))
+        self.playback_locked_widgets.append(self.play_queue_button)
+
+        queue_list_frame = ttk.Frame(queue_body, style="Panel.TFrame")
+        queue_list_frame.grid(row=2, column=0, sticky="ew")
+        queue_list_frame.columnconfigure(0, weight=1)
+        self.queue_listbox = tk.Listbox(
+            queue_list_frame,
+            height=4,
+            bg=INPUT_BG,
+            fg=TEXT_COLOR,
+            selectbackground=ACCENT_SOFT,
+            selectforeground=TEXT_COLOR,
+            highlightbackground=BORDER_COLOR,
+            highlightcolor=ACCENT_COLOR,
+            highlightthickness=1,
+            relief="flat",
+            bd=0,
+            activestyle="none",
+            font=("Segoe UI", 10),
+        )
+        self.queue_listbox.grid(row=0, column=0, sticky="ew")
+        queue_scrollbar = ttk.Scrollbar(
+            queue_list_frame,
+            orient="vertical",
+            style="Panel.Vertical.TScrollbar",
+            command=self.queue_listbox.yview,
+        )
+        queue_scrollbar.grid(row=0, column=1, sticky="ns")
+        self.queue_listbox.configure(yscrollcommand=queue_scrollbar.set)
+
+        playback_control_row = ttk.Frame(queue_body, style="Panel.TFrame")
+        playback_control_row.grid(row=3, column=0, sticky="ew", pady=(10, 0))
+        playback_control_row.columnconfigure(3, weight=1)
+        self.pause_resume_button = ttk.Button(
+            playback_control_row,
+            text="Pause",
+            style="Secondary.TButton",
+            command=self.toggle_queue_pause,
+        )
+        self.pause_resume_button.grid(row=0, column=0, sticky="w")
+        self.replay_current_button = ttk.Button(
+            playback_control_row,
+            text="Replay Current",
+            style="Secondary.TButton",
+            command=self.replay_current_queue_item,
+        )
+        self.replay_current_button.grid(row=0, column=1, sticky="w", padx=(8, 0))
+        self.skip_current_button = ttk.Button(
+            playback_control_row,
+            text="Skip to Next",
+            style="Secondary.TButton",
+            command=self.skip_current_queue_item,
+        )
+        self.skip_current_button.grid(row=0, column=2, sticky="w", padx=(8, 0))
+        self.refresh_playback_control_buttons()
+
         debug_frame = ttk.LabelFrame(outer, text="Debugging", style="Section.TLabelframe")
         debug_frame.grid(row=5, column=0, sticky="nsew", pady=(0, 0))
         debug_body = self._create_section_body(debug_frame)
@@ -814,30 +1025,34 @@ class PianoPlayerApp(tk.Tk):
 
         debug_button_row = ttk.Frame(debug_body, style="Panel.TFrame")
         debug_button_row.grid(row=1, column=0, sticky="w", pady=(0, 10))
-        ttk.Button(
+        self.calibrate_button = ttk.Button(
             debug_button_row,
             text="Calibrate Note Mapping...",
             style="Secondary.TButton",
             command=self.start_note_mapping_calibration,
-        ).grid(
+        )
+        self.calibrate_button.grid(
             row=0, column=0, sticky="w"
         )
-        ttk.Button(
+        self.troubleshoot_button = ttk.Button(
             debug_button_row,
             text="Troubleshoot Keys...",
             style="Secondary.TButton",
             command=self.start_troubleshooting_run,
-        ).grid(
+        )
+        self.troubleshoot_button.grid(
             row=0, column=1, sticky="w", padx=(8, 0)
         )
-        ttk.Button(
+        self.mosfet_test_button = ttk.Button(
             debug_button_row,
             text="Test MOSFET...",
             style="Secondary.TButton",
             command=self.start_mosfet_test,
-        ).grid(
+        )
+        self.mosfet_test_button.grid(
             row=0, column=2, sticky="w", padx=(8, 0)
         )
+        self.playback_locked_widgets.extend([self.calibrate_button, self.troubleshoot_button, self.mosfet_test_button])
 
         log_frame = ttk.LabelFrame(debug_body, text="Status", style="Section.TLabelframe")
         log_frame.grid(row=2, column=0, sticky="nsew")
@@ -873,7 +1088,12 @@ class PianoPlayerApp(tk.Tk):
         for child in self.winfo_children():
             self._set_child_state_recursive(child, state)
 
-    def _set_child_state_recursive(self, widget, state):
+    def set_playback_controls_enabled(self, enabled):
+        state = "normal" if enabled else "disabled"
+        for widget in self.playback_locked_widgets:
+            self._set_widget_state(widget, state)
+
+    def _set_widget_state(self, widget, state):
         try:
             if isinstance(widget, (ttk.Button, ttk.Entry, ttk.Combobox, ttk.Checkbutton)):
                 widget.configure(state=state if not isinstance(widget, ttk.Combobox) else ("readonly" if state == "normal" else "disabled"))
@@ -881,6 +1101,9 @@ class PianoPlayerApp(tk.Tk):
                 widget.configure(state=state)
         except tk.TclError:
             pass
+
+    def _set_child_state_recursive(self, widget, state):
+        self._set_widget_state(widget, state)
         for child in widget.winfo_children():
             self._set_child_state_recursive(child, state)
 
@@ -889,6 +1112,59 @@ class PianoPlayerApp(tk.Tk):
         self.log_text.insert(tk.END, message + "\n")
         self.log_text.see(tk.END)
         self.log_text.configure(state="disabled")
+
+    def show_completion_dialog(self, title, summary):
+        if self.completion_dialog is not None and self.completion_dialog.winfo_exists():
+            self.completion_dialog.destroy()
+
+        dialog = tk.Toplevel(self)
+        self.completion_dialog = dialog
+        dialog.title(title)
+        dialog.transient(self)
+        dialog.resizable(False, False)
+        dialog.configure(bg=APP_BG)
+
+        def dismiss():
+            if self.completion_dialog == dialog:
+                self.completion_dialog = None
+            dialog.destroy()
+
+        def refresh_and_dismiss():
+            dismiss()
+            self.refresh_song_catalog_from_button()
+
+        dialog.protocol("WM_DELETE_WINDOW", dismiss)
+
+        outer = ttk.Frame(dialog, padding=18, style="App.TFrame")
+        outer.grid(row=0, column=0, sticky="nsew")
+        outer.columnconfigure(0, weight=1)
+
+        ttk.Label(outer, text=title, style="DialogTitle.TLabel").grid(row=0, column=0, sticky="w")
+        ttk.Label(
+            outer,
+            text=summary,
+            style="App.TLabel",
+            justify="left",
+            wraplength=520,
+        ).grid(row=1, column=0, sticky="ew", pady=(8, 16))
+
+        button_row = ttk.Frame(outer, style="App.TFrame")
+        button_row.grid(row=2, column=0, sticky="e")
+        ttk.Button(button_row, text="Refresh List", style="Secondary.TButton", command=refresh_and_dismiss).grid(
+            row=0, column=0
+        )
+        ttk.Button(button_row, text="Dismiss", style="Primary.TButton", command=dismiss).grid(
+            row=0, column=1, padx=(8, 0)
+        )
+
+        dialog.bind("<Escape>", lambda _event: dismiss())
+        dialog.bind("<Return>", lambda _event: dismiss())
+        dialog.update_idletasks()
+        x = self.winfo_rootx() + max(40, (self.winfo_width() - dialog.winfo_width()) // 2)
+        y = self.winfo_rooty() + max(40, (self.winfo_height() - dialog.winfo_height()) // 3)
+        dialog.geometry(f"+{x}+{y}")
+        dialog.lift(self)
+        dialog.focus_set()
 
     def update_song_catalog_status(self):
         entries = self.song_catalog.get("entries", []) if self.song_catalog else []
@@ -909,17 +1185,22 @@ class PianoPlayerApp(tk.Tk):
 
         if self.song_catalog_refresh_in_progress:
             status += " Scanning Downloads in the background..."
+            if self.pending_song_catalog_refresh is not None:
+                status += " Refresh queued."
 
         self.song_catalog_status_var.set(status)
 
-    def apply_song_catalog(self, catalog, use_suggested=False):
+    def apply_song_catalog(self, catalog, use_suggested=False, force_suggested=False, reveal_selection=False):
         self.song_catalog = catalog
+        previous_selected_path = self.selected_song_path.resolve() if self.selected_song_path is not None else None
+        selected_suggested_song = False
 
-        if use_suggested and not self.song_selection_is_manual:
+        if use_suggested and (force_suggested or not self.song_selection_is_manual):
             suggested_path = self.song_catalog.get("suggested_path")
             suggested_reason = self.song_catalog.get("suggested_reason")
             if suggested_path is not None:
                 self.set_selected_song(suggested_path, suggested_reason, manual=False)
+                selected_suggested_song = True
 
         if self.selected_song_path is None:
             self.song_name_var.set("No MIDI files found")
@@ -933,29 +1214,60 @@ class PianoPlayerApp(tk.Tk):
         self.update_song_catalog_status()
         if hasattr(self, "song_listbox"):
             self.refresh_song_list()
+        if reveal_selection:
+            self.scroll_page_to_top()
+            current_selected_path = self.selected_song_path.resolve() if self.selected_song_path is not None else None
+            if selected_suggested_song and current_selected_path is not None:
+                self.flash_selected_song_summary()
+                if current_selected_path != previous_selected_path:
+                    self.append_log(f"Refresh List selected newest detected song: {self.selected_song_path.name}")
+                else:
+                    self.append_log(f"Refresh List kept newest detected song selected: {self.selected_song_path.name}")
+            elif current_selected_path is None:
+                self.flash_selected_song_summary()
+                self.append_log("Refresh List found no MIDI files to select.")
+            else:
+                self.append_log("Refresh List found no new suggested MIDI to select.")
         return self.song_catalog.get("entries", [])
 
-    def refresh_song_catalog(self, use_suggested=False, recursive_downloads=True):
+    def refresh_song_catalog(self, use_suggested=False, recursive_downloads=True, force_suggested=False, reveal_selection=False):
         catalog = engine.build_song_catalog(
             self.user_preferences,
             recursive_downloads=recursive_downloads,
         )
-        return self.apply_song_catalog(catalog, use_suggested=use_suggested)
+        return self.apply_song_catalog(
+            catalog,
+            use_suggested=use_suggested,
+            force_suggested=force_suggested,
+            reveal_selection=reveal_selection,
+        )
 
-    def refresh_song_catalog_async(self, use_suggested=False):
+    def refresh_song_catalog_from_button(self):
+        self.scroll_page_to_top()
+        self.refresh_song_catalog_async(use_suggested=True, force_suggested=True, reveal_selection=True)
+
+    def refresh_song_catalog_async(self, use_suggested=False, force_suggested=False, reveal_selection=False):
         if self.song_catalog_refresh_in_progress:
+            if reveal_selection:
+                self.scroll_page_to_top()
+            self.pending_song_catalog_refresh = {
+                "use_suggested": use_suggested,
+                "force_suggested": force_suggested,
+                "reveal_selection": reveal_selection,
+            }
+            self.update_song_catalog_status()
             return
 
         self.song_catalog_refresh_in_progress = True
         self.update_song_catalog_status()
         worker = threading.Thread(
             target=self._refresh_song_catalog_worker,
-            args=(use_suggested,),
+            args=(use_suggested, force_suggested, reveal_selection),
             daemon=True,
         )
         worker.start()
 
-    def _refresh_song_catalog_worker(self, use_suggested):
+    def _refresh_song_catalog_worker(self, use_suggested, force_suggested, reveal_selection):
         try:
             catalog = engine.build_song_catalog(
                 self.user_preferences,
@@ -965,7 +1277,17 @@ class PianoPlayerApp(tk.Tk):
             self.message_queue.put(("song_catalog_error", str(error)))
             return
 
-        self.message_queue.put(("song_catalog", {"catalog": catalog, "use_suggested": use_suggested}))
+        self.message_queue.put(
+            (
+                "song_catalog",
+                {
+                    "catalog": catalog,
+                    "use_suggested": use_suggested,
+                    "force_suggested": force_suggested,
+                    "reveal_selection": reveal_selection,
+                },
+            )
+        )
 
     def refresh_song_list(self, _event=None):
         entries = self.song_catalog.get("entries", []) if self.song_catalog else []
@@ -1019,6 +1341,202 @@ class PianoPlayerApp(tk.Tk):
         self.song_name_var.set(self.selected_song_path.name)
         self.song_reason_var.set(reason)
         self.update_song_preview()
+
+    def build_queue_item(self, midi_path, reason, source="Selection"):
+        path = Path(midi_path)
+        return {
+            "path": path,
+            "reason": reason,
+            "source": source,
+            "display_name": path.name,
+        }
+
+    def get_queue_item_from_song_list_selection(self):
+        if not hasattr(self, "song_listbox"):
+            return None
+
+        selection = self.song_listbox.curselection()
+        if not selection:
+            return None
+
+        index = selection[0]
+        if index >= len(self.filtered_song_entries):
+            return None
+
+        entry = self.filtered_song_entries[index]
+        return self.build_queue_item(
+            entry["path"],
+            f"queued from {entry['source']}",
+            source=entry["source"],
+        )
+
+    def get_current_queue_selection(self):
+        list_item = self.get_queue_item_from_song_list_selection()
+        if list_item is not None:
+            return list_item
+
+        if self.selected_song_path is None:
+            return None
+
+        return self.build_queue_item(
+            self.selected_song_path,
+            self.selection_reason or "queued from the current selection",
+            source="Current selection",
+        )
+
+    def add_selected_song_to_queue(self):
+        item = self.get_current_queue_selection()
+        if item is None:
+            messagebox.showinfo("Choose a song", "Select a song from the list or browse for a MIDI file.", parent=self)
+            return
+
+        with self.queue_lock:
+            self.playback_queue.append(item)
+
+        self.refresh_queue_list()
+        self.append_log(f"Queued: {item['display_name']}")
+
+    def remove_selected_queue_item(self):
+        if not hasattr(self, "queue_listbox"):
+            return
+
+        selection = self.queue_listbox.curselection()
+        if not selection:
+            messagebox.showinfo("Choose a queued song", "Select an upcoming queue item to remove.", parent=self)
+            return
+
+        selected_index = selection[0]
+        selected_now_playing = False
+        removed = None
+        with self.queue_lock:
+            current_offset = 1 if self.current_queue_item is not None else 0
+            if selected_index == 0 and current_offset:
+                selected_now_playing = True
+            else:
+                queue_index = selected_index - current_offset
+                if 0 <= queue_index < len(self.playback_queue):
+                    removed = self.playback_queue.pop(queue_index)
+
+        if selected_now_playing:
+            messagebox.showinfo("Now playing", "The currently playing song cannot be removed.", parent=self)
+            return
+        if removed is None:
+            return
+
+        self.refresh_queue_list()
+        self.append_log(f"Removed from queue: {removed['display_name']}")
+
+    def clear_playback_queue(self):
+        with self.queue_lock:
+            removed_count = len(self.playback_queue)
+            self.playback_queue.clear()
+
+        self.refresh_queue_list()
+        if removed_count:
+            self.append_log(f"Cleared {removed_count} queued song(s).")
+
+    def refresh_queue_list(self):
+        if not hasattr(self, "queue_listbox"):
+            return
+
+        with self.queue_lock:
+            current_item = self.current_queue_item
+            queued_items = list(self.playback_queue)
+            queue_is_playing = self.queue_is_playing
+
+        self.queue_listbox.delete(0, tk.END)
+        if current_item is not None:
+            self.queue_listbox.insert(tk.END, f"Now playing | {current_item['display_name']}")
+
+        for index, item in enumerate(queued_items, start=1):
+            self.queue_listbox.insert(tk.END, f"{index}. {item['display_name']} ({item['source']})")
+
+        if current_item is not None:
+            self.queue_listbox.selection_set(0)
+            self.queue_listbox.see(0)
+
+        if queue_is_playing:
+            if current_item is not None and queued_items:
+                status = f"Playing {current_item['display_name']} | {len(queued_items)} queued"
+            elif current_item is not None:
+                status = f"Playing {current_item['display_name']} | add songs now to continue"
+            elif queued_items:
+                status = f"Waiting 3 seconds | {len(queued_items)} queued"
+            else:
+                status = "Waiting for the current queue run to finish..."
+        elif queued_items:
+            status = f"{len(queued_items)} song(s) queued."
+        else:
+            status = "Queue empty."
+
+        self.queue_status_var.set(status)
+        self.refresh_playback_control_buttons()
+
+    def refresh_playback_control_buttons(self):
+        if not hasattr(self, "pause_resume_button"):
+            return
+
+        with self.queue_lock:
+            queue_is_playing = self.queue_is_playing
+            has_current_item = self.current_queue_item is not None
+
+        control = self.playback_control
+        is_paused = bool(control and control.is_paused())
+        pause_requested = bool(control and control.is_pause_requested())
+        can_control = queue_is_playing and control is not None
+        pause_text = "Resume" if is_paused or pause_requested else "Pause"
+
+        self.pause_resume_button.configure(
+            text=pause_text,
+            state="normal" if can_control and has_current_item else "disabled",
+        )
+        self.replay_current_button.configure(
+            state="normal" if can_control and has_current_item else "disabled"
+        )
+        self.skip_current_button.configure(
+            state="normal" if can_control and has_current_item else "disabled"
+        )
+
+    def toggle_queue_pause(self):
+        control = self.playback_control
+        if control is None:
+            return
+
+        if control.is_paused() or control.is_pause_requested():
+            control.request_resume()
+            self.append_log("Resume requested.")
+        else:
+            control.request_pause()
+            self.append_log("Pause requested.")
+        self.refresh_playback_control_buttons()
+
+    def replay_current_queue_item(self):
+        control = self.playback_control
+        if control is None:
+            return
+
+        with self.queue_lock:
+            current_item = self.current_queue_item
+        if current_item is None:
+            return
+
+        control.request_replay()
+        self.append_log(f"Replay requested for {current_item['display_name']}.")
+        self.refresh_playback_control_buttons()
+
+    def skip_current_queue_item(self):
+        control = self.playback_control
+        if control is None:
+            return
+
+        with self.queue_lock:
+            current_item = self.current_queue_item
+        if current_item is None:
+            return
+
+        control.request_skip()
+        self.append_log(f"Skip requested for {current_item['display_name']}.")
+        self.refresh_playback_control_buttons()
 
     def update_song_preview(self):
         if self.selected_song_path is None:
@@ -1416,9 +1934,44 @@ class PianoPlayerApp(tk.Tk):
 
     def start_run(self, dry_run):
         if self.worker is not None and self.worker.is_alive():
-            messagebox.showinfo("Already running", "Wait for the current playback job to finish first.", parent=self)
+            with self.queue_lock:
+                queue_is_playing = self.queue_is_playing
+            message = (
+                "Add songs to the queue while the current playback job runs."
+                if queue_is_playing
+                else "Wait for the current job to finish first."
+            )
+            messagebox.showinfo("Already running", message, parent=self)
             return
 
+        if dry_run:
+            self.start_single_song_dry_run()
+            return
+
+        self.start_queue_playback()
+
+    def build_conversion_worker_args(self, item, run_options, dry_run, preferred_fit_mode=None, playback_control=None):
+        if preferred_fit_mode is None:
+            preferred_fit_mode = self.fit_mode_var.get()
+
+        return {
+            "workflow_kind": "conversion",
+            "selected_midi_source": item["path"],
+            "selection_reason": item["reason"],
+            "active_channel_count": run_options["active_channel_count"],
+            "preferred_range": run_options["preferred_range"],
+            "preferred_fit_mode": preferred_fit_mode,
+            "preferred_tempo": run_options["preferred_tempo"],
+            "dry_run": dry_run,
+            "export_only": run_options["export_only"],
+            "allow_prompts": False,
+            "performance_feel_enabled": run_options["performance_feel_enabled"],
+            "auto_measure_pedal": run_options["auto_measure_pedal"],
+            "playback_control": playback_control,
+            "reporter": lambda message: self.message_queue.put(("log", message)),
+        }
+
+    def start_single_song_dry_run(self):
         if self.selected_song_path is None:
             messagebox.showinfo("Choose a song", "Pick a MIDI file first.", parent=self)
             return
@@ -1427,27 +1980,67 @@ class PianoPlayerApp(tk.Tk):
         if run_options is None:
             return
 
+        item = self.build_queue_item(
+            self.selected_song_path,
+            self.selection_reason or "selected from the GUI",
+            source="Current selection",
+        )
         self.append_log("")
-        self.append_log(f"Starting {'dry run' if dry_run else 'playback'} for {self.selected_song_path.name}...")
+        self.append_log(f"Starting dry run for {item['display_name']}...")
         self.set_controls_enabled(False)
 
-        worker_args = {
-            "workflow_kind": "conversion",
-            "selected_midi_source": self.selected_song_path,
-            "selection_reason": self.selection_reason or "selected from the GUI",
-            "active_channel_count": run_options["active_channel_count"],
-            "preferred_range": run_options["preferred_range"],
-            "preferred_fit_mode": self.fit_mode_var.get(),
-            "preferred_tempo": run_options["preferred_tempo"],
-            "dry_run": dry_run,
-            "export_only": run_options["export_only"],
-            "allow_prompts": False,
-            "performance_feel_enabled": run_options["performance_feel_enabled"],
-            "auto_measure_pedal": run_options["auto_measure_pedal"],
-            "reporter": lambda message: self.message_queue.put(("log", message)),
-        }
-
+        worker_args = self.build_conversion_worker_args(item, run_options, dry_run=True)
         self.worker = threading.Thread(target=self._run_workflow, args=(worker_args,), daemon=True)
+        self.worker.start()
+
+    def start_queue_playback(self):
+        if self.worker is not None and self.worker.is_alive():
+            with self.queue_lock:
+                queue_is_playing = self.queue_is_playing
+            message = (
+                "Add songs to the queue while the current playback job runs."
+                if queue_is_playing
+                else "Wait for the current job to finish first."
+            )
+            messagebox.showinfo("Already running", message, parent=self)
+            return
+
+        with self.queue_lock:
+            queue_is_empty = not self.playback_queue
+
+        if queue_is_empty:
+            if self.selected_song_path is None:
+                messagebox.showinfo("Choose a song", "Pick a MIDI file first or add songs to the queue.", parent=self)
+                return
+
+        run_options = self.collect_run_options(base_tempo_bpm=120.0)
+        if run_options is None:
+            return
+
+        if queue_is_empty:
+            with self.queue_lock:
+                self.playback_queue.append(
+                    self.build_queue_item(
+                        self.selected_song_path,
+                        self.selection_reason or "selected from the GUI",
+                        source="Current selection",
+                    )
+                )
+
+        self.append_log("")
+        with self.queue_lock:
+            queued_count = len(self.playback_queue)
+            self.queue_is_playing = True
+        self.playback_control = PlaybackControlState()
+        self.append_log(f"Starting playback queue with {queued_count} song(s).")
+        self.set_playback_controls_enabled(False)
+        self.refresh_queue_list()
+
+        worker_args = {
+            "run_options": run_options,
+            "preferred_fit_mode": self.fit_mode_var.get(),
+        }
+        self.worker = threading.Thread(target=self._run_queue_workflow, args=(worker_args,), daemon=True)
         self.worker.start()
 
     def collect_run_options(self, base_tempo_bpm):
@@ -1749,6 +2342,80 @@ class PianoPlayerApp(tk.Tk):
 
         self.message_queue.put(("done", result))
 
+    def pop_next_queue_item_for_playback(self):
+        with self.queue_lock:
+            if not self.playback_queue:
+                return None
+            return self.playback_queue.pop(0)
+
+    def wait_for_late_queue_item(self, previous_song_finished_at):
+        while time.time() - previous_song_finished_at < QUEUE_INTER_SONG_DELAY_SECONDS:
+            item = self.pop_next_queue_item_for_playback()
+            if item is not None:
+                return item
+            time.sleep(0.1)
+        return None
+
+    def _run_queue_workflow(self, worker_args):
+        run_options = worker_args["run_options"]
+        preferred_fit_mode = worker_args["preferred_fit_mode"]
+        playback_control = self.playback_control
+        results = []
+        previous_song_finished_at = None
+
+        try:
+            while True:
+                item = self.pop_next_queue_item_for_playback()
+                if item is None and previous_song_finished_at is not None:
+                    self.message_queue.put(("queue_wait", {"seconds": QUEUE_INTER_SONG_DELAY_SECONDS, "waiting_for_song": True}))
+                    item = self.wait_for_late_queue_item(previous_song_finished_at)
+                if item is None:
+                    break
+
+                if previous_song_finished_at is not None:
+                    remaining_delay = QUEUE_INTER_SONG_DELAY_SECONDS - (time.time() - previous_song_finished_at)
+                    if remaining_delay > 0:
+                        self.message_queue.put(("queue_wait", {"seconds": remaining_delay, "waiting_for_song": False}))
+                        time.sleep(remaining_delay)
+
+                with self.queue_lock:
+                    self.current_queue_item = item
+                self.message_queue.put(("queue_item_started", item))
+                conversion_args = self.build_conversion_worker_args(
+                    item,
+                    run_options,
+                    dry_run=False,
+                    preferred_fit_mode=preferred_fit_mode,
+                    playback_control=playback_control,
+                )
+                conversion_args.pop("workflow_kind", None)
+                result = engine.run_conversion_workflow(**conversion_args)
+                stream_manifest = result.get("stream_manifest") or {}
+                control_action = stream_manifest.get("control_action")
+                previous_song_finished_at = time.time()
+                with self.queue_lock:
+                    if self.current_queue_item == item:
+                        self.current_queue_item = None
+                if control_action == "replay":
+                    with self.queue_lock:
+                        self.playback_queue.insert(0, item)
+                    self.message_queue.put(("queue_item_replay", item))
+                    previous_song_finished_at = None
+                    continue
+                if control_action == "skip":
+                    self.message_queue.put(("queue_item_skipped", item))
+                    continue
+
+                results.append(result)
+                self.message_queue.put(("queue_item_done", result))
+        except Exception as error:
+            with self.queue_lock:
+                self.current_queue_item = None
+            self.message_queue.put(("queue_error", str(error)))
+            return
+
+        self.message_queue.put(("queue_done", results))
+
     def process_worker_messages(self):
         try:
             while True:
@@ -1757,17 +2424,100 @@ class PianoPlayerApp(tk.Tk):
                     self.append_log(payload)
                 elif message_type == "song_catalog":
                     self.song_catalog_refresh_in_progress = False
-                    self.apply_song_catalog(payload["catalog"], use_suggested=payload.get("use_suggested", False))
+                    self.apply_song_catalog(
+                        payload["catalog"],
+                        use_suggested=payload.get("use_suggested", False),
+                        force_suggested=payload.get("force_suggested", False),
+                        reveal_selection=payload.get("reveal_selection", False),
+                    )
+                    if self.pending_song_catalog_refresh is not None:
+                        pending_refresh = self.pending_song_catalog_refresh
+                        self.pending_song_catalog_refresh = None
+                        self.refresh_song_catalog_async(**pending_refresh)
                 elif message_type == "song_catalog_error":
                     self.song_catalog_refresh_in_progress = False
                     self.update_song_catalog_status()
                     self.append_log(f"Song catalog refresh error: {payload}")
+                    if self.pending_song_catalog_refresh is not None:
+                        pending_refresh = self.pending_song_catalog_refresh
+                        self.pending_song_catalog_refresh = None
+                        self.refresh_song_catalog_async(**pending_refresh)
                 elif message_type == "error":
                     self.set_controls_enabled(True)
+                    self.worker = None
                     self.append_log(f"Error: {payload}")
                     messagebox.showerror("Run failed", payload, parent=self)
+                elif message_type == "queue_item_started":
+                    self.append_log(f"Queue now playing: {payload['display_name']}")
+                    self.refresh_queue_list()
+                elif message_type == "queue_item_done":
+                    if payload.get("cancelled"):
+                        self.append_log("Queued song cancelled before conversion.")
+                    else:
+                        self.append_log(f"Finished queued song: {payload['selected_midi'].name}")
+                    self.refresh_queue_list()
+                elif message_type == "queue_item_replay":
+                    self.append_log(f"Replaying queued song: {payload['display_name']}")
+                    self.refresh_queue_list()
+                elif message_type == "queue_item_skipped":
+                    self.append_log(f"Skipped queued song: {payload['display_name']}")
+                    self.refresh_queue_list()
+                elif message_type == "queue_wait":
+                    seconds = float(payload.get("seconds", QUEUE_INTER_SONG_DELAY_SECONDS))
+                    if payload.get("waiting_for_song"):
+                        self.queue_status_var.set(
+                            f"Song finished. Add another within {QUEUE_INTER_SONG_DELAY_SECONDS:.0f} seconds to continue."
+                        )
+                    else:
+                        self.queue_status_var.set(f"Waiting {seconds:.1f} seconds before the next queued song...")
+                elif message_type == "queue_error":
+                    self.set_playback_controls_enabled(True)
+                    self.worker = None
+                    with self.queue_lock:
+                        self.queue_is_playing = False
+                        self.current_queue_item = None
+                    self.playback_control = None
+                    self.refresh_queue_list()
+                    self.append_log(f"Queue error: {payload}")
+                    messagebox.showerror("Queue failed", payload, parent=self)
+                elif message_type == "queue_done":
+                    self.set_playback_controls_enabled(True)
+                    self.worker = None
+                    with self.queue_lock:
+                        self.queue_is_playing = False
+                        self.current_queue_item = None
+                    self.playback_control = None
+                    self.refresh_queue_list()
+                    results = [result for result in payload if not result.get("cancelled")]
+                    self.append_log("Queue complete.")
+                    if len(results) == 1:
+                        result = results[0]
+                        if result["payload"] is None:
+                            title = "Dry run complete"
+                        elif result["stream_manifest"] is None:
+                            title = "Export complete"
+                        else:
+                            title = "Playback complete"
+                        summary = (
+                            f"Finished {result['selected_midi'].name}\n"
+                            f"Active hardware channels: {result['metadata']['active_hardware_channel_count']}\n"
+                            f"Mode: {result['metadata']['fit_mode_label']}\n"
+                            f"Effective tempo: {result['tempo_override']['target_bpm']:.2f} BPM"
+                        )
+                    else:
+                        title = "Queue complete"
+                        song_lines = [f"{index}. {result['selected_midi'].name}" for index, result in enumerate(results, start=1)]
+                        summary = (
+                            f"Finished {len(results)} song(s)\n"
+                            f"Delay between songs: {QUEUE_INTER_SONG_DELAY_SECONDS:.0f} seconds\n\n"
+                            + "\n".join(song_lines[:8])
+                        )
+                        if len(song_lines) > 8:
+                            summary += f"\n...and {len(song_lines) - 8} more"
+                    self.show_completion_dialog(title, summary)
                 elif message_type == "done":
                     self.set_controls_enabled(True)
+                    self.worker = None
                     result = payload
                     if result.get("cancelled"):
                         self.append_log("Cancelled before conversion.")
@@ -1821,10 +2571,11 @@ class PianoPlayerApp(tk.Tk):
                                 f"Effective tempo: {result['tempo_override']['target_bpm']:.2f} BPM"
                             )
                         self.append_log("Done.")
-                        messagebox.showinfo(title, summary, parent=self)
+                        self.show_completion_dialog(title, summary)
         except queue.Empty:
             pass
 
+        self.refresh_playback_control_buttons()
         self.after(100, self.process_worker_messages)
 
 

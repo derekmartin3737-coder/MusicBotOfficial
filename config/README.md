@@ -10,9 +10,9 @@ Main hardware configuration for the autonomous piano player.
 - `pca9685` stores the PWM board I2C address and frequency.
 - `mapping` tells Python which MIDI notes route to which PCA9685 channels, plus the dedicated sustain-pedal channel.
 - `actuation` controls strike PWM, velocity curve, hold PWM, release timing, retrigger timing, note-color overrides, and per-channel overrides.
-- `performance_feel` controls expressive timing, articulation, accents, pedal breathing, and register-aware velocity shaping.
+- `performance_feel` controls expressive timing, articulation, staccato shaping, accents, pedal breathing, and register-aware velocity shaping.
 - The GUI can optionally synthesize sustain pedal events once per measure when a MIDI file has no pedal data.
-- `pedal` stores sustain-pedal actuator settings. The current bench uses PCA9685 global channel 61, one position higher than the highest note.
+- `pedal` stores sustain-pedal actuator settings. The current bench uses PCA9685 global channel 61, one position higher than the highest note. `minimum_down_ms` keeps short MIDI pedal taps physically held long enough to move the pedal, and `merge_gap_ms` smooths tiny release/repress gaps.
 - `notes` stores human-readable engineering notes about the current setup.
 
 ## `calibrated_mapping.json`

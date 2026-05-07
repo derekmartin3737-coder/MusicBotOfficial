@@ -4,7 +4,7 @@ The current Arduino runtime uses a line-based text protocol over USB serial.
 
 Protocol version:
 
-- `2`
+- `5`
 
 Runtime sketch:
 
@@ -21,7 +21,7 @@ HELLO
 Arduino replies:
 
 ```text
-READY 2 BUFFER 48
+READY 5 BUFFER 48
 ```
 
 That reports the protocol version and event buffer capacity.
@@ -73,6 +73,23 @@ PLAY
 OK PLAYING
 ```
 
+You can pause and resume active playback:
+
+```text
+PAUSE
+RESUME
+```
+
+Arduino replies:
+
+```text
+OK PAUSED
+OK RESUMED
+```
+
+`PAUSE` turns all outputs off and freezes the remaining event timing. `RESUME`
+shifts the remaining schedule forward by the paused duration.
+
 8. Python keeps polling:
 
 ```text
@@ -84,6 +101,8 @@ Arduino replies with:
 ```text
 STATUS <state> recv=<received_count> played=<played_count> buffered=<buffered_count> free=<free_slots> total=<total_event_count>
 ```
+
+`<state>` can be `IDLE`, `READY`, `LOADING`, `PLAYING`, `PAUSED`, or `DONE`.
 
 9. Python keeps sending chunks as space opens up.
 
@@ -99,6 +118,12 @@ Turn everything off:
 
 ```text
 ALL_OFF
+```
+
+Stop active playback and release all outputs:
+
+```text
+STOP
 ```
 
 Fire one calibration pulse:

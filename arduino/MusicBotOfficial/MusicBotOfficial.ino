@@ -36,7 +36,7 @@ static const uint8_t RUNTIME_PCA9685_I2C_ADDRESSES[RUNTIME_PCA_BOARD_COUNT] = {
 };
 static const uint16_t RUNTIME_PCA9685_PWM_FREQUENCY_HZ = 250;
 static const uint32_t RUNTIME_SERIAL_BAUD = 115200;
-static const uint8_t RUNTIME_PROTOCOL_VERSION = 4;
+static const uint8_t RUNTIME_PROTOCOL_VERSION = 5;
 
 // Small RAM buffer for streamed events. Python keeps refilling this while
 // playback is running so the Uno does not need to store an entire song.
@@ -74,10 +74,12 @@ uint32_t playedSongEventCount = 0;
 // millis()-based timing is currently applying PWM events to the hardware.
 bool transferActive = false;
 bool playbackActive = false;
+bool playbackPaused = false;
 bool dueTimeArmed = false;
 
 uint32_t nextEventDueAtMs = 0;
 uint32_t lastEventDueAtMs = 0;
+uint32_t pauseStartedAtMs = 0;
 
 char lineBuffer[LINE_BUFFER_SIZE];
 uint8_t lineLength = 0;
@@ -187,6 +189,7 @@ void resetEventQueue() {
 
 void resetSongState(bool stopOutputs) {
   playbackActive = false;
+  playbackPaused = false;
   dueTimeArmed = false;
   transferActive = false;
   expectedSongEventCount = 0;
@@ -194,6 +197,7 @@ void resetSongState(bool stopOutputs) {
   playedSongEventCount = 0;
   nextEventDueAtMs = 0;
   lastEventDueAtMs = 0;
+  pauseStartedAtMs = 0;
   resetEventQueue();
   if (stopOutputs) {
     allChannelsOff();
@@ -250,6 +254,9 @@ void sendError(const __FlashStringHelper *message) {
 }
 
 const __FlashStringHelper *runtimeStateLabel() {
+  if (playbackActive && playbackPaused) {
+    return F("PAUSED");
+  }
   if (playbackActive) {
     return F("PLAYING");
   }
@@ -371,7 +378,7 @@ void performCalibrationFire(
 void armDueTimeFromBufferedHead() {
   // The queue stores relative delays. Once an event reaches the head of the
   // queue, convert that delay into an absolute millis() deadline.
-  if (!playbackActive || dueTimeArmed || bufferedEventCount == 0) {
+  if (!playbackActive || playbackPaused || dueTimeArmed || bufferedEventCount == 0) {
     return;
   }
 
@@ -390,7 +397,9 @@ void armDueTimeFromBufferedHead() {
 
 void finishPlayback() {
   playbackActive = false;
+  playbackPaused = false;
   dueTimeArmed = false;
+  pauseStartedAtMs = 0;
   allChannelsOff();
   sendOk(F("PLAYBACK_DONE"));
 }
@@ -402,15 +411,47 @@ void beginPlayback() {
   }
 
   playbackActive = true;
+  playbackPaused = false;
   dueTimeArmed = false;
   armDueTimeFromBufferedHead();
   sendOk(F("PLAYING"));
 }
 
+void pausePlayback() {
+  if (!playbackActive || playbackPaused) {
+    sendError(F("NOT_PLAYING"));
+    return;
+  }
+
+  playbackPaused = true;
+  pauseStartedAtMs = millis();
+  allChannelsOff();
+  sendOk(F("PAUSED"));
+}
+
+void resumePlayback() {
+  if (!playbackActive || !playbackPaused) {
+    sendError(F("NOT_PAUSED"));
+    return;
+  }
+
+  uint32_t pausedMs = millis() - pauseStartedAtMs;
+  if (playedSongEventCount > 0) {
+    lastEventDueAtMs += pausedMs;
+  }
+  if (dueTimeArmed) {
+    nextEventDueAtMs += pausedMs;
+  }
+  playbackPaused = false;
+  pauseStartedAtMs = 0;
+  armDueTimeFromBufferedHead();
+  sendOk(F("RESUMED"));
+}
+
 void handleCommand(const char *line) {
   // Text protocol used by Python:
   // HELLO/STATUS inspect the runtime, BEGIN/EVENT/COMMIT load events,
-  // PLAY starts timed output, and STOP/CLEAR/ALL_OFF recover to a safe state.
+  // PLAY/PAUSE/RESUME control timed output, and STOP/CLEAR/ALL_OFF recover to a safe state.
   if (strcmp(line, "PING") == 0) {
     Serial.println(F("PONG"));
     return;
@@ -423,7 +464,7 @@ void handleCommand(const char *line) {
 
   if (strcmp(line, "HELP") == 0) {
     Serial.println(
-        F("OK COMMANDS HELLO PING STATUS I2C BEGIN EVENT COMMIT PLAY STOP CLEAR FIRE ALL_OFF"));
+        F("OK COMMANDS HELLO PING STATUS I2C BEGIN EVENT COMMIT PLAY PAUSE RESUME STOP CLEAR FIRE ALL_OFF"));
     return;
   }
 
@@ -440,7 +481,9 @@ void handleCommand(const char *line) {
 
   if (strcmp(line, "STOP") == 0) {
     playbackActive = false;
+    playbackPaused = false;
     dueTimeArmed = false;
+    pauseStartedAtMs = 0;
     allChannelsOff();
     sendOk(F("STOPPED"));
     return;
@@ -517,6 +560,16 @@ void handleCommand(const char *line) {
     return;
   }
 
+  if (strcmp(line, "PAUSE") == 0) {
+    pausePlayback();
+    return;
+  }
+
+  if (strcmp(line, "RESUME") == 0) {
+    resumePlayback();
+    return;
+  }
+
   if (strncmp(line, "FIRE ", 5) == 0) {
     if (playbackActive) {
       sendError(F("BUSY"));
@@ -580,6 +633,9 @@ void servicePlayback() {
   // Called continuously from loop(). It applies every event whose scheduled time
   // has arrived, including multiple zero-delay events for simultaneous notes.
   if (!playbackActive) {
+    return;
+  }
+  if (playbackPaused) {
     return;
   }
 
