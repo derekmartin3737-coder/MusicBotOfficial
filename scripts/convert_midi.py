@@ -86,9 +86,13 @@ WHITE_KEY_PITCH_CLASSES = {0, 2, 4, 5, 7, 9, 11}
 BLACK_KEY_PITCH_CLASSES = {1, 3, 6, 8, 10}
 DIAGNOSTIC_BASE_BPM = 60.0
 DIAGNOSTIC_STEP_MS = 1000
+DIAGNOSTIC_FULL_SWEEP_STEP_MS = 1200
 DIAGNOSTIC_NOTE_DURATION_MS = 650
 DIAGNOSTIC_PHASE_GAP_MS = 1400
 DIAGNOSTIC_VELOCITY = 100
+DIAGNOSTIC_SOFT_VELOCITY = 45
+DIAGNOSTIC_MEDIUM_VELOCITY = 85
+DIAGNOSTIC_HARD_VELOCITY = 120
 
 
 def clamp(value, minimum, maximum):
@@ -687,6 +691,21 @@ def scale_intervals(note_intervals, scale: float):
     return scaled
 
 
+def scale_diagnostic_step_plan(step_plan, scale: float):
+    scaled = []
+    for step in step_plan:
+        start_ms = max(0, int(round(step["start_ms"] * scale)))
+        end_ms = max(start_ms + 1, int(round(step["end_ms"] * scale)))
+        scaled.append(
+            {
+                **step,
+                "start_ms": start_ms,
+                "end_ms": end_ms,
+            }
+        )
+    return scaled
+
+
 def scale_pedal_events(pedal_events, scale: float):
     scaled = []
     for event in pedal_events:
@@ -1219,12 +1238,29 @@ def build_diagnostic_phases(note_numbers, key_color: str):
     normalized = str(key_color).strip().lower()
 
     if normalized == "full":
+        sorted_notes = sorted(note_numbers)
         return [
             {
-                "name": "chromatic full sweep",
-                "label": "All keys: chromatic bottom to top one at a time",
-                "groups": [[note] for note in sorted(note_numbers)],
-            }
+                "name": "soft chromatic full sweep",
+                "label": "All keys: soft regular-playback sweep, bottom to top",
+                "groups": [[note] for note in sorted_notes],
+                "velocity": DIAGNOSTIC_SOFT_VELOCITY,
+                "step_ms": DIAGNOSTIC_FULL_SWEEP_STEP_MS,
+            },
+            {
+                "name": "medium chromatic full sweep",
+                "label": "All keys: medium regular-playback sweep, bottom to top",
+                "groups": [[note] for note in sorted_notes],
+                "velocity": DIAGNOSTIC_MEDIUM_VELOCITY,
+                "step_ms": DIAGNOSTIC_FULL_SWEEP_STEP_MS,
+            },
+            {
+                "name": "hard chromatic full sweep",
+                "label": "All keys: hard regular-playback sweep, bottom to top",
+                "groups": [[note] for note in sorted_notes],
+                "velocity": DIAGNOSTIC_HARD_VELOCITY,
+                "step_ms": DIAGNOSTIC_FULL_SWEEP_STEP_MS,
+            },
         ]
 
     label_prefix = f"{str(key_color).strip().title()} keys"
@@ -1233,6 +1269,7 @@ def build_diagnostic_phases(note_numbers, key_color: str):
             "name": "ascending singles",
             "label": f"{label_prefix}: bottom to top one at a time",
             "groups": [[note] for note in note_numbers],
+            "velocity": DIAGNOSTIC_VELOCITY,
         }
     ]
 
@@ -1243,6 +1280,7 @@ def build_diagnostic_phases(note_numbers, key_color: str):
                 "name": "ascending thirds",
                 "label": f"{label_prefix}: moving thirds",
                 "groups": thirds,
+                "velocity": DIAGNOSTIC_VELOCITY,
             }
         )
 
@@ -1261,6 +1299,7 @@ def build_diagnostic_phases(note_numbers, key_color: str):
                 "name": "outer in pairs",
                 "label": f"{label_prefix}: widest pairs moving inward",
                 "groups": outer_in_groups,
+                "velocity": DIAGNOSTIC_VELOCITY,
             }
         )
 
@@ -1282,6 +1321,8 @@ def build_diagnostic_note_intervals(note_numbers, key_color: str):
         if phase_index > 0:
             current_start_ms += DIAGNOSTIC_PHASE_GAP_MS
 
+        velocity = int(phase.get("velocity", DIAGNOSTIC_VELOCITY))
+        step_ms = int(phase.get("step_ms", DIAGNOSTIC_STEP_MS))
         for group in phase["groups"]:
             end_ms = current_start_ms + DIAGNOSTIC_NOTE_DURATION_MS
             note_labels = [midi_note_name(note) for note in group]
@@ -1292,6 +1333,7 @@ def build_diagnostic_note_intervals(note_numbers, key_color: str):
                     "phase_label": phase["label"],
                     "notes": list(group),
                     "note_labels": note_labels,
+                    "velocity": velocity,
                     "start_ms": current_start_ms,
                     "end_ms": end_ms,
                 }
@@ -1301,12 +1343,12 @@ def build_diagnostic_note_intervals(note_numbers, key_color: str):
                     {
                         "note": int(note),
                         "source_note": int(note),
-                        "velocity": DIAGNOSTIC_VELOCITY,
+                        "velocity": velocity,
                         "start_ms": current_start_ms,
                         "end_ms": end_ms,
                     }
                 )
-            current_start_ms += DIAGNOSTIC_STEP_MS
+            current_start_ms += step_ms
             step_index += 1
 
     return note_intervals, phases, step_plan
@@ -2121,13 +2163,20 @@ def build_playback_events(scheduled_notes, config, pedal_events=None):
         release_delay_ms = int(channel_actuation["release_delay_ms"])
         strike_pwm = velocity_to_strike_pwm(note_event["velocity"], channel_actuation)
         hold_pwm = strike_to_hold_pwm(strike_pwm, channel_actuation)
-        note_duration_ms = max(1, note_event["end_ms"] - note_event["start_ms"])
+        requested_duration_ms = max(1, note_event["end_ms"] - note_event["start_ms"])
+        minimum_duration_ms = max(
+            0,
+            int(channel_actuation.get("minimum_note_duration_ms", 0)),
+            strike_ms,
+        )
+        effective_end_ms = max(note_event["end_ms"], note_event["start_ms"] + minimum_duration_ms)
+        note_duration_ms = max(1, effective_end_ms - note_event["start_ms"])
         hold_start_ms = note_event["start_ms"] + strike_ms
-        release_ms = note_event["end_ms"] + release_delay_ms
+        release_ms = effective_end_ms + release_delay_ms
 
         timeline.append((note_event["start_ms"], note_event["channel"], strike_pwm))
 
-        if hold_start_ms < note_event["end_ms"]:
+        if hold_start_ms < effective_end_ms:
             timeline.append((hold_start_ms, note_event["channel"], hold_pwm))
             hold_event_count += 1
         else:
@@ -2147,8 +2196,11 @@ def build_playback_events(scheduled_notes, config, pedal_events=None):
                 "original_start_ms": note_event["original_start_ms"],
                 "original_end_ms": note_event["original_end_ms"],
                 "scheduled_start_ms": note_event["start_ms"],
-                "scheduled_end_ms": note_event["end_ms"],
+                "scheduled_end_ms": effective_end_ms,
+                "requested_end_ms": note_event["end_ms"],
+                "minimum_duration_applied": effective_end_ms > note_event["end_ms"],
                 "scheduled_duration_ms": note_duration_ms,
+                "requested_duration_ms": requested_duration_ms,
                 "strike_pwm": strike_pwm,
                 "hold_pwm": hold_pwm,
                 "release_ms": release_ms,
@@ -2549,7 +2601,13 @@ def send_serial_command(connection, command, expected_prefixes, timeout_seconds=
     connection.flush()
     deadline = time.time() + timeout_seconds
     while True:
-        response = read_serial_response(connection, deadline)
+        try:
+            response = read_serial_response(connection, deadline)
+        except TimeoutError as error:
+            expected = ", ".join(expected_prefixes)
+            raise TimeoutError(
+                f"Timed out waiting for Arduino response to '{command}'. Expected one of: {expected}."
+            ) from error
         if response.startswith("ERROR "):
             raise RuntimeError(f"Arduino runtime returned an error for '{command}': {response}")
         if any(response.startswith(prefix) for prefix in expected_prefixes):
@@ -2629,7 +2687,7 @@ def wait_for_playback_done(connection, timeout_seconds, playback_control=None, p
             response = read_serial_response(connection, min(deadline, time.time() + 0.2))
         except TimeoutError:
             if time.time() >= deadline:
-                raise
+                raise TimeoutError("Timed out waiting for Arduino playback completion: expected OK PLAYBACK_DONE.")
             continue
         if response.startswith("ERROR "):
             raise RuntimeError(f"Arduino runtime returned an error while waiting for playback completion: {response}")
@@ -2678,6 +2736,12 @@ def stream_song_to_arduino(payload, deployment_config, playback_control=None):
                 send_serial_command(connection, "COMMIT", ("OK ACCEPTED",), timeout_seconds=2.0)
 
             play_response = send_serial_command(connection, "PLAY", ("OK PLAYING",), timeout_seconds=2.0)
+            playback_started = getattr(playback_control, "playback_started", None)
+            if callable(playback_started):
+                playback_started()
+            playback_marker_ready = getattr(playback_control, "playback_marker_ready", None)
+            if callable(playback_marker_ready):
+                playback_marker_ready()
 
             while sent_event_count < len(events):
                 control_action, paused = handle_playback_control(connection, playback_control, paused)
@@ -3097,6 +3161,10 @@ def run_conversion_workflow(
 
     stream_manifest = None
     if payload is not None and not export_only:
+        report_line(
+            reporter,
+            f"Streaming {len(payload['events'])} generated events to the Arduino runtime over USB...",
+        )
         stream_manifest = stream_song_to_arduino(payload, deployment_config, playback_control=playback_control)
 
     if not dry_run:
@@ -3191,6 +3259,7 @@ def run_troubleshooting_workflow(
     config=None,
     user_preferences=None,
     deployment_config=None,
+    playback_control=None,
     reporter=print,
 ):
     """Build and optionally play a synthetic troubleshooting sequence."""
@@ -3210,7 +3279,7 @@ def run_troubleshooting_workflow(
     key_color = str(key_color).strip().lower()
     key_label = "Full sweep" if key_color == "full" else key_color.title()
     selection_reason = (
-        "generated full sweep troubleshooting sequence (chromatic bottom to top)"
+        "generated full sweep troubleshooting sequence (soft, medium, and hard regular-playback chromatic passes)"
         if key_color == "full"
         else f"generated troubleshooting sequence for {key_label.lower()} keys"
     )
@@ -3254,6 +3323,10 @@ def run_troubleshooting_workflow(
         tempo_override = parse_tempo_override_input("", DIAGNOSTIC_BASE_BPM)
 
     scaled_intervals = scale_intervals(note_intervals, tempo_override["scale"])
+    step_plan = scale_diagnostic_step_plan(step_plan, tempo_override["scale"])
+    configure_note_marker_plan = getattr(playback_control, "configure_note_marker_plan", None)
+    if callable(configure_note_marker_plan):
+        configure_note_marker_plan(step_plan if key_color == "full" else [])
     scheduled_notes, scheduling_stats = schedule_notes(scaled_intervals, effective_config)
     if not scheduled_notes:
         raise ValueError("No troubleshooting notes could be scheduled with the current hardware mapping.")
@@ -3351,7 +3424,8 @@ def run_troubleshooting_workflow(
             report_line(reporter, f"  {current_phase_label}")
         report_line(
             reporter,
-            f"    Step {step['index']:02d} at {step['start_ms'] / 1000.0:.2f}s: {' + '.join(step['note_labels'])}",
+            f"    Step {step['index']:02d} at {step['start_ms'] / 1000.0:.2f}s: "
+            f"{' + '.join(step['note_labels'])} at velocity {step['velocity']}",
         )
     report_line(reporter, "Channel summary:")
     for line in channel_lines:
@@ -3378,7 +3452,7 @@ def run_troubleshooting_workflow(
         )
 
     if payload is not None and not export_only:
-        stream_manifest = stream_song_to_arduino(payload, deployment_config)
+        stream_manifest = stream_song_to_arduino(payload, deployment_config, playback_control=playback_control)
 
     if not dry_run:
         report_line(reporter, "")

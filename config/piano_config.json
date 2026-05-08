@@ -305,11 +305,29 @@
         "hold_ratio": 0.66,
         "temporary_debug_note": "E1 was releasing early during full sweep; stronger hold keeps the key depressed after strike"
       },
+      "13": {
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2600,
+        "hold_ratio": 0.66,
+        "temporary_debug_note": "C2 was staccatoing during full sweep; stronger hold keeps the key depressed after strike"
+      },
       "20": {
         "hold_min_pwm": 2400,
         "hold_max_pwm": 2600,
         "hold_ratio": 0.66,
         "temporary_debug_note": "A2 was releasing early after strike; stronger hold keeps the key depressed"
+      },
+      "21": {
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2600,
+        "hold_ratio": 0.66,
+        "temporary_debug_note": "G2 was staccatoing during full sweep; stronger hold keeps the key depressed after strike"
+      },
+      "23": {
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2600,
+        "hold_ratio": 0.66,
+        "temporary_debug_note": "E2 was staccatoing during full sweep; stronger hold keeps the key depressed after strike"
       },
       "24": {
         "hold_min_pwm": 2400,
@@ -317,11 +335,20 @@
         "hold_ratio": 0.66,
         "temporary_debug_note": "D3 was releasing early after strike; stronger hold keeps the key depressed"
       },
-      "28": {
+      "25": {
         "hold_min_pwm": 2400,
         "hold_max_pwm": 2600,
         "hold_ratio": 0.66,
-        "temporary_debug_note": "B3 was releasing early during full sweep; stronger hold keeps the key depressed after strike"
+        "temporary_debug_note": "C3 was staccatoing during full sweep; stronger hold keeps the key depressed after strike"
+      },
+      "28": {
+        "strike_min_pwm": 3350,
+        "strike_max_pwm": 4050,
+        "strike_ms": 60,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2600,
+        "hold_ratio": 0.66,
+        "temporary_debug_note": "B3 plays but sounds too soft; stronger strike gives it more attack while preserving the hold fix"
       },
       "32": {
         "hold_min_pwm": 2400,
@@ -335,6 +362,12 @@
         "hold_ratio": 0.66,
         "temporary_debug_note": "G3 was releasing early after strike; stronger hold keeps the key depressed"
       },
+      "34": {
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2600,
+        "hold_ratio": 0.66,
+        "temporary_debug_note": "F3 was staccatoing during full sweep; stronger hold keeps the key depressed after strike"
+      },
       "35": {
         "hold_min_pwm": 2400,
         "hold_max_pwm": 2600,
@@ -346,6 +379,19 @@
         "hold_max_pwm": 2600,
         "hold_ratio": 0.66,
         "temporary_debug_note": "D4 was releasing early after strike; stronger hold keeps the key depressed"
+      },
+      "38": {
+        "strike_min_pwm": 4095,
+        "strike_max_pwm": 4095,
+        "strike_ms": 500,
+        "minimum_note_duration_ms": 650,
+        "hold_min_pwm": 3100,
+        "hold_max_pwm": 3300,
+        "hold_ratio": 0.82,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 40,
+        "retrigger_gap_ms": 25,
+        "temporary_debug_note": "D#4 fired in channel test with 4095 PWM for 500 ms plus 3300 PWM hold through a 650 ms pulse; keep song playback from releasing it earlier"
       },
       "40": {
         "hold_min_pwm": 2400,
@@ -376,6 +422,12 @@
         "hold_max_pwm": 2600,
         "hold_ratio": 0.66,
         "temporary_debug_note": "G5 was releasing early after strike; stronger hold keeps the key depressed"
+      },
+      "55": {
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2600,
+        "hold_ratio": 0.66,
+        "temporary_debug_note": "A5 was staccatoing during full sweep; stronger hold keeps the key depressed after strike"
       },
       "60": {
         "hold_min_pwm": 2400,

@@ -34,6 +34,45 @@ def build_calibration_pulse(actuation):
     }
 
 
+def mapped_note_for_channel(mapping, channel):
+    """Return the mapped MIDI note for a channel when the saved map knows it."""
+    if mapping.get("mode") != "explicit_note_map":
+        return None
+    channel = int(channel)
+    for note, mapped_channel in mapping.get("note_to_channel", {}).items():
+        if int(mapped_channel) == channel:
+            return int(note)
+    return None
+
+
+def build_regular_playback_pulse(note, channel, config, velocity=engine.DIAGNOSTIC_MEDIUM_VELOCITY):
+    """Build one FIRE pulse using the same actuation math as normal playback."""
+    if note is None:
+        note = mapped_note_for_channel(config["mapping"], channel)
+
+    if note is None:
+        actuation = engine.resolve_channel_actuation(channel, config)
+    else:
+        actuation = engine.resolve_note_actuation(note, channel, config)
+    strike_ms = int(actuation["strike_ms"])
+    strike_pwm = engine.velocity_to_strike_pwm(int(velocity), actuation)
+    hold_pwm = engine.strike_to_hold_pwm(strike_pwm, actuation)
+    hold_ms = max(0, engine.DIAGNOSTIC_NOTE_DURATION_MS - strike_ms)
+    return {
+        "strike_pwm": strike_pwm,
+        "hold_pwm": hold_pwm,
+        "strike_ms": strike_ms,
+        "hold_ms": hold_ms,
+        "release_ms": int(actuation["release_delay_ms"]),
+    }
+
+
+def build_regular_playback_channel_pulse(channel, config, velocity=engine.DIAGNOSTIC_MEDIUM_VELOCITY):
+    """Build a debug pulse for a channel using the mapped note's song-playback settings."""
+    note = mapped_note_for_channel(config["mapping"], channel)
+    return build_regular_playback_pulse(note, channel, config, velocity=velocity)
+
+
 def build_calibration_channel_labels(pca_config, active_sequence, existing_labels=None):
     labels = {}
     existing_labels = existing_labels or {}
@@ -297,14 +336,16 @@ def contiguous_octave_mapping(config, bottom_note):
 
 def run_sweep(connection, config):
     """Fire mapped notes once in musical order so missed keys are easy to spot."""
-    print("\nSweeping saved note mapping in musical order.")
+    print("\nSweeping saved note mapping in musical order with regular playback actuation.")
     for note, channel in iter_mapping_in_note_order(config["mapping"]):
-        actuation = engine.resolve_channel_actuation(channel, config)
-        pulse = build_calibration_pulse(actuation)
+        pulse = build_regular_playback_pulse(note, channel, config)
         label = config["mapping"].get("channel_labels", {}).get(str(channel), f"Channel {channel}")
         channel_target = engine.describe_global_channel(channel, config["pca9685"])
         if note is not None:
-            print(f"  Testing {engine.midi_note_name(note)} on {channel_target}: {label}")
+            print(
+                f"  Testing {engine.midi_note_name(note)} on {channel_target}: {label} "
+                f"(velocity {engine.DIAGNOSTIC_MEDIUM_VELOCITY}, strike {pulse['strike_pwm']}, hold {pulse['hold_pwm']})"
+            )
         else:
             print(f"  Firing {channel_target}: {label}")
         fire_channel(connection, channel, pulse)
@@ -371,10 +412,13 @@ def calibrate_manual_mapping(connection, config, port, ready_info):
     print("Use note names like C4 or F#3. Press Enter to skip a channel.")
 
     for channel in channel_sequence:
-        actuation = engine.resolve_channel_actuation(channel, config)
-        pulse = build_calibration_pulse(actuation)
+        pulse = build_regular_playback_channel_pulse(channel, config)
         label = channel_labels.get(str(channel), f"Channel {channel}")
-        print(f"\nFiring {engine.describe_global_channel(channel, config['pca9685'])}: {label}")
+        print(
+            f"\nFiring {engine.describe_global_channel(channel, config['pca9685'])}: {label} "
+            f"(regular playback pulse, velocity {engine.DIAGNOSTIC_MEDIUM_VELOCITY}, "
+            f"strike {pulse['strike_pwm']}, hold {pulse['hold_pwm']})"
+        )
         fire_channel(connection, channel, pulse)
         time.sleep(CALIBRATION_INTER_FIRE_DELAY_SECONDS)
         if pedal_channel is not None and int(channel) == int(pedal_channel):
@@ -447,11 +491,14 @@ def patch_manual_mapping(connection, config, port, ready_info, patch_channels=No
 
     added_assignments = []
     for channel in patch_channels:
-        actuation = engine.resolve_channel_actuation(channel, config)
-        pulse = build_calibration_pulse(actuation)
+        pulse = build_regular_playback_channel_pulse(channel, config)
         label = channel_labels.get(str(channel), f"Channel {channel}")
         channel_target = engine.describe_global_channel(channel, config["pca9685"])
-        print(f"\nFiring {channel_target}: {label}")
+        print(
+            f"\nFiring {channel_target}: {label} "
+            f"(regular playback pulse, velocity {engine.DIAGNOSTIC_MEDIUM_VELOCITY}, "
+            f"strike {pulse['strike_pwm']}, hold {pulse['hold_pwm']})"
+        )
         fire_channel(connection, channel, pulse)
         time.sleep(CALIBRATION_INTER_FIRE_DELAY_SECONDS)
         if pedal_channel is not None and int(channel) == int(pedal_channel):
@@ -510,10 +557,14 @@ def patch_manual_mapping(connection, config, port, ready_info, patch_channels=No
 
 def tune_channel(connection, config, channel):
     """Interactively test one channel's PWM and timing values."""
-    actuation = engine.resolve_channel_actuation(channel, config)
-    pulse = build_calibration_pulse(actuation)
+    note = mapped_note_for_channel(config["mapping"], channel)
+    pulse = build_regular_playback_channel_pulse(channel, config)
 
     print("\nChannel tuning test")
+    if note is not None:
+        print(f"Defaults match regular song playback for {engine.midi_note_name(note)} at velocity {engine.DIAGNOSTIC_MEDIUM_VELOCITY}.")
+    else:
+        print(f"Defaults use regular playback math for channel {channel} at velocity {engine.DIAGNOSTIC_MEDIUM_VELOCITY}.")
     print("Press Enter to keep the suggested value for each field.")
 
     strike_pwm = input(f"Strike PWM [{pulse['strike_pwm']}]: ").strip() or str(pulse["strike_pwm"])
@@ -602,7 +653,18 @@ def main():
     config = engine.load_config()
     action = choose_action(args)
 
-    if action in {"sweep", "calibrate_octave", "calibrate_manual"}:
+    if action == "sweep":
+        active_channel_count = args.active_channels
+        if active_channel_count is None:
+            active_channel_count = prompt_active_channel_count(config)
+        mapping, active_sequence = engine.apply_active_channel_limit(
+            config["mapping"],
+            config["pca9685"],
+            active_channel_count=active_channel_count,
+        )
+        config["mapping"] = mapping
+        print(engine.summarize_active_channel_sequence(active_sequence, config["pca9685"]))
+    elif action in {"calibrate_octave", "calibrate_manual"}:
         active_channel_count = args.active_channels
         if active_channel_count is None:
             active_channel_count = prompt_active_channel_count(config)

@@ -64,7 +64,7 @@ class CalibrationActionDialog(tk.Toplevel):
 
         ttk.Radiobutton(
             outer,
-            text="Sweep channels only",
+            text="Sweep saved notes with playback actuation",
             variable=self.action_var,
             value="sweep",
             style="Dialog.TRadiobutton",
@@ -158,7 +158,7 @@ class TroubleshootingActionDialog(tk.Toplevel):
         ).grid(row=4, column=0, sticky="w", pady=2)
         ttk.Radiobutton(
             outer,
-            text="Full sweep: C upward in chromatic order",
+            text="Full sweep: soft, medium, and hard chromatic passes",
             variable=self.key_color_var,
             value="full",
             style="Dialog.TRadiobutton",
@@ -287,7 +287,7 @@ class PedalStrengthDialog(tk.Toplevel):
 class MosfetTestDialog(tk.Toplevel):
     def __init__(self, parent, defaults):
         super().__init__(parent)
-        self.title("MOSFET Test")
+        self.title("Channel Test")
         self.resizable(False, False)
         self.transient(parent)
         self.grab_set()
@@ -295,31 +295,23 @@ class MosfetTestDialog(tk.Toplevel):
 
         self.result = None
         self.channel_var = tk.StringVar(value=str(defaults["channel"]))
-        self.strike_pwm_var = tk.StringVar(value=str(defaults["strike_pwm"]))
-        self.hold_pwm_var = tk.StringVar(value=str(defaults["hold_pwm"]))
-        self.strike_ms_var = tk.StringVar(value=str(defaults["strike_ms"]))
-        self.hold_ms_var = tk.StringVar(value=str(defaults["hold_ms"]))
-        self.release_ms_var = tk.StringVar(value=str(defaults["release_ms"]))
+        self.velocity_var = tk.StringVar(value=str(defaults["velocity"]))
 
         outer = ttk.Frame(self, padding=18, style="App.TFrame")
         outer.grid(row=0, column=0, sticky="nsew")
         outer.columnconfigure(1, weight=1)
 
-        ttk.Label(outer, text="Pulse one MOSFET channel", style="DialogTitle.TLabel").grid(row=0, column=0, columnspan=2, sticky="w")
+        ttk.Label(outer, text="Pulse one mapped channel", style="DialogTitle.TLabel").grid(row=0, column=0, columnspan=2, sticky="w")
         ttk.Label(
             outer,
-            text="This sends one FIRE command to the uploaded runtime, then turns all PCA outputs off.",
+            text="This sends one FIRE command using the same actuation math as regular song playback, then turns all PCA outputs off.",
             style="Muted.TLabel",
             wraplength=420,
         ).grid(row=1, column=0, columnspan=2, sticky="w", pady=(6, 12))
 
         fields = [
             ("Global channel", self.channel_var),
-            ("Strike PWM", self.strike_pwm_var),
-            ("Hold PWM", self.hold_pwm_var),
-            ("Strike ms", self.strike_ms_var),
-            ("Hold ms", self.hold_ms_var),
-            ("Release ms", self.release_ms_var),
+            ("Velocity", self.velocity_var),
         ]
         for row_index, (label, variable) in enumerate(fields, start=2):
             ttk.Label(outer, text=label, style="App.TLabel").grid(row=row_index, column=0, sticky="w", pady=3)
@@ -332,7 +324,7 @@ class MosfetTestDialog(tk.Toplevel):
             )
 
         button_row = ttk.Frame(outer, style="App.TFrame")
-        button_row.grid(row=8, column=0, columnspan=2, sticky="e", pady=(14, 0))
+        button_row.grid(row=4, column=0, columnspan=2, sticky="e", pady=(14, 0))
         ttk.Button(button_row, text="Cancel", style="Secondary.TButton", command=self.cancel).grid(row=0, column=0)
         ttk.Button(button_row, text="Fire Test", style="Primary.TButton", command=self.accept).grid(row=0, column=1, padx=(8, 0))
 
@@ -350,14 +342,10 @@ class MosfetTestDialog(tk.Toplevel):
         try:
             self.result = {
                 "channel": self._parse_int(self.channel_var, "Global channel", 0, 63),
-                "strike_pwm": self._parse_int(self.strike_pwm_var, "Strike PWM", 0, 4095),
-                "hold_pwm": self._parse_int(self.hold_pwm_var, "Hold PWM", 0, 4095),
-                "strike_ms": self._parse_int(self.strike_ms_var, "Strike ms", 0, 5000),
-                "hold_ms": self._parse_int(self.hold_ms_var, "Hold ms", 0, 10000),
-                "release_ms": self._parse_int(self.release_ms_var, "Release ms", 0, 10000),
+                "velocity": self._parse_int(self.velocity_var, "Velocity", 1, 127),
             }
         except ValueError as error:
-            messagebox.showerror("Invalid MOSFET test value", str(error), parent=self)
+            messagebox.showerror("Invalid channel test value", str(error), parent=self)
             return
         self.destroy()
 
@@ -372,6 +360,10 @@ class PlaybackControlState:
         self._pause_requested = False
         self._paused = False
         self._action = None
+        self._note_marker_plan = []
+        self._note_marker_started_at = None
+        self._marked_note_steps = []
+        self._marked_step_indexes = set()
 
     def request_pause(self):
         with self.lock:
@@ -413,6 +405,61 @@ class PlaybackControlState:
         with self.lock:
             return self._pause_requested
 
+    def configure_note_marker_plan(self, step_plan):
+        with self.lock:
+            self._note_marker_plan = [dict(step) for step in step_plan]
+            self._note_marker_started_at = None
+            self._marked_note_steps = []
+            self._marked_step_indexes = set()
+
+    def playback_started(self):
+        with self.lock:
+            if self._note_marker_plan:
+                self._note_marker_started_at = time.monotonic()
+
+    def note_marker_active(self):
+        with self.lock:
+            return bool(self._note_marker_plan) and self._note_marker_started_at is not None
+
+    def mark_previous_note_step(self):
+        with self.lock:
+            if not self._note_marker_plan:
+                return None, "No full-sweep note marker plan is active."
+            if self._note_marker_started_at is None:
+                return None, "Full-sweep playback has not started yet."
+
+            elapsed_ms = int(round((time.monotonic() - self._note_marker_started_at) * 1000))
+            previous_step = None
+            for step in self._note_marker_plan:
+                if int(step["start_ms"]) <= elapsed_ms:
+                    previous_step = step
+                else:
+                    break
+
+            if previous_step is None:
+                return None, "No note has played yet."
+
+            step_index = int(previous_step["index"])
+            if step_index in self._marked_step_indexes:
+                return previous_step, "already_marked"
+
+            self._marked_step_indexes.add(step_index)
+            self._marked_note_steps.append(dict(previous_step))
+            return previous_step, None
+
+    def get_marked_note_steps(self):
+        with self.lock:
+            return [dict(step) for step in self._marked_note_steps]
+
+    def get_marked_note_lines(self):
+        lines = []
+        for step in self.get_marked_note_steps():
+            notes = " + ".join(step.get("note_labels", []))
+            velocity = step.get("velocity")
+            phase = step.get("phase_name", "sweep")
+            lines.append(f"{notes} (velocity {velocity}, {phase})")
+        return lines
+
 
 class PianoPlayerApp(tk.Tk):
     def __init__(self):
@@ -440,6 +487,9 @@ class PianoPlayerApp(tk.Tk):
         self.current_queue_item = None
         self.queue_is_playing = False
         self.playback_control = None
+        self.note_marker_control = None
+        self.sweep_marker_dialog = None
+        self.sweep_marker_text_var = tk.StringVar(value="")
         self.playback_locked_widgets = []
         self.mosfet_test_defaults = None
         playback_preferences = self.user_preferences.get("playback", {})
@@ -462,13 +512,14 @@ class PianoPlayerApp(tk.Tk):
         self.tempo_var = tk.StringVar(value="")
         self.range_var = tk.StringVar(value=str(default_playable_range))
         self.fit_mode_var = tk.StringVar(value=default_fit_mode)
-        self.performance_feel_var = tk.BooleanVar(
-            value=bool(engine.get_performance_feel_config(self.config_data).get("enabled", False))
-        )
+        self.performance_feel_var = tk.BooleanVar(value=False)
         self.auto_measure_pedal_var = tk.BooleanVar(value=False)
         self.export_only_var = tk.BooleanVar(value=False)
 
         self._build_layout()
+        self.bind_all("<Return>", self.handle_note_marker_return, add="+")
+        self.bind_all("<KP_Enter>", self.handle_note_marker_return, add="+")
+        self.bind_all("<space>", self.handle_note_marker_return, add="+")
         self.refresh_song_catalog(use_suggested=True, recursive_downloads=False)
         self.refresh_song_catalog_async(use_suggested=True)
         self.after(100, self.process_worker_messages)
@@ -1014,7 +1065,7 @@ class PianoPlayerApp(tk.Tk):
         debug_frame.grid(row=5, column=0, sticky="nsew", pady=(0, 0))
         debug_body = self._create_section_body(debug_frame)
         debug_body.columnconfigure(0, weight=1)
-        debug_body.rowconfigure(2, weight=1, minsize=140)
+        debug_body.rowconfigure(3, weight=1, minsize=140)
 
         ttk.Label(
             debug_body,
@@ -1045,7 +1096,7 @@ class PianoPlayerApp(tk.Tk):
         )
         self.mosfet_test_button = ttk.Button(
             debug_button_row,
-            text="Test MOSFET...",
+            text="Test Channel...",
             style="Secondary.TButton",
             command=self.start_mosfet_test,
         )
@@ -1054,8 +1105,33 @@ class PianoPlayerApp(tk.Tk):
         )
         self.playback_locked_widgets.extend([self.calibrate_button, self.troubleshoot_button, self.mosfet_test_button])
 
+        sweep_stop_row = ttk.Frame(debug_body, style="Panel.TFrame")
+        sweep_stop_row.grid(row=2, column=0, sticky="ew", pady=(0, 10))
+        sweep_stop_row.columnconfigure(0, weight=1)
+        sweep_stop_row.columnconfigure(1, weight=1)
+        self.mark_current_note_button = ttk.Button(
+            sweep_stop_row,
+            text="Mark Current Note",
+            style="Secondary.TButton",
+            command=self.mark_current_full_sweep_note,
+            state="disabled",
+        )
+        self.mark_current_note_button.grid(
+            row=0, column=0, sticky="ew"
+        )
+        self.stop_troubleshooting_button = ttk.Button(
+            sweep_stop_row,
+            text="End Full Sweep and Show Marked Notes",
+            style="Primary.TButton",
+            command=self.stop_active_full_sweep,
+            state="disabled",
+        )
+        self.stop_troubleshooting_button.grid(
+            row=0, column=1, sticky="ew", padx=(8, 0)
+        )
+
         log_frame = ttk.LabelFrame(debug_body, text="Status", style="Section.TLabelframe")
-        log_frame.grid(row=2, column=0, sticky="nsew")
+        log_frame.grid(row=3, column=0, sticky="nsew")
         log_body = self._create_section_body(log_frame, padding=(14, 14, 14, 14))
         log_body.columnconfigure(0, weight=1)
         log_body.rowconfigure(0, weight=1)
@@ -1496,6 +1572,17 @@ class PianoPlayerApp(tk.Tk):
         self.skip_current_button.configure(
             state="normal" if can_control and has_current_item else "disabled"
         )
+        self.refresh_note_marker_controls()
+
+    def refresh_note_marker_controls(self):
+        if not hasattr(self, "stop_troubleshooting_button"):
+            return
+
+        control = self.note_marker_control
+        can_stop = bool(control)
+        can_mark = bool(control and control.note_marker_active())
+        self.mark_current_note_button.configure(state="normal" if can_mark else "disabled")
+        self.stop_troubleshooting_button.configure(state="normal" if can_stop else "disabled")
 
     def toggle_queue_pause(self):
         control = self.playback_control
@@ -1537,6 +1624,134 @@ class PianoPlayerApp(tk.Tk):
         control.request_skip()
         self.append_log(f"Skip requested for {current_item['display_name']}.")
         self.refresh_playback_control_buttons()
+
+    def handle_note_marker_return(self, _event=None):
+        return self.mark_current_full_sweep_note()
+
+    def show_sweep_marker_dialog(self):
+        self.close_sweep_marker_dialog()
+
+        dialog = tk.Toplevel(self)
+        dialog.title("Full Sweep Marker")
+        dialog.resizable(False, False)
+        dialog.configure(bg=APP_BG)
+        dialog.transient(self)
+        dialog.attributes("-topmost", True)
+        dialog.protocol("WM_DELETE_WINDOW", self.stop_active_full_sweep)
+
+        outer = ttk.Frame(dialog, padding=18, style="App.TFrame")
+        outer.grid(row=0, column=0, sticky="nsew")
+        outer.columnconfigure(0, weight=1)
+
+        ttk.Label(
+            outer,
+            text="Full sweep marker",
+            style="DialogTitle.TLabel",
+        ).grid(row=0, column=0, sticky="w")
+        ttk.Label(
+            outer,
+            text="Press Enter, Space, or Mark Current Note when the note you want to remember has just played.",
+            style="Muted.TLabel",
+            wraplength=420,
+        ).grid(row=1, column=0, sticky="w", pady=(6, 12))
+
+        button_row = ttk.Frame(outer, style="App.TFrame")
+        button_row.grid(row=2, column=0, sticky="ew")
+        button_row.columnconfigure(0, weight=1)
+        button_row.columnconfigure(1, weight=1)
+        ttk.Button(
+            button_row,
+            text="Mark Current Note",
+            style="Primary.TButton",
+            command=self.mark_current_full_sweep_note,
+        ).grid(row=0, column=0, sticky="ew")
+        ttk.Button(
+            button_row,
+            text="End Sweep",
+            style="Secondary.TButton",
+            command=self.stop_active_full_sweep,
+        ).grid(row=0, column=1, sticky="ew", padx=(8, 0))
+
+        ttk.Label(
+            outer,
+            textvariable=self.sweep_marker_text_var,
+            style="Muted.TLabel",
+            wraplength=420,
+        ).grid(row=3, column=0, sticky="w", pady=(12, 0))
+
+        dialog.bind("<Return>", self.handle_note_marker_return)
+        dialog.bind("<KP_Enter>", self.handle_note_marker_return)
+        dialog.bind("<space>", self.handle_note_marker_return)
+        self.sweep_marker_dialog = dialog
+        self.refresh_sweep_marker_dialog()
+        dialog.lift()
+        dialog.focus_force()
+
+    def refresh_sweep_marker_dialog(self):
+        if self.sweep_marker_dialog is None:
+            return
+        control = self.note_marker_control
+        if control is None:
+            self.sweep_marker_text_var.set("No full sweep is active.")
+            return
+
+        marked_lines = control.get_marked_note_lines()
+        if not marked_lines:
+            self.sweep_marker_text_var.set("Marked notes: none yet")
+            return
+
+        visible_lines = marked_lines[-6:]
+        prefix = f"Marked notes ({len(marked_lines)}):"
+        self.sweep_marker_text_var.set(prefix + "\n" + "\n".join(visible_lines))
+
+    def close_sweep_marker_dialog(self):
+        dialog = self.sweep_marker_dialog
+        self.sweep_marker_dialog = None
+        if dialog is not None:
+            try:
+                dialog.destroy()
+            except tk.TclError:
+                pass
+
+    def mark_current_full_sweep_note(self):
+        control = self.note_marker_control
+        if control is None:
+            self.refresh_sweep_marker_dialog()
+            return None
+
+        step, status = control.mark_previous_note_step()
+        if step is None:
+            self.append_log(f"Full sweep marker: {status}")
+            self.refresh_sweep_marker_dialog()
+            return "break"
+
+        notes = " + ".join(step.get("note_labels", []))
+        if status == "already_marked":
+            self.append_log(f"Full sweep marker already saved: {notes}")
+        else:
+            self.append_log(
+                f"Full sweep marker saved: {notes} "
+                f"(velocity {step.get('velocity')}, {step.get('phase_name')})"
+            )
+        self.refresh_sweep_marker_dialog()
+        return "break"
+
+    def stop_active_full_sweep(self):
+        control = self.note_marker_control
+        if control is None:
+            return
+
+        control.request_skip()
+        marked_lines = control.get_marked_note_lines()
+        self.append_log("End requested for full sweep.")
+        if marked_lines:
+            self.append_log("Marked notes so far:")
+            for line in marked_lines:
+                self.append_log(f"  {line}")
+        else:
+            self.append_log("Marked notes so far: none")
+        self.refresh_note_marker_controls()
+        self.refresh_sweep_marker_dialog()
 
     def update_song_preview(self):
         if self.selected_song_path is None:
@@ -1586,14 +1801,16 @@ class PianoPlayerApp(tk.Tk):
             self.append_log(f"  {line}")
 
     def run_sweep_calibration(self, connection, config):
-        self.append_log("Sweeping saved note mapping in musical order.")
+        self.append_log("Sweeping saved note mapping in musical order with regular playback actuation.")
         for note, channel in piano_tools.iter_mapping_in_note_order(config["mapping"]):
-            actuation = engine.resolve_channel_actuation(channel, config)
-            pulse = piano_tools.build_calibration_pulse(actuation)
+            pulse = piano_tools.build_regular_playback_pulse(note, channel, config)
             label = config["mapping"].get("channel_labels", {}).get(str(channel), f"Channel {channel}")
             channel_target = engine.describe_global_channel(channel, config["pca9685"])
             if note is not None:
-                self.append_log(f"  Testing {engine.midi_note_name(note)} on {channel_target}: {label}")
+                self.append_log(
+                    f"  Testing {engine.midi_note_name(note)} on {channel_target}: {label} "
+                    f"(velocity {engine.DIAGNOSTIC_MEDIUM_VELOCITY}, strike {pulse['strike_pwm']}, hold {pulse['hold_pwm']})"
+                )
             else:
                 self.append_log(f"  Firing {channel_target}: {label}")
             piano_tools.fire_channel(connection, channel, pulse)
@@ -1643,11 +1860,14 @@ class PianoPlayerApp(tk.Tk):
         self.append_log("Each channel will fire once. Enter the piano note it moved, or leave blank to skip it.")
 
         for channel in channel_sequence:
-            actuation = engine.resolve_channel_actuation(channel, config)
-            pulse = piano_tools.build_calibration_pulse(actuation)
+            pulse = piano_tools.build_regular_playback_channel_pulse(channel, config)
             label = channel_labels.get(str(channel), f"Channel {channel}")
             channel_target = engine.describe_global_channel(channel, config["pca9685"])
-            self.append_log(f"Firing {channel_target}: {label}")
+            self.append_log(
+                f"Firing {channel_target}: {label} "
+                f"(regular playback pulse, velocity {engine.DIAGNOSTIC_MEDIUM_VELOCITY}, "
+                f"strike {pulse['strike_pwm']}, hold {pulse['hold_pwm']})"
+            )
             piano_tools.fire_channel(connection, channel, pulse)
             self.update()
             time.sleep(piano_tools.CALIBRATION_INTER_FIRE_DELAY_SECONDS)
@@ -1730,11 +1950,14 @@ class PianoPlayerApp(tk.Tk):
         self.append_log("Each unused channel will fire once. Enter the piano note it moved, or leave blank to skip it.")
 
         for channel in patch_channels:
-            actuation = engine.resolve_channel_actuation(channel, config)
-            pulse = piano_tools.build_calibration_pulse(actuation)
+            pulse = piano_tools.build_regular_playback_channel_pulse(channel, config)
             label = channel_labels.get(str(channel), f"Channel {channel}")
             channel_target = engine.describe_global_channel(channel, config["pca9685"])
-            self.append_log(f"Firing {channel_target}: {label}")
+            self.append_log(
+                f"Firing {channel_target}: {label} "
+                f"(regular playback pulse, velocity {engine.DIAGNOSTIC_MEDIUM_VELOCITY}, "
+                f"strike {pulse['strike_pwm']}, hold {pulse['hold_pwm']})"
+            )
             piano_tools.fire_channel(connection, channel, pulse)
             self.update()
             time.sleep(piano_tools.CALIBRATION_INTER_FIRE_DELAY_SECONDS)
@@ -2189,25 +2412,24 @@ class PianoPlayerApp(tk.Tk):
 
     def build_mosfet_test_defaults(self):
         if self.mosfet_test_defaults is not None:
-            return dict(self.mosfet_test_defaults)
+            defaults = dict(self.mosfet_test_defaults)
+            defaults.setdefault("velocity", engine.DIAGNOSTIC_MEDIUM_VELOCITY)
+            return defaults
 
-        config = engine.load_config()
-        actuation = engine.resolve_channel_actuation(0, config)
         return {
             "channel": 0,
-            "strike_pwm": int(actuation["strike_max_pwm"]),
-            "hold_pwm": 0,
-            "strike_ms": max(60, int(actuation["strike_ms"])),
-            "hold_ms": 0,
-            "release_ms": 300,
+            "velocity": engine.DIAGNOSTIC_MEDIUM_VELOCITY,
         }
 
     def run_mosfet_test_workflow(self, pulse, reporter):
         config = engine.load_config()
         channel = int(pulse["channel"])
+        velocity = int(pulse.get("velocity", engine.DIAGNOSTIC_MEDIUM_VELOCITY))
         capacity = engine.get_global_channel_capacity(config["pca9685"])
         if channel < 0 or channel >= capacity:
             raise RuntimeError(f"Channel {channel} is outside the configured PCA9685 range 0-{capacity - 1}.")
+        playback_pulse = piano_tools.build_regular_playback_channel_pulse(channel, config, velocity=velocity)
+        mapped_note = piano_tools.mapped_note_for_channel(config["mapping"], channel)
 
         connection = None
         try:
@@ -2217,24 +2439,30 @@ class PianoPlayerApp(tk.Tk):
             channel_target = engine.describe_global_channel(channel, config["pca9685"])
             label = config["mapping"].get("channel_labels", {}).get(str(channel), f"Channel {channel}")
             reporter("")
-            reporter("MOSFET test")
+            reporter("Channel test")
             reporter(f"Serial port: {port}")
             reporter(f"Testing {channel_target}: {label}")
+            if mapped_note is not None:
+                reporter(f"Mapped note: {engine.midi_note_name(mapped_note)} ({mapped_note})")
+            else:
+                reporter("Mapped note: none; using channel actuation with regular playback math")
             reporter(
-                "Pulse: "
-                f"strike {pulse['strike_pwm']}/4095 for {pulse['strike_ms']} ms, "
-                f"hold {pulse['hold_pwm']}/4095 for {pulse['hold_ms']} ms, "
-                f"release wait {pulse['release_ms']} ms."
+                "Regular playback pulse: "
+                f"velocity {velocity}, "
+                f"strike {playback_pulse['strike_pwm']}/4095 for {playback_pulse['strike_ms']} ms, "
+                f"hold {playback_pulse['hold_pwm']}/4095 for {playback_pulse['hold_ms']} ms, "
+                f"release wait {playback_pulse['release_ms']} ms."
             )
 
-            piano_tools.fire_channel(connection, channel, pulse)
-            reporter("MOSFET test complete. All outputs are off.")
+            piano_tools.fire_channel(connection, channel, playback_pulse)
+            reporter("Channel test complete. All outputs are off.")
             return {
                 "cancelled": False,
                 "workflow_kind": "mosfet_test",
                 "channel": channel,
                 "channel_target": channel_target,
-                "pulse": dict(pulse),
+                "velocity": velocity,
+                "pulse": dict(playback_pulse),
                 "port": port,
             }
         finally:
@@ -2257,7 +2485,10 @@ class PianoPlayerApp(tk.Tk):
         self.mosfet_test_defaults = dict(dialog.result)
 
         self.append_log("")
-        self.append_log(f"Starting MOSFET test on global channel {dialog.result['channel']}...")
+        self.append_log(
+            f"Starting regular-playback channel test on global channel {dialog.result['channel']} "
+            f"at velocity {dialog.result['velocity']}..."
+        )
         self.set_controls_enabled(False)
 
         worker_args = {
@@ -2301,6 +2532,7 @@ class PianoPlayerApp(tk.Tk):
         else:
             self.append_log(f"Starting {key_label.lower()} key troubleshooting...")
         self.set_controls_enabled(False)
+        self.note_marker_control = None
 
         if dialog.result == "pedal":
             worker_args = {
@@ -2310,6 +2542,16 @@ class PianoPlayerApp(tk.Tk):
                 "reporter": lambda message: self.message_queue.put(("log", message)),
             }
         else:
+            playback_control = None
+            if dialog.result == "full" and not run_options["export_only"]:
+                playback_control = PlaybackControlState()
+                self.note_marker_control = playback_control
+                self.append_log(
+                    "During the full sweep, press Mark Current Note, Enter, or Space to save the most recently played note."
+                )
+                self.refresh_note_marker_controls()
+                self.show_sweep_marker_dialog()
+                self.focus_force()
             worker_args = {
                 "workflow_kind": "troubleshooting",
                 "key_color": dialog.result,
@@ -2319,6 +2561,7 @@ class PianoPlayerApp(tk.Tk):
                 "dry_run": False,
                 "export_only": run_options["export_only"],
                 "allow_prompts": False,
+                "playback_control": playback_control,
                 "reporter": lambda message: self.message_queue.put(("log", message)),
             }
 
@@ -2445,6 +2688,15 @@ class PianoPlayerApp(tk.Tk):
                 elif message_type == "error":
                     self.set_controls_enabled(True)
                     self.worker = None
+                    if self.note_marker_control is not None:
+                        marked_lines = self.note_marker_control.get_marked_note_lines()
+                        if marked_lines:
+                            self.append_log("Full sweep marked notes before the error:")
+                            for line in marked_lines:
+                                self.append_log(f"  {line}")
+                        self.note_marker_control = None
+                        self.refresh_note_marker_controls()
+                        self.close_sweep_marker_dialog()
                     self.append_log(f"Error: {payload}")
                     messagebox.showerror("Run failed", payload, parent=self)
                 elif message_type == "queue_item_started":
@@ -2523,12 +2775,14 @@ class PianoPlayerApp(tk.Tk):
                         self.append_log("Cancelled before conversion.")
                     else:
                         if result["workflow_kind"] == "mosfet_test":
-                            title = "MOSFET test complete"
+                            title = "Channel test complete"
                             pulse = result["pulse"]
                             summary = (
-                                f"Finished MOSFET test on channel {result['channel']}\n"
+                                f"Finished channel test on channel {result['channel']}\n"
                                 f"{result['channel_target']}\n"
-                                f"Strike: {pulse['strike_pwm']}/4095 for {pulse['strike_ms']} ms"
+                                f"Velocity: {result.get('velocity', engine.DIAGNOSTIC_MEDIUM_VELOCITY)}\n"
+                                f"Strike: {pulse['strike_pwm']}/4095 for {pulse['strike_ms']} ms\n"
+                                f"Hold: {pulse['hold_pwm']}/4095 for {pulse['hold_ms']} ms"
                             )
                         elif result["workflow_kind"] == "pedal_troubleshooting":
                             title = "Pedal troubleshooting complete"
@@ -2557,6 +2811,20 @@ class PianoPlayerApp(tk.Tk):
                                 f"Steps: {result['metadata'].get('diagnostic_step_count', 0)}\n"
                                 f"Effective tempo: {result['tempo_override']['target_bpm']:.2f} BPM"
                             )
+                            if _diag_color == "full" and self.note_marker_control is not None:
+                                marked_lines = self.note_marker_control.get_marked_note_lines()
+                                if marked_lines:
+                                    self.append_log("Full sweep marked notes:")
+                                    for line in marked_lines:
+                                        self.append_log(f"  {line}")
+                                    summary += "\n\nMarked notes:\n" + "\n".join(marked_lines[:12])
+                                    if len(marked_lines) > 12:
+                                        summary += f"\n...and {len(marked_lines) - 12} more"
+                                else:
+                                    self.append_log("Full sweep marked notes: none")
+                                self.note_marker_control = None
+                                self.refresh_note_marker_controls()
+                                self.close_sweep_marker_dialog()
                         else:
                             if result["payload"] is None:
                                 title = "Dry run complete"
