@@ -55,7 +55,8 @@ def build_regular_playback_pulse(note, channel, config, velocity=engine.DIAGNOST
     else:
         actuation = engine.resolve_note_actuation(note, channel, config)
     strike_ms = int(actuation["strike_ms"])
-    strike_pwm = engine.velocity_to_strike_pwm(int(velocity), actuation)
+    output_velocity, _velocity_override_applied = engine.resolve_playback_velocity(int(velocity), actuation)
+    strike_pwm = engine.velocity_to_strike_pwm(output_velocity, actuation)
     hold_pwm = engine.strike_to_hold_pwm(strike_pwm, actuation)
     hold_ms = max(0, engine.DIAGNOSTIC_NOTE_DURATION_MS - strike_ms)
     return {

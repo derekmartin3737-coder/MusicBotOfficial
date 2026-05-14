@@ -37,6 +37,9 @@ static const uint8_t RUNTIME_PCA9685_I2C_ADDRESSES[RUNTIME_PCA_BOARD_COUNT] = {
 static const uint16_t RUNTIME_PCA9685_PWM_FREQUENCY_HZ = 250;
 static const uint32_t RUNTIME_SERIAL_BAUD = 115200;
 static const uint8_t RUNTIME_PROTOCOL_VERSION = 5;
+static const uint8_t RUNTIME_SUSTAIN_PEDAL_CHANNEL = 61;
+static const uint32_t RUNTIME_OUTPUT_FAILSAFE_MS = 6000;
+static const uint32_t RUNTIME_PEDAL_FAILSAFE_MS = 1200;
 
 // Small RAM buffer for streamed events. Python keeps refilling this while
 // playback is running so the Uno does not need to store an entire song.
@@ -80,6 +83,8 @@ bool dueTimeArmed = false;
 uint32_t nextEventDueAtMs = 0;
 uint32_t lastEventDueAtMs = 0;
 uint32_t pauseStartedAtMs = 0;
+bool channelOutputActive[RUNTIME_GLOBAL_CHANNEL_COUNT] = {false};
+uint32_t channelOutputStartedAtMs[RUNTIME_GLOBAL_CHANNEL_COUNT] = {0};
 
 char lineBuffer[LINE_BUFFER_SIZE];
 uint8_t lineLength = 0;
@@ -95,6 +100,10 @@ void allChannelsOff() {
     for (uint8_t channel = 0; channel < RUNTIME_PCA_CHANNELS_PER_BOARD; channel++) {
       pwmBoards[boardIndex].setPWM(channel, 0, 0);
     }
+  }
+  for (uint8_t channel = 0; channel < RUNTIME_GLOBAL_CHANNEL_COUNT; channel++) {
+    channelOutputActive[channel] = false;
+    channelOutputStartedAtMs[channel] = 0;
   }
 }
 
@@ -179,6 +188,36 @@ void setGlobalChannelPwm(uint8_t globalChannel, uint16_t pwmValue) {
   uint8_t boardIndex = globalChannel / RUNTIME_PCA_CHANNELS_PER_BOARD;
   uint8_t localChannel = globalChannel % RUNTIME_PCA_CHANNELS_PER_BOARD;
   pwmBoards[boardIndex].setPWM(localChannel, 0, pwmValue);
+  if (pwmValue == 0) {
+    channelOutputActive[globalChannel] = false;
+    channelOutputStartedAtMs[globalChannel] = 0;
+  } else {
+    channelOutputActive[globalChannel] = true;
+    channelOutputStartedAtMs[globalChannel] = millis();
+  }
+}
+
+uint32_t outputFailsafeMsForChannel(uint8_t channel) {
+  if (channel == RUNTIME_SUSTAIN_PEDAL_CHANNEL) {
+    return RUNTIME_PEDAL_FAILSAFE_MS;
+  }
+  return RUNTIME_OUTPUT_FAILSAFE_MS;
+}
+
+void serviceOutputFailsafe() {
+  uint32_t now = millis();
+  for (uint8_t channel = 0; channel < RUNTIME_GLOBAL_CHANNEL_COUNT; channel++) {
+    if (!channelOutputActive[channel]) {
+      continue;
+    }
+    uint32_t failsafeMs = outputFailsafeMsForChannel(channel);
+    if ((uint32_t)(now - channelOutputStartedAtMs[channel]) <= failsafeMs) {
+      continue;
+    }
+    setGlobalChannelPwm(channel, 0);
+    Serial.print(F("WARN FAILSAFE_OFF channel="));
+    Serial.println(channel);
+  }
 }
 
 void resetEventQueue() {
@@ -705,4 +744,5 @@ void loop() {
   // Serial loading and timed playback are both non-blocking during normal songs.
   pollSerial();
   servicePlayback();
+  serviceOutputFailsafe();
 }

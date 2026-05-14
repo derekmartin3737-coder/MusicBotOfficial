@@ -8,6 +8,8 @@ song, tempo, and current hardware note range without answering terminal prompts.
 from __future__ import annotations
 
 import copy
+import csv
+import json
 import queue
 import threading
 import time
@@ -33,6 +35,89 @@ LOG_BG = "#10151c"
 LOG_TEXT = "#e7edf5"
 LOG_MUTED = "#90a0b5"
 QUEUE_INTER_SONG_DELAY_SECONDS = 3.0
+SPEED_TEST_SPEEDS = [
+    ("8ths", 8),
+    ("16ths", 16),
+    ("32nds", 32),
+    ("64ths", 64),
+]
+SPEED_TEST_SPEED_LABELS = [label for label, _division in SPEED_TEST_SPEEDS]
+SPEED_TEST_LOG_JSON_PATH = engine.METADATA_DIR / "speed_test_log.json"
+SPEED_TEST_LOG_CSV_PATH = engine.METADATA_DIR / "speed_test_log.csv"
+SPEED_TEST_LOG_COLUMNS = [
+    "timestamp",
+    "status",
+    "note_label",
+    "note",
+    "channel",
+    "speed_label",
+    "bpm",
+    "period_ms",
+    "repeats",
+    "velocity",
+    "strike_pwm",
+    "hold_pwm",
+    "strike_ms",
+    "release_gap_ms",
+    "saved_to_config",
+    "saved_minimum_repeat_period_ms",
+    "saved_playback_velocity_override",
+    "channel_target",
+]
+
+
+def speed_test_division_for_label(label):
+    for speed_label, division in SPEED_TEST_SPEEDS:
+        if speed_label == label:
+            return division
+    raise ValueError(f"Unknown speed selection: {label}")
+
+
+def speed_test_period_ms(bpm, division):
+    quarter_ms = 60000.0 / float(bpm)
+    return quarter_ms * (4.0 / float(division))
+
+
+def build_speed_test_delta_events(note, channel, bpm, division, repeats, velocity, config):
+    """Build a repeated single-note burst on an exact rhythmic grid."""
+    actuation = engine.resolve_note_actuation(note, channel, config)
+    strike_pwm = engine.velocity_to_strike_pwm(int(velocity), actuation)
+    hold_pwm = engine.strike_to_hold_pwm(strike_pwm, actuation)
+    strike_ms = max(1, int(actuation["strike_ms"]))
+    configured_release_ms = max(0, int(actuation.get("release_delay_ms", 0)))
+    configured_rearm_ms = max(0, int(actuation.get("minimum_rearm_gap_ms", 0)))
+    target_release_gap_ms = max(configured_release_ms, configured_rearm_ms)
+    period = speed_test_period_ms(bpm, division)
+
+    timeline = [(0, int(channel), 0)]
+    for repeat_index in range(int(repeats)):
+        start_ms = int(round(repeat_index * period))
+        next_start_ms = int(round((repeat_index + 1) * period))
+        available_ms = max(1, next_start_ms - start_ms)
+        if available_ms <= 8:
+            release_gap_ms = 0
+        else:
+            release_gap_ms = min(target_release_gap_ms, available_ms - 1)
+        release_ms = max(start_ms + 1, next_start_ms - release_gap_ms)
+        hold_start_ms = start_ms + strike_ms
+
+        timeline.append((start_ms, int(channel), int(strike_pwm)))
+        if hold_start_ms < release_ms:
+            timeline.append((hold_start_ms, int(channel), int(hold_pwm)))
+        timeline.append((release_ms, int(channel), 0))
+
+    timeline.sort(key=lambda item: (item[0], 0 if item[2] == 0 else 1, item[1]))
+    delta_events = [
+        {"dt_ms": dt_ms, "channel": event_channel, "pwm": pwm_value}
+        for dt_ms, event_channel, pwm_value in engine.convert_to_delta_events(timeline)
+    ]
+    return delta_events, {
+        "period_ms": period,
+        "strike_pwm": strike_pwm,
+        "hold_pwm": hold_pwm,
+        "strike_ms": strike_ms,
+        "release_gap_ms": min(target_release_gap_ms, max(0, int(round(max(1, period) - 1)))),
+    }
 
 
 class CalibrationActionDialog(tk.Toplevel):
@@ -354,6 +439,806 @@ class MosfetTestDialog(tk.Toplevel):
         self.destroy()
 
 
+class SolenoidSpeedTestDialog(tk.Toplevel):
+    def __init__(self, parent, note_rows, defaults):
+        super().__init__(parent)
+        self.parent_app = parent
+        self.note_rows = [dict(row) for row in note_rows]
+        self.current_index = 0
+        self.running = False
+        self.log_entries = parent.load_speed_test_log_entries()
+
+        self.title("Solenoid Speed Test")
+        self.resizable(True, True)
+        self.transient(parent)
+        self.configure(bg=APP_BG)
+
+        self.note_var = tk.StringVar()
+        self.current_note_var = tk.StringVar()
+        self.current_channel_var = tk.StringVar()
+        self.speed_var = tk.StringVar(value=defaults.get("speed_label", SPEED_TEST_SPEED_LABELS[0]))
+        self.bpm_var = tk.StringVar(value=str(defaults.get("bpm", 120)))
+        self.repeats_var = tk.StringVar(value=str(defaults.get("repeats", 10)))
+        self.velocity_var = tk.StringVar(value=str(defaults.get("velocity", engine.DIAGNOSTIC_MEDIUM_VELOCITY)))
+        self.save_config_var = tk.BooleanVar(value=True)
+        self.benchmark_var = tk.StringVar()
+        self.status_var = tk.StringVar(value="Ready.")
+        self.slower_summary_var = tk.StringVar()
+
+        outer = ttk.Frame(self, padding=18, style="App.TFrame")
+        outer.grid(row=0, column=0, sticky="nsew")
+        outer.columnconfigure(0, weight=1)
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
+
+        ttk.Label(outer, text="Single-solenoid speed test", style="DialogTitle.TLabel").grid(row=0, column=0, sticky="w")
+        ttk.Label(
+            outer,
+            text="Walk the mapped notes, play repeated bursts at a selected rhythmic speed, then log whether each note meets the benchmark or blends.",
+            style="Muted.TLabel",
+            wraplength=620,
+        ).grid(row=1, column=0, sticky="w", pady=(6, 12))
+
+        control_frame = ttk.Frame(outer, style="App.TFrame")
+        control_frame.grid(row=2, column=0, sticky="ew")
+        control_frame.columnconfigure(1, weight=1)
+
+        ttk.Label(control_frame, text="Current note", style="App.TLabel").grid(row=0, column=0, sticky="w", pady=3)
+        self.note_box = ttk.Combobox(
+            control_frame,
+            state="readonly",
+            values=[self.format_note_choice(row) for row in self.note_rows],
+            textvariable=self.note_var,
+            style="Panel.TCombobox",
+        )
+        self.note_box.grid(row=0, column=1, sticky="ew", padx=(14, 0), pady=3)
+        self.note_box.bind("<<ComboboxSelected>>", self.select_note_from_box)
+
+        ttk.Label(control_frame, text="Speed", style="App.TLabel").grid(row=1, column=0, sticky="w", pady=3)
+        self.speed_box = ttk.Combobox(
+            control_frame,
+            state="readonly",
+            values=SPEED_TEST_SPEED_LABELS,
+            textvariable=self.speed_var,
+            style="Panel.TCombobox",
+            width=12,
+        )
+        self.speed_box.grid(row=1, column=1, sticky="w", padx=(14, 0), pady=3)
+
+        ttk.Label(control_frame, text="BPM", style="App.TLabel").grid(row=2, column=0, sticky="w", pady=3)
+        self.bpm_entry = ttk.Entry(control_frame, textvariable=self.bpm_var, style="Panel.TEntry", width=12)
+        self.bpm_entry.grid(row=2, column=1, sticky="w", padx=(14, 0), pady=3)
+
+        ttk.Label(control_frame, text="Repeats", style="App.TLabel").grid(row=3, column=0, sticky="w", pady=3)
+        self.repeats_entry = ttk.Entry(control_frame, textvariable=self.repeats_var, style="Panel.TEntry", width=12)
+        self.repeats_entry.grid(row=3, column=1, sticky="w", padx=(14, 0), pady=3)
+
+        ttk.Label(control_frame, text="Velocity", style="App.TLabel").grid(row=4, column=0, sticky="w", pady=3)
+        self.velocity_entry = ttk.Entry(control_frame, textvariable=self.velocity_var, style="Panel.TEntry", width=12)
+        self.velocity_entry.grid(row=4, column=1, sticky="w", padx=(14, 0), pady=3)
+
+        ttk.Label(control_frame, textvariable=self.current_note_var, style="Value.Panel.TLabel").grid(
+            row=5,
+            column=0,
+            columnspan=2,
+            sticky="w",
+            pady=(12, 2),
+        )
+        ttk.Label(control_frame, textvariable=self.current_channel_var, style="Muted.TLabel", wraplength=620).grid(
+            row=6,
+            column=0,
+            columnspan=2,
+            sticky="w",
+        )
+        ttk.Label(control_frame, textvariable=self.benchmark_var, style="Muted.TLabel", wraplength=620).grid(
+            row=7,
+            column=0,
+            columnspan=2,
+            sticky="w",
+            pady=(6, 0),
+        )
+
+        note_button_row = ttk.Frame(outer, style="App.TFrame")
+        note_button_row.grid(row=3, column=0, sticky="ew", pady=(14, 0))
+        note_button_row.columnconfigure(0, weight=1)
+        note_button_row.columnconfigure(1, weight=1)
+        note_button_row.columnconfigure(2, weight=1)
+        ttk.Button(note_button_row, text="Start Lowest", style="Secondary.TButton", command=self.start_lowest).grid(
+            row=0,
+            column=0,
+            sticky="ew",
+        )
+        ttk.Button(note_button_row, text="Previous Note", style="Secondary.TButton", command=self.previous_note).grid(
+            row=0,
+            column=1,
+            sticky="ew",
+            padx=(8, 0),
+        )
+        ttk.Button(note_button_row, text="Next Note", style="Secondary.TButton", command=self.next_note).grid(
+            row=0,
+            column=2,
+            sticky="ew",
+            padx=(8, 0),
+        )
+
+        action_row = ttk.Frame(outer, style="App.TFrame")
+        action_row.grid(row=4, column=0, sticky="ew", pady=(10, 0))
+        action_row.columnconfigure(0, weight=1)
+        action_row.columnconfigure(1, weight=1)
+        action_row.columnconfigure(2, weight=1)
+        action_row.columnconfigure(3, weight=1)
+        self.run_button = ttk.Button(action_row, text="Play Burst", style="Primary.TButton", command=self.run_current_test)
+        self.run_button.grid(row=0, column=0, sticky="ew")
+        ttk.Button(action_row, text="Meets Benchmark", style="Secondary.TButton", command=lambda: self.record_result("meets")).grid(
+            row=0,
+            column=1,
+            sticky="ew",
+            padx=(8, 0),
+        )
+        ttk.Button(action_row, text="Slower / Blends", style="Secondary.TButton", command=lambda: self.record_result("slower_blends")).grid(
+            row=0,
+            column=2,
+            sticky="ew",
+            padx=(8, 0),
+        )
+        ttk.Button(action_row, text="Save Current Settings", style="Secondary.TButton", command=self.save_current_settings).grid(
+            row=0,
+            column=3,
+            sticky="ew",
+            padx=(8, 0),
+        )
+
+        ttk.Checkbutton(
+            outer,
+            text="Save velocity and repeat speed to this solenoid's global config when logging",
+            variable=self.save_config_var,
+            style="Dialog.TCheckbutton",
+        ).grid(row=5, column=0, sticky="w", pady=(10, 0))
+
+        ttk.Label(outer, textvariable=self.status_var, style="Status.Panel.TLabel").grid(row=6, column=0, sticky="w", pady=(12, 4))
+        ttk.Label(outer, textvariable=self.slower_summary_var, style="Muted.TLabel", wraplength=620).grid(
+            row=7,
+            column=0,
+            sticky="w",
+            pady=(0, 10),
+        )
+
+        results_frame = ttk.Frame(outer, style="App.TFrame")
+        results_frame.grid(row=8, column=0, sticky="nsew")
+        results_frame.columnconfigure(0, weight=1)
+        results_frame.rowconfigure(0, weight=1)
+        outer.rowconfigure(8, weight=1)
+        self.results_listbox = tk.Listbox(
+            results_frame,
+            height=8,
+            bg=INPUT_BG,
+            fg=TEXT_COLOR,
+            selectbackground=ACCENT_SOFT,
+            selectforeground=TEXT_COLOR,
+            highlightthickness=1,
+            highlightbackground=INPUT_BORDER,
+            relief="flat",
+            activestyle="none",
+            font=("Consolas", 9),
+        )
+        self.results_listbox.grid(row=0, column=0, sticky="nsew")
+        results_scrollbar = ttk.Scrollbar(
+            results_frame,
+            orient="vertical",
+            style="Panel.Vertical.TScrollbar",
+            command=self.results_listbox.yview,
+        )
+        results_scrollbar.grid(row=0, column=1, sticky="ns", padx=(10, 0))
+        self.results_listbox.configure(yscrollcommand=results_scrollbar.set)
+
+        self.speed_var.trace_add("write", lambda *_args: self.refresh_benchmark())
+        self.bpm_var.trace_add("write", lambda *_args: self.refresh_benchmark())
+
+        self.set_note_index(0)
+        self.refresh_benchmark()
+        self.refresh_log_view()
+        self.protocol("WM_DELETE_WINDOW", self.close)
+        self.bind("<Escape>", lambda _event: self.close())
+        self.update_idletasks()
+        x = parent.winfo_rootx() + max(40, (parent.winfo_width() - self.winfo_width()) // 2)
+        y = parent.winfo_rooty() + max(40, (parent.winfo_height() - self.winfo_height()) // 4)
+        self.geometry(f"+{x}+{y}")
+        self.lift(parent)
+        self.focus_set()
+
+    def format_note_choice(self, row):
+        return f"{row['note_label']} ({row['note']}) | channel {row['channel']}"
+
+    def current_row(self):
+        return self.note_rows[self.current_index]
+
+    def format_saved_settings(self, row):
+        saved_parts = []
+        saved_velocity = row.get("saved_playback_velocity_override")
+        saved_period = row.get("saved_minimum_repeat_period_ms")
+        if saved_velocity not in (None, ""):
+            saved_parts.append(f"saved velocity {saved_velocity}")
+        if saved_period not in (None, "") and int(saved_period) > 0:
+            saved_parts.append(f"minimum repeat {saved_period} ms")
+        if not saved_parts:
+            return "Saved solenoid settings: none yet"
+        return "Saved solenoid settings: " + ", ".join(saved_parts)
+
+    def set_note_index(self, index):
+        if not self.note_rows:
+            return
+        self.current_index = max(0, min(len(self.note_rows) - 1, int(index)))
+        row = self.current_row()
+        self.note_var.set(self.format_note_choice(row))
+        self.current_note_var.set(f"{row['note_label']} ({row['note']})")
+        saved_velocity = row.get("saved_playback_velocity_override")
+        if saved_velocity not in (None, ""):
+            self.velocity_var.set(str(saved_velocity))
+        else:
+            self.velocity_var.set(str(engine.DIAGNOSTIC_MEDIUM_VELOCITY))
+        self.current_channel_var.set(
+            f"{row['channel_target']} | {row['channel_label']}\n{self.format_saved_settings(row)}"
+        )
+
+    def select_note_from_box(self, _event=None):
+        selected = self.note_var.get()
+        for index, row in enumerate(self.note_rows):
+            if self.format_note_choice(row) == selected:
+                self.set_note_index(index)
+                break
+
+    def start_lowest(self):
+        self.set_note_index(0)
+
+    def previous_note(self):
+        self.set_note_index(self.current_index - 1)
+
+    def next_note(self):
+        self.set_note_index(self.current_index + 1)
+
+    def parse_request(self):
+        row = self.current_row()
+        try:
+            bpm = float(self.bpm_var.get().strip())
+        except ValueError as error:
+            raise ValueError("BPM must be a number.") from error
+        if bpm < 20 or bpm > 400:
+            raise ValueError("BPM must be between 20 and 400.")
+
+        try:
+            repeats = int(self.repeats_var.get().strip())
+        except ValueError as error:
+            raise ValueError("Repeats must be a whole number.") from error
+        if repeats < 1 or repeats > 64:
+            raise ValueError("Repeats must be between 1 and 64.")
+
+        try:
+            velocity = int(self.velocity_var.get().strip())
+        except ValueError as error:
+            raise ValueError("Velocity must be a whole number.") from error
+        if velocity < 1 or velocity > 127:
+            raise ValueError("Velocity must be between 1 and 127.")
+
+        speed_label = self.speed_var.get()
+        division = speed_test_division_for_label(speed_label)
+        period_ms = speed_test_period_ms(bpm, division)
+        return {
+            "note": int(row["note"]),
+            "note_label": row["note_label"],
+            "channel": int(row["channel"]),
+            "channel_label": row["channel_label"],
+            "channel_target": row["channel_target"],
+            "speed_label": speed_label,
+            "division": division,
+            "bpm": bpm,
+            "period_ms": period_ms,
+            "repeats": repeats,
+            "velocity": velocity,
+        }
+
+    def refresh_benchmark(self):
+        try:
+            request = self.parse_request()
+        except Exception:
+            self.benchmark_var.set("Benchmark timing updates after BPM and speed are valid.")
+            return
+        self.benchmark_var.set(
+            f"Benchmark: {request['speed_label']} at {request['bpm']:.2f} BPM "
+            f"= {request['period_ms']:.1f} ms between strikes."
+        )
+
+    def run_current_test(self):
+        try:
+            request = self.parse_request()
+        except ValueError as error:
+            messagebox.showerror("Invalid speed test value", str(error), parent=self)
+            return
+        self.parent_app.start_speed_test_burst(request)
+
+    def set_running(self, running):
+        self.running = bool(running)
+        self.run_button.configure(state="disabled" if self.running else "normal")
+        if self.running:
+            self.status_var.set("Playing burst...")
+
+    def speed_test_finished(self, result=None, error_message=None):
+        self.set_running(False)
+        if error_message:
+            self.status_var.set(f"Speed test failed: {error_message}")
+            return
+        if not result:
+            self.status_var.set("Ready.")
+            return
+        self.status_var.set(
+            f"Played {result['note_label']} at {result['speed_label']} "
+            f"({result['period_ms']:.1f} ms between strikes)."
+        )
+
+    def record_result(self, status):
+        try:
+            request = self.parse_request()
+        except ValueError as error:
+            messagebox.showerror("Invalid speed test value", str(error), parent=self)
+            return
+        entry = self.parent_app.build_speed_test_log_entry(request, status)
+        saved_settings = None
+        if self.save_config_var.get():
+            saved_settings = self.parent_app.save_speed_test_solenoid_settings(request, status)
+            entry["saved_to_config"] = True
+            entry["saved_minimum_repeat_period_ms"] = saved_settings["minimum_repeat_period_ms"]
+            entry["saved_playback_velocity_override"] = saved_settings["playback_velocity_override"]
+        self.log_entries = self.parent_app.append_speed_test_log_entry(entry)
+        if saved_settings is not None:
+            self.apply_saved_settings_to_current_row(saved_settings)
+        self.refresh_log_view()
+        status_label = "meets benchmark" if status == "meets" else "slower / blends"
+        config_text = " and saved to solenoid config" if saved_settings is not None else ""
+        self.status_var.set(f"Logged {entry['note_label']} as {status_label} at {entry['speed_label']}{config_text}.")
+
+    def save_current_settings(self):
+        try:
+            request = self.parse_request()
+        except ValueError as error:
+            messagebox.showerror("Invalid speed test value", str(error), parent=self)
+            return
+        saved_settings = self.parent_app.save_speed_test_solenoid_settings(request, "manual_save")
+        self.apply_saved_settings_to_current_row(saved_settings)
+        self.status_var.set(
+            f"Saved {request['note_label']} velocity {saved_settings['playback_velocity_override']} "
+            f"and minimum repeat {saved_settings['minimum_repeat_period_ms']} ms to solenoid config."
+        )
+
+    def apply_saved_settings_to_current_row(self, saved_settings):
+        row = self.current_row()
+        row["saved_playback_velocity_override"] = saved_settings["playback_velocity_override"]
+        row["saved_minimum_repeat_period_ms"] = saved_settings["minimum_repeat_period_ms"]
+        self.set_note_index(self.current_index)
+
+    def refresh_log_view(self):
+        self.results_listbox.delete(0, tk.END)
+        visible_entries = self.log_entries[-100:]
+        for entry in visible_entries:
+            status = "OK" if entry.get("status") == "meets" else "SLOW"
+            self.results_listbox.insert(
+                tk.END,
+                (
+                    f"{entry.get('timestamp', '')[:19]}  {status:<4}  "
+                    f"{entry.get('note_label', '?'):>4} ch {entry.get('channel', '?'):>2}  "
+                    f"{entry.get('speed_label', '?'):>5} @ {float(entry.get('bpm', 0)):.1f} BPM"
+                ),
+            )
+        if visible_entries:
+            self.results_listbox.see(tk.END)
+
+        slow_entries = [entry for entry in self.log_entries if entry.get("status") == "slower_blends"]
+        if not slow_entries:
+            self.slower_summary_var.set("Slower/blending notes logged: none")
+            return
+
+        unique = []
+        seen = set()
+        for entry in reversed(slow_entries):
+            key = (entry.get("note"), entry.get("speed_label"), entry.get("bpm"))
+            if key in seen:
+                continue
+            seen.add(key)
+            unique.append(f"{entry.get('note_label')} @ {entry.get('speed_label')}")
+            if len(unique) >= 12:
+                break
+        summary = ", ".join(reversed(unique))
+        extra = "" if len(slow_entries) <= len(unique) else f" ({len(slow_entries)} total slow logs)"
+        self.slower_summary_var.set(f"Slower/blending notes logged: {summary}{extra}")
+
+    def close(self):
+        self.parent_app.speed_test_dialog = None
+        self.destroy()
+
+
+class DefectiveNoteDebugDialog(tk.Toplevel):
+    def __init__(self, parent, note_rows):
+        super().__init__(parent)
+        self.parent_app = parent
+        self.note_rows = [dict(row) for row in note_rows]
+        self.current_index = 0
+
+        self.title("Defective Note Debug")
+        self.resizable(True, True)
+        self.transient(parent)
+        self.configure(bg=APP_BG)
+
+        self.note_var = tk.StringVar()
+        self.current_note_var = tk.StringVar()
+        self.current_channel_var = tk.StringVar()
+        self.current_settings_var = tk.StringVar()
+        self.speed_var = tk.StringVar(value="32nds")
+        self.bpm_var = tk.StringVar(value="80")
+        self.repeats_var = tk.StringVar(value="10")
+        self.velocity_var = tk.StringVar(value=str(engine.DIAGNOSTIC_MEDIUM_VELOCITY))
+        self.strike_min_pwm_var = tk.StringVar()
+        self.rearm_gap_ms_var = tk.StringVar()
+        self.min_repeat_ms_var = tk.StringVar()
+        self.status_var = tk.StringVar(value="Ready.")
+
+        outer = ttk.Frame(self, padding=18, style="App.TFrame")
+        outer.grid(row=0, column=0, sticky="nsew")
+        outer.columnconfigure(0, weight=1)
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
+
+        ttk.Label(outer, text="Defective note debug", style="DialogTitle.TLabel").grid(row=0, column=0, sticky="w")
+        ttk.Label(
+            outer,
+            text=(
+                "This walks only the notes whose latest speed-test result is slower / blends. "
+                "For clicky notes at velocity 1, lower strike min PWM. For blending notes, raise the minimum repeat period."
+            ),
+            style="Muted.TLabel",
+            wraplength=680,
+        ).grid(row=1, column=0, sticky="w", pady=(6, 12))
+
+        control_frame = ttk.Frame(outer, style="App.TFrame")
+        control_frame.grid(row=2, column=0, sticky="ew")
+        control_frame.columnconfigure(1, weight=1)
+
+        ttk.Label(control_frame, text="Current note", style="App.TLabel").grid(row=0, column=0, sticky="w", pady=3)
+        self.note_box = ttk.Combobox(
+            control_frame,
+            state="readonly",
+            values=[self.format_note_choice(row) for row in self.note_rows],
+            textvariable=self.note_var,
+            style="Panel.TCombobox",
+        )
+        self.note_box.grid(row=0, column=1, sticky="ew", padx=(14, 0), pady=3)
+        self.note_box.bind("<<ComboboxSelected>>", self.select_note_from_box)
+
+        ttk.Label(control_frame, textvariable=self.current_note_var, style="Value.Panel.TLabel").grid(
+            row=1,
+            column=0,
+            columnspan=2,
+            sticky="w",
+            pady=(12, 2),
+        )
+        ttk.Label(control_frame, textvariable=self.current_channel_var, style="Muted.TLabel", wraplength=680).grid(
+            row=2,
+            column=0,
+            columnspan=2,
+            sticky="w",
+        )
+        ttk.Label(control_frame, textvariable=self.current_settings_var, style="Muted.TLabel", wraplength=680).grid(
+            row=3,
+            column=0,
+            columnspan=2,
+            sticky="w",
+            pady=(4, 0),
+        )
+
+        test_frame = ttk.LabelFrame(outer, text="Playback Test", style="Section.TLabelframe")
+        test_frame.grid(row=3, column=0, sticky="ew", pady=(14, 0))
+        test_body = ttk.Frame(test_frame, padding=12, style="Panel.TFrame")
+        test_body.grid(row=0, column=0, sticky="ew")
+        test_body.columnconfigure(1, weight=1)
+        test_body.columnconfigure(3, weight=1)
+
+        test_fields = [
+            ("Speed", self.speed_var, SPEED_TEST_SPEED_LABELS, 0),
+            ("BPM", self.bpm_var, None, 1),
+            ("Repeats", self.repeats_var, None, 2),
+            ("Velocity", self.velocity_var, None, 3),
+        ]
+        for label, variable, choices, column in test_fields:
+            ttk.Label(test_body, text=label, style="Panel.TLabel").grid(row=0, column=column * 2, sticky="w", pady=3)
+            if choices is None:
+                widget = ttk.Entry(test_body, textvariable=variable, style="Panel.TEntry", width=10)
+            else:
+                widget = ttk.Combobox(
+                    test_body,
+                    state="readonly",
+                    values=choices,
+                    textvariable=variable,
+                    style="Panel.TCombobox",
+                    width=10,
+                )
+            widget.grid(row=0, column=column * 2 + 1, sticky="w", padx=(8, 14), pady=3)
+
+        test_button_row = ttk.Frame(test_body, style="Panel.TFrame")
+        test_button_row.grid(row=1, column=0, columnspan=8, sticky="ew", pady=(10, 0))
+        test_button_row.columnconfigure(0, weight=1)
+        test_button_row.columnconfigure(1, weight=1)
+        ttk.Button(test_button_row, text="Play Single Pulse", style="Secondary.TButton", command=self.play_single_pulse).grid(
+            row=0,
+            column=0,
+            sticky="ew",
+        )
+        ttk.Button(test_button_row, text="Play Repeat Burst", style="Primary.TButton", command=self.play_repeat_burst).grid(
+            row=0,
+            column=1,
+            sticky="ew",
+            padx=(8, 0),
+        )
+
+        tune_frame = ttk.LabelFrame(outer, text="Scoped Fixes", style="Section.TLabelframe")
+        tune_frame.grid(row=4, column=0, sticky="ew", pady=(14, 0))
+        tune_body = ttk.Frame(tune_frame, padding=12, style="Panel.TFrame")
+        tune_body.grid(row=0, column=0, sticky="ew")
+        tune_body.columnconfigure(1, weight=1)
+
+        ttk.Label(tune_body, text="Clicky fix: strike min PWM", style="Panel.TLabel").grid(row=0, column=0, sticky="w", pady=3)
+        ttk.Entry(tune_body, textvariable=self.strike_min_pwm_var, style="Panel.TEntry", width=12).grid(
+            row=0,
+            column=1,
+            sticky="w",
+            padx=(14, 0),
+            pady=3,
+        )
+        click_button_row = ttk.Frame(tune_body, style="Panel.TFrame")
+        click_button_row.grid(row=0, column=2, sticky="w", padx=(8, 0), pady=3)
+        ttk.Button(click_button_row, text="-25", style="Secondary.TButton", command=lambda: self.adjust_strike_min_pwm(-25)).grid(row=0, column=0)
+        ttk.Button(click_button_row, text="-100", style="Secondary.TButton", command=lambda: self.adjust_strike_min_pwm(-100)).grid(row=0, column=1, padx=(6, 0))
+        ttk.Button(click_button_row, text="Save Click Fix", style="Primary.TButton", command=self.save_click_fix).grid(row=0, column=2, padx=(6, 0))
+
+        ttk.Label(tune_body, text="Retraction gap ms", style="Panel.TLabel").grid(row=1, column=0, sticky="w", pady=3)
+        ttk.Entry(tune_body, textvariable=self.rearm_gap_ms_var, style="Panel.TEntry", width=12).grid(
+            row=1,
+            column=1,
+            sticky="w",
+            padx=(14, 0),
+            pady=3,
+        )
+        blend_button_row = ttk.Frame(tune_body, style="Panel.TFrame")
+        blend_button_row.grid(row=1, column=2, sticky="w", padx=(8, 0), pady=3)
+        ttk.Button(blend_button_row, text="+10", style="Secondary.TButton", command=lambda: self.adjust_rearm_gap_ms(10)).grid(row=0, column=0)
+        ttk.Button(blend_button_row, text="+25", style="Secondary.TButton", command=lambda: self.adjust_rearm_gap_ms(25)).grid(row=0, column=1, padx=(6, 0))
+
+        ttk.Label(tune_body, text="Minimum repeat ms", style="Panel.TLabel").grid(row=2, column=0, sticky="w", pady=3)
+        ttk.Entry(tune_body, textvariable=self.min_repeat_ms_var, style="Panel.TEntry", width=12).grid(
+            row=2,
+            column=1,
+            sticky="w",
+            padx=(14, 0),
+            pady=3,
+        )
+        repeat_button_row = ttk.Frame(tune_body, style="Panel.TFrame")
+        repeat_button_row.grid(row=2, column=2, sticky="w", padx=(8, 0), pady=3)
+        ttk.Button(repeat_button_row, text="+10", style="Secondary.TButton", command=lambda: self.adjust_min_repeat_ms(10)).grid(row=0, column=0)
+        ttk.Button(repeat_button_row, text="+25", style="Secondary.TButton", command=lambda: self.adjust_min_repeat_ms(25)).grid(row=0, column=1, padx=(6, 0))
+        ttk.Button(repeat_button_row, text="Save Blend Fix", style="Primary.TButton", command=self.save_blend_fix).grid(row=0, column=2, padx=(6, 0))
+
+        nav_row = ttk.Frame(outer, style="App.TFrame")
+        nav_row.grid(row=5, column=0, sticky="ew", pady=(14, 0))
+        nav_row.columnconfigure(0, weight=1)
+        nav_row.columnconfigure(1, weight=1)
+        nav_row.columnconfigure(2, weight=1)
+        ttk.Button(nav_row, text="Previous Note", style="Secondary.TButton", command=self.previous_note).grid(row=0, column=0, sticky="ew")
+        ttk.Button(nav_row, text="Next Note", style="Secondary.TButton", command=self.next_note).grid(row=0, column=1, sticky="ew", padx=(8, 0))
+        ttk.Button(nav_row, text="Close", style="Secondary.TButton", command=self.close).grid(row=0, column=2, sticky="ew", padx=(8, 0))
+
+        ttk.Label(outer, textvariable=self.status_var, style="Status.Panel.TLabel").grid(
+            row=6,
+            column=0,
+            sticky="w",
+            pady=(12, 0),
+        )
+
+        self.set_note_index(0)
+        self.protocol("WM_DELETE_WINDOW", self.close)
+        self.bind("<Escape>", lambda _event: self.close())
+        self.update_idletasks()
+        x = parent.winfo_rootx() + max(40, (parent.winfo_width() - self.winfo_width()) // 2)
+        y = parent.winfo_rooty() + max(40, (parent.winfo_height() - self.winfo_height()) // 5)
+        self.geometry(f"+{x}+{y}")
+        self.lift(parent)
+        self.focus_set()
+
+    def format_note_choice(self, row):
+        reason = row.get("source_speed_label", "32nds")
+        return f"{row['note_label']} ({row['note']}) | channel {row['channel']} | {reason}"
+
+    def current_row(self):
+        return self.note_rows[self.current_index]
+
+    def set_note_index(self, index):
+        if not self.note_rows:
+            return
+        self.current_index = max(0, min(len(self.note_rows) - 1, int(index)))
+        row = self.current_row()
+        self.note_var.set(self.format_note_choice(row))
+        self.current_note_var.set(f"{row['note_label']} ({row['note']})")
+        self.speed_var.set(row.get("source_speed_label") or "32nds")
+        self.bpm_var.set(f"{float(row.get('source_bpm', 80.0)):.2f}".rstrip("0").rstrip("."))
+        self.repeats_var.set(str(int(row.get("source_repeats", 10))))
+        velocity = row.get("saved_playback_velocity_override")
+        if velocity in (None, ""):
+            velocity = row.get("source_velocity", engine.DIAGNOSTIC_MEDIUM_VELOCITY)
+        self.velocity_var.set(str(int(velocity)))
+        self.strike_min_pwm_var.set(str(int(row["strike_min_pwm"])))
+        self.rearm_gap_ms_var.set(str(int(row["minimum_rearm_gap_ms"])))
+        self.min_repeat_ms_var.set(str(int(row.get("minimum_repeat_period_ms") or 0)))
+        self.refresh_current_labels()
+
+    def refresh_current_labels(self):
+        row = self.current_row()
+        self.current_channel_var.set(
+            f"{row['channel_target']} | {row['channel_label']} | latest failed test: "
+            f"{row.get('source_speed_label', '32nds')} at {float(row.get('source_bpm', 80.0)):.2f} BPM"
+        )
+        self.current_settings_var.set(
+            "Current scoped settings: "
+            f"velocity override {row.get('saved_playback_velocity_override', 'none')}, "
+            f"strike min/max {row['strike_min_pwm']}/{row['strike_max_pwm']}, "
+            f"strike {row['strike_ms']} ms, hold {row['hold_min_pwm']}-{row['hold_max_pwm']} "
+            f"ratio {row['hold_ratio']}, release {row['release_delay_ms']} ms, "
+            f"retraction gap {row['minimum_rearm_gap_ms']} ms, "
+            f"minimum repeat {row.get('minimum_repeat_period_ms') or 0} ms"
+        )
+
+    def select_note_from_box(self, _event=None):
+        selected = self.note_var.get()
+        for index, row in enumerate(self.note_rows):
+            if self.format_note_choice(row) == selected:
+                self.set_note_index(index)
+                break
+
+    def previous_note(self):
+        self.set_note_index(self.current_index - 1)
+
+    def next_note(self):
+        self.set_note_index(self.current_index + 1)
+
+    def _parse_int(self, variable, label, minimum, maximum):
+        raw = variable.get().strip()
+        try:
+            value = int(raw)
+        except ValueError as error:
+            raise ValueError(f"{label} must be a whole number.") from error
+        if value < minimum or value > maximum:
+            raise ValueError(f"{label} must be between {minimum} and {maximum}.")
+        return value
+
+    def parse_speed_request(self):
+        row = self.current_row()
+        try:
+            bpm = float(self.bpm_var.get().strip())
+        except ValueError as error:
+            raise ValueError("BPM must be a number.") from error
+        if bpm < 20 or bpm > 400:
+            raise ValueError("BPM must be between 20 and 400.")
+        repeats = self._parse_int(self.repeats_var, "Repeats", 1, 64)
+        velocity = self._parse_int(self.velocity_var, "Velocity", 1, 127)
+        speed_label = self.speed_var.get()
+        division = speed_test_division_for_label(speed_label)
+        period_ms = speed_test_period_ms(bpm, division)
+        return {
+            "note": int(row["note"]),
+            "note_label": row["note_label"],
+            "channel": int(row["channel"]),
+            "channel_label": row["channel_label"],
+            "channel_target": row["channel_target"],
+            "speed_label": speed_label,
+            "division": division,
+            "bpm": bpm,
+            "period_ms": period_ms,
+            "repeats": repeats,
+            "velocity": velocity,
+        }
+
+    def play_single_pulse(self):
+        try:
+            velocity = self._parse_int(self.velocity_var, "Velocity", 1, 127)
+        except ValueError as error:
+            messagebox.showerror("Invalid debug value", str(error), parent=self)
+            return
+        row = self.current_row()
+        self.status_var.set(f"Playing one pulse for {row['note_label']}...")
+        self.parent_app.start_defective_note_single_pulse(row, velocity)
+
+    def play_repeat_burst(self):
+        try:
+            request = self.parse_speed_request()
+        except ValueError as error:
+            messagebox.showerror("Invalid debug value", str(error), parent=self)
+            return
+        self.status_var.set(f"Playing repeat burst for {request['note_label']}...")
+        self.parent_app.start_speed_test_burst(request)
+
+    def adjust_strike_min_pwm(self, delta):
+        try:
+            value = self._parse_int(self.strike_min_pwm_var, "Strike min PWM", 0, 4095)
+        except ValueError:
+            value = int(self.current_row()["strike_min_pwm"])
+        self.strike_min_pwm_var.set(str(max(0, min(4095, value + int(delta)))))
+
+    def adjust_min_repeat_ms(self, delta):
+        try:
+            value = self._parse_int(self.min_repeat_ms_var, "Minimum repeat ms", 0, 2000)
+        except ValueError:
+            value = int(self.current_row().get("minimum_repeat_period_ms") or 0)
+        self.min_repeat_ms_var.set(str(max(0, min(2000, value + int(delta)))))
+
+    def adjust_rearm_gap_ms(self, delta):
+        try:
+            value = self._parse_int(self.rearm_gap_ms_var, "Retraction gap ms", 0, 2000)
+        except ValueError:
+            value = int(self.current_row()["minimum_rearm_gap_ms"])
+        self.rearm_gap_ms_var.set(str(max(0, min(2000, value + int(delta)))))
+
+    def save_click_fix(self):
+        row = self.current_row()
+        try:
+            strike_min_pwm = self._parse_int(self.strike_min_pwm_var, "Strike min PWM", 0, 4095)
+        except ValueError as error:
+            messagebox.showerror("Invalid click fix", str(error), parent=self)
+            return
+        if strike_min_pwm > int(row["strike_max_pwm"]):
+            messagebox.showerror(
+                "Invalid click fix",
+                "Strike min PWM cannot be higher than this solenoid's strike max PWM.",
+                parent=self,
+            )
+            return
+        saved_settings = self.parent_app.save_defect_debug_solenoid_settings(
+            row,
+            {"strike_min_pwm": strike_min_pwm},
+            "click_fix",
+        )
+        self.apply_saved_settings(saved_settings)
+        self.status_var.set(f"Saved click fix for {row['note_label']}: strike min PWM {strike_min_pwm}.")
+
+    def save_blend_fix(self):
+        row = self.current_row()
+        try:
+            rearm_gap_ms = self._parse_int(self.rearm_gap_ms_var, "Retraction gap ms", 0, 2000)
+            minimum_repeat_ms = self._parse_int(self.min_repeat_ms_var, "Minimum repeat ms", 0, 2000)
+        except ValueError as error:
+            messagebox.showerror("Invalid blend fix", str(error), parent=self)
+            return
+        saved_settings = self.parent_app.save_defect_debug_solenoid_settings(
+            row,
+            {
+                "minimum_rearm_gap_ms": rearm_gap_ms,
+                "retrigger_gap_ms": min(rearm_gap_ms, max(0, int(round(rearm_gap_ms * 0.75)))),
+                "minimum_repeat_period_ms": minimum_repeat_ms,
+            },
+            "blend_fix",
+        )
+        self.apply_saved_settings(saved_settings)
+        self.status_var.set(
+            f"Saved blend fix for {row['note_label']}: retraction gap {rearm_gap_ms} ms, "
+            f"minimum repeat {minimum_repeat_ms} ms."
+        )
+
+    def apply_saved_settings(self, saved_settings):
+        row = self.current_row()
+        row.update(saved_settings)
+        self.strike_min_pwm_var.set(str(int(row["strike_min_pwm"])))
+        self.rearm_gap_ms_var.set(str(int(row["minimum_rearm_gap_ms"])))
+        self.min_repeat_ms_var.set(str(int(row.get("minimum_repeat_period_ms") or 0)))
+        self.refresh_current_labels()
+
+    def close(self):
+        self.parent_app.defect_debug_dialog = None
+        self.destroy()
+
+
 class PlaybackControlState:
     def __init__(self):
         self.lock = threading.Lock()
@@ -489,6 +1374,8 @@ class PianoPlayerApp(tk.Tk):
         self.playback_control = None
         self.note_marker_control = None
         self.sweep_marker_dialog = None
+        self.speed_test_dialog = None
+        self.defect_debug_dialog = None
         self.sweep_marker_text_var = tk.StringVar(value="")
         self.playback_locked_widgets = []
         self.mosfet_test_defaults = None
@@ -979,7 +1866,7 @@ class PianoPlayerApp(tk.Tk):
 
         queue_button_row = ttk.Frame(queue_body, style="Panel.TFrame")
         queue_button_row.grid(row=1, column=0, sticky="ew", pady=(0, 10))
-        queue_button_row.columnconfigure(4, weight=1)
+        queue_button_row.columnconfigure(6, weight=1)
         ttk.Button(
             queue_button_row,
             text="Add Selected to Queue",
@@ -999,12 +1886,28 @@ class PianoPlayerApp(tk.Tk):
             style="Secondary.TButton",
             command=self.remove_selected_queue_item,
         ).grid(row=0, column=2, sticky="w", padx=(8, 0))
+        self.move_queue_item_up_button = ttk.Button(
+            queue_button_row,
+            text="Move Up",
+            style="Secondary.TButton",
+            command=lambda: self.move_selected_queue_item(-1),
+        )
+        self.move_queue_item_up_button.grid(row=0, column=3, sticky="w", padx=(8, 0))
+        self.move_queue_item_down_button = ttk.Button(
+            queue_button_row,
+            text="Move Down",
+            style="Secondary.TButton",
+            command=lambda: self.move_selected_queue_item(1),
+        )
+        self.move_queue_item_down_button.grid(row=0, column=4, sticky="w", padx=(8, 0))
+        self.move_queue_item_up_button.configure(state="disabled")
+        self.move_queue_item_down_button.configure(state="disabled")
         ttk.Button(
             queue_button_row,
             text="Clear Queue",
             style="Secondary.TButton",
             command=self.clear_playback_queue,
-        ).grid(row=0, column=3, sticky="w", padx=(8, 0))
+        ).grid(row=0, column=5, sticky="w", padx=(8, 0))
         self.playback_locked_widgets.append(self.play_queue_button)
 
         queue_list_frame = ttk.Frame(queue_body, style="Panel.TFrame")
@@ -1026,6 +1929,9 @@ class PianoPlayerApp(tk.Tk):
             font=("Segoe UI", 10),
         )
         self.queue_listbox.grid(row=0, column=0, sticky="ew")
+        self.queue_listbox.bind("<<ListboxSelect>>", self.refresh_queue_reorder_buttons)
+        self.queue_listbox.bind("<Alt-Up>", lambda event: self.move_selected_queue_item(-1))
+        self.queue_listbox.bind("<Alt-Down>", lambda event: self.move_selected_queue_item(1))
         queue_scrollbar = ttk.Scrollbar(
             queue_list_frame,
             orient="vertical",
@@ -1103,7 +2009,33 @@ class PianoPlayerApp(tk.Tk):
         self.mosfet_test_button.grid(
             row=0, column=2, sticky="w", padx=(8, 0)
         )
-        self.playback_locked_widgets.extend([self.calibrate_button, self.troubleshoot_button, self.mosfet_test_button])
+        self.speed_test_button = ttk.Button(
+            debug_button_row,
+            text="Speed Test...",
+            style="Secondary.TButton",
+            command=self.start_speed_test_dialog,
+        )
+        self.speed_test_button.grid(
+            row=0, column=3, sticky="w", padx=(8, 0)
+        )
+        self.defect_debug_button = ttk.Button(
+            debug_button_row,
+            text="Defective Note Debug...",
+            style="Secondary.TButton",
+            command=self.start_defective_note_debug_dialog,
+        )
+        self.defect_debug_button.grid(
+            row=0, column=4, sticky="w", padx=(8, 0)
+        )
+        self.playback_locked_widgets.extend(
+            [
+                self.calibrate_button,
+                self.troubleshoot_button,
+                self.mosfet_test_button,
+                self.speed_test_button,
+                self.defect_debug_button,
+            ]
+        )
 
         sweep_stop_row = ttk.Frame(debug_body, style="Panel.TFrame")
         sweep_stop_row.grid(row=2, column=0, sticky="ew", pady=(0, 10))
@@ -1502,6 +2434,43 @@ class PianoPlayerApp(tk.Tk):
         self.refresh_queue_list()
         self.append_log(f"Removed from queue: {removed['display_name']}")
 
+    def move_selected_queue_item(self, direction):
+        if not hasattr(self, "queue_listbox"):
+            return "break"
+
+        selection = self.queue_listbox.curselection()
+        if not selection:
+            messagebox.showinfo("Choose a queued song", "Select an upcoming queue item to move.", parent=self)
+            return "break"
+
+        selected_index = selection[0]
+        selected_now_playing = False
+        moved = None
+        new_list_index = None
+        with self.queue_lock:
+            current_offset = 1 if self.current_queue_item is not None else 0
+            if selected_index == 0 and current_offset:
+                selected_now_playing = True
+            else:
+                queue_index = selected_index - current_offset
+                target_index = queue_index + direction
+                if 0 <= queue_index < len(self.playback_queue) and 0 <= target_index < len(self.playback_queue):
+                    moved = self.playback_queue.pop(queue_index)
+                    self.playback_queue.insert(target_index, moved)
+                    new_list_index = target_index + current_offset
+
+        if selected_now_playing:
+            messagebox.showinfo("Now playing", "The currently playing song cannot be moved.", parent=self)
+            return "break"
+        if moved is None:
+            self.refresh_queue_reorder_buttons()
+            return "break"
+
+        self.refresh_queue_list(select_index=new_list_index)
+        direction_label = "up" if direction < 0 else "down"
+        self.append_log(f"Moved queued song {direction_label}: {moved['display_name']}")
+        return "break"
+
     def clear_playback_queue(self):
         with self.queue_lock:
             removed_count = len(self.playback_queue)
@@ -1511,7 +2480,7 @@ class PianoPlayerApp(tk.Tk):
         if removed_count:
             self.append_log(f"Cleared {removed_count} queued song(s).")
 
-    def refresh_queue_list(self):
+    def refresh_queue_list(self, select_index=None):
         if not hasattr(self, "queue_listbox"):
             return
 
@@ -1527,7 +2496,11 @@ class PianoPlayerApp(tk.Tk):
         for index, item in enumerate(queued_items, start=1):
             self.queue_listbox.insert(tk.END, f"{index}. {item['display_name']} ({item['source']})")
 
-        if current_item is not None:
+        row_count = self.queue_listbox.size()
+        if select_index is not None and 0 <= select_index < row_count:
+            self.queue_listbox.selection_set(select_index)
+            self.queue_listbox.see(select_index)
+        elif current_item is not None:
             self.queue_listbox.selection_set(0)
             self.queue_listbox.see(0)
 
@@ -1546,7 +2519,29 @@ class PianoPlayerApp(tk.Tk):
             status = "Queue empty."
 
         self.queue_status_var.set(status)
+        self.refresh_queue_reorder_buttons()
         self.refresh_playback_control_buttons()
+
+    def refresh_queue_reorder_buttons(self, _event=None):
+        if not hasattr(self, "move_queue_item_up_button"):
+            return
+
+        selection = self.queue_listbox.curselection()
+        can_move_up = False
+        can_move_down = False
+        if selection:
+            selected_index = selection[0]
+            with self.queue_lock:
+                current_offset = 1 if self.current_queue_item is not None else 0
+                queue_index = selected_index - current_offset
+                queued_count = len(self.playback_queue)
+
+            if 0 <= queue_index < queued_count:
+                can_move_up = queue_index > 0
+                can_move_down = queue_index < queued_count - 1
+
+        self.move_queue_item_up_button.configure(state="normal" if can_move_up else "disabled")
+        self.move_queue_item_down_button.configure(state="normal" if can_move_down else "disabled")
 
     def refresh_playback_control_buttons(self):
         if not hasattr(self, "pause_resume_button"):
@@ -1795,6 +2790,415 @@ class PianoPlayerApp(tk.Tk):
     def build_patch_mapping_config(self, active_channel_count):
         config = engine.load_config()
         return piano_tools.build_patch_mapping_config(config, active_channel_count)
+
+    def build_speed_test_note_rows(self):
+        active_channel_count = self.get_active_channel_count()
+        config, _active_sequence = self.build_sweep_mapping_config(active_channel_count)
+        rows = []
+        channel_labels = config["mapping"].get("channel_labels", {})
+        for note, channel in piano_tools.iter_mapping_in_note_order(config["mapping"]):
+            actuation = engine.resolve_note_actuation(note, channel, config)
+            rows.append(
+                {
+                    "note": int(note),
+                    "note_label": engine.midi_note_name(int(note)),
+                    "channel": int(channel),
+                    "channel_label": channel_labels.get(str(channel), f"Channel {channel}"),
+                    "channel_target": engine.describe_global_channel(channel, config["pca9685"]),
+                    "saved_playback_velocity_override": actuation.get("playback_velocity_override"),
+                    "saved_minimum_repeat_period_ms": actuation.get("minimum_repeat_period_ms"),
+                }
+            )
+        if not rows:
+            raise RuntimeError("No mapped piano notes are available for speed testing.")
+        return rows
+
+    def start_speed_test_dialog(self):
+        if self.speed_test_dialog is not None and self.speed_test_dialog.winfo_exists():
+            self.speed_test_dialog.lift(self)
+            self.speed_test_dialog.focus_set()
+            return
+
+        try:
+            note_rows = self.build_speed_test_note_rows()
+        except ValueError as error:
+            messagebox.showerror("Invalid hardware count", str(error), parent=self)
+            return
+        except RuntimeError as error:
+            messagebox.showerror("Speed test unavailable", str(error), parent=self)
+            return
+
+        defaults = {
+            "speed_label": SPEED_TEST_SPEED_LABELS[0],
+            "bpm": 120,
+            "repeats": 10,
+            "velocity": engine.DIAGNOSTIC_MEDIUM_VELOCITY,
+        }
+        self.speed_test_dialog = SolenoidSpeedTestDialog(self, note_rows, defaults)
+
+    def build_defective_note_debug_rows(self):
+        entries = self.load_speed_test_log_entries()
+        latest_by_note = {}
+        for entry in entries:
+            try:
+                note = int(entry["note"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            latest_by_note[note] = entry
+
+        slow_entries = [
+            entry
+            for _note, entry in sorted(latest_by_note.items())
+            if entry.get("status") == "slower_blends"
+        ]
+        if not slow_entries:
+            raise RuntimeError("No notes currently have a latest speed-test result of slower / blends.")
+
+        config = engine.load_config()
+        channel_labels = config["mapping"].get("channel_labels", {})
+        rows = []
+        for entry in slow_entries:
+            note = int(entry["note"])
+            channel = entry.get("channel")
+            if channel in (None, ""):
+                channel = engine.map_note_to_channel(note, config["mapping"])
+            if channel is None:
+                continue
+            channel = int(channel)
+            actuation = engine.resolve_note_actuation(note, channel, config)
+            rows.append(
+                {
+                    "note": note,
+                    "note_label": engine.midi_note_name(note),
+                    "channel": channel,
+                    "channel_label": channel_labels.get(str(channel), f"Channel {channel}"),
+                    "channel_target": engine.describe_global_channel(channel, config["pca9685"]),
+                    "source_speed_label": entry.get("speed_label", "32nds"),
+                    "source_bpm": float(entry.get("bpm", 80.0)),
+                    "source_repeats": int(entry.get("repeats", 10)),
+                    "source_velocity": int(entry.get("velocity", engine.DIAGNOSTIC_MEDIUM_VELOCITY)),
+                    "saved_playback_velocity_override": actuation.get("playback_velocity_override"),
+                    "strike_min_pwm": int(actuation["strike_min_pwm"]),
+                    "strike_max_pwm": int(actuation["strike_max_pwm"]),
+                    "strike_ms": int(actuation["strike_ms"]),
+                    "hold_min_pwm": int(actuation["hold_min_pwm"]),
+                    "hold_max_pwm": int(actuation["hold_max_pwm"]),
+                    "hold_ratio": float(actuation["hold_ratio"]),
+                    "release_delay_ms": int(actuation["release_delay_ms"]),
+                    "minimum_rearm_gap_ms": int(actuation["minimum_rearm_gap_ms"]),
+                    "retrigger_gap_ms": int(actuation["retrigger_gap_ms"]),
+                    "minimum_repeat_period_ms": int(actuation.get("minimum_repeat_period_ms", 0)),
+                }
+            )
+        if not rows:
+            raise RuntimeError("The slower / blending speed-test notes no longer match the current note map.")
+        return rows
+
+    def start_defective_note_debug_dialog(self):
+        if self.defect_debug_dialog is not None and self.defect_debug_dialog.winfo_exists():
+            self.defect_debug_dialog.lift(self)
+            self.defect_debug_dialog.focus_set()
+            return
+
+        try:
+            note_rows = self.build_defective_note_debug_rows()
+        except RuntimeError as error:
+            messagebox.showerror("Defective note debug unavailable", str(error), parent=self)
+            return
+
+        self.defect_debug_dialog = DefectiveNoteDebugDialog(self, note_rows)
+
+    def start_speed_test_burst(self, request):
+        if self.worker is not None and self.worker.is_alive():
+            messagebox.showinfo("Already running", "Wait for the current playback job to finish first.", parent=self)
+            return
+
+        self.append_log("")
+        self.append_log(
+            f"Starting speed test burst: {request['note_label']} on channel {request['channel']} "
+            f"at {request['speed_label']} / {request['bpm']:.2f} BPM "
+            f"({request['period_ms']:.1f} ms between strikes)."
+        )
+        if self.speed_test_dialog is not None and self.speed_test_dialog.winfo_exists():
+            self.speed_test_dialog.set_running(True)
+        self.set_playback_controls_enabled(False)
+
+        worker_args = {
+            "workflow_kind": "speed_test",
+            "test_request": dict(request),
+            "reporter": lambda message: self.message_queue.put(("log", message)),
+        }
+        self.worker = threading.Thread(target=self._run_workflow, args=(worker_args,), daemon=True)
+        self.worker.start()
+
+    def start_defective_note_single_pulse(self, row, velocity):
+        if self.worker is not None and self.worker.is_alive():
+            messagebox.showinfo("Already running", "Wait for the current playback job to finish first.", parent=self)
+            return
+
+        pulse = {
+            "channel": int(row["channel"]),
+            "velocity": int(velocity),
+        }
+        self.append_log("")
+        self.append_log(
+            f"Starting defective-note pulse: {row['note_label']} on channel {row['channel']} "
+            f"at velocity {velocity}..."
+        )
+        self.set_controls_enabled(False)
+
+        worker_args = {
+            "workflow_kind": "mosfet_test",
+            "pulse": pulse,
+            "reporter": lambda message: self.message_queue.put(("log", message)),
+        }
+        self.worker = threading.Thread(target=self._run_workflow, args=(worker_args,), daemon=True)
+        self.worker.start()
+
+    def run_speed_test_workflow(self, test_request, reporter):
+        config = engine.load_config()
+        note = int(test_request["note"])
+        channel = int(test_request["channel"])
+        capacity = engine.get_global_channel_capacity(config["pca9685"])
+        if channel < 0 or channel >= capacity:
+            raise RuntimeError(f"Channel {channel} is outside the configured PCA9685 range 0-{capacity - 1}.")
+
+        events, pulse_info = build_speed_test_delta_events(
+            note,
+            channel,
+            float(test_request["bpm"]),
+            int(test_request["division"]),
+            int(test_request["repeats"]),
+            int(test_request["velocity"]),
+            config,
+        )
+        reporter(
+            "Speed test pulse: "
+            f"velocity {int(test_request['velocity'])}, "
+            f"strike {pulse_info['strike_pwm']}/4095 for {pulse_info['strike_ms']} ms, "
+            f"hold {pulse_info['hold_pwm']}/4095, "
+            f"retraction gap {pulse_info['release_gap_ms']} ms."
+        )
+        deployment_config = engine.load_deployment_config()
+        serial_config = deployment_config.get("serial_runtime", {})
+        status_poll_ms = int(serial_config.get("status_poll_ms", 25))
+
+        connection = None
+        playback_done_response = None
+        try:
+            connection, port, ready_info = piano_tools.open_runtime_connection()
+            piano_tools.ensure_calibration_hardware_ready(ready_info, config["pca9685"], [channel])
+
+            begin_response = engine.send_serial_command(
+                connection,
+                f"BEGIN {len(events)}",
+                ("OK BEGIN",),
+                timeout_seconds=2.0,
+            )
+            begin_fields = engine.parse_runtime_key_values(begin_response)
+            buffer_capacity = int(begin_fields.get("capacity", ready_info["buffer_capacity"]))
+            sent_event_count = engine.send_event_chunk(connection, events, 0, buffer_capacity)
+            engine.send_serial_command(connection, "COMMIT", ("OK ACCEPTED",), timeout_seconds=2.0)
+            play_response = engine.send_serial_command(connection, "PLAY", ("OK PLAYING",), timeout_seconds=2.0)
+
+            while sent_event_count < len(events):
+                status_response = engine.send_serial_command(connection, "STATUS", ("STATUS",), timeout_seconds=2.0)
+                status_fields = engine.parse_status_response(status_response)
+                free_slots = int(status_fields.get("free", 0))
+                if free_slots <= 0:
+                    time.sleep(status_poll_ms / 1000.0)
+                    continue
+                sent_event_count = engine.send_event_chunk(connection, events, sent_event_count, free_slots)
+                engine.send_serial_command(connection, "COMMIT", ("OK ACCEPTED",), timeout_seconds=2.0)
+
+            total_runtime_seconds = sum(event["dt_ms"] for event in events) / 1000.0
+            playback_done_response, _control_action, _paused = engine.wait_for_playback_done(
+                connection,
+                timeout_seconds=max(8.0, total_runtime_seconds + 5.0),
+            )
+
+            reporter(
+                f"Speed test burst complete: {test_request['note_label']} "
+                f"at {test_request['speed_label']} / {float(test_request['bpm']):.2f} BPM."
+            )
+            return {
+                "cancelled": False,
+                "workflow_kind": "speed_test",
+                "note": note,
+                "note_label": test_request["note_label"],
+                "channel": channel,
+                "channel_target": test_request["channel_target"],
+                "speed_label": test_request["speed_label"],
+                "bpm": float(test_request["bpm"]),
+                "period_ms": float(test_request["period_ms"]),
+                "repeats": int(test_request["repeats"]),
+                "velocity": int(test_request["velocity"]),
+                "pulse": pulse_info,
+                "event_count": len(events),
+                "sent_event_count": sent_event_count,
+                "port": port,
+                "protocol_version": ready_info["protocol_version"],
+                "buffer_capacity": buffer_capacity,
+                "stream_response": play_response,
+                "playback_done_response": playback_done_response,
+            }
+        finally:
+            if connection is not None:
+                try:
+                    engine.send_serial_command(connection, "ALL_OFF", ("OK ALL_OFF",), timeout_seconds=2.0)
+                except Exception:
+                    pass
+                connection.close()
+
+    def load_speed_test_log_entries(self):
+        if not SPEED_TEST_LOG_JSON_PATH.exists():
+            return []
+        try:
+            payload = json.loads(SPEED_TEST_LOG_JSON_PATH.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return []
+        if isinstance(payload, list):
+            return [entry for entry in payload if isinstance(entry, dict)]
+        return [entry for entry in payload.get("entries", []) if isinstance(entry, dict)]
+
+    def save_speed_test_log_entries(self, entries):
+        engine.METADATA_DIR.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "updated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+            "entries": entries,
+        }
+        SPEED_TEST_LOG_JSON_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        with SPEED_TEST_LOG_CSV_PATH.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=SPEED_TEST_LOG_COLUMNS, extrasaction="ignore")
+            writer.writeheader()
+            for entry in entries:
+                writer.writerow({column: entry.get(column, "") for column in SPEED_TEST_LOG_COLUMNS})
+
+    def build_speed_test_log_entry(self, request, status):
+        if status not in {"meets", "slower_blends"}:
+            raise ValueError(f"Unsupported speed test status: {status}")
+
+        config = engine.load_config()
+        _events, pulse_info = build_speed_test_delta_events(
+            int(request["note"]),
+            int(request["channel"]),
+            float(request["bpm"]),
+            int(request["division"]),
+            int(request["repeats"]),
+            int(request["velocity"]),
+            config,
+        )
+        return {
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+            "status": status,
+            "note_label": request["note_label"],
+            "note": int(request["note"]),
+            "channel": int(request["channel"]),
+            "channel_label": request["channel_label"],
+            "channel_target": request["channel_target"],
+            "speed_label": request["speed_label"],
+            "division": int(request["division"]),
+            "bpm": float(request["bpm"]),
+            "period_ms": round(float(request["period_ms"]), 3),
+            "repeats": int(request["repeats"]),
+            "velocity": int(request["velocity"]),
+            "strike_pwm": int(pulse_info["strike_pwm"]),
+            "hold_pwm": int(pulse_info["hold_pwm"]),
+            "strike_ms": int(pulse_info["strike_ms"]),
+            "release_gap_ms": int(pulse_info["release_gap_ms"]),
+            "saved_to_config": False,
+            "saved_minimum_repeat_period_ms": "",
+            "saved_playback_velocity_override": "",
+        }
+
+    def append_speed_test_log_entry(self, entry):
+        entries = self.load_speed_test_log_entries()
+        entries.append(dict(entry))
+        self.save_speed_test_log_entries(entries)
+        self.append_log(
+            f"Speed test logged: {entry['note_label']} {entry['speed_label']} "
+            f"at {entry['bpm']:.2f} BPM -> {entry['status']}."
+        )
+        return entries
+
+    def save_speed_test_solenoid_settings(self, request, status):
+        with engine.CONFIG_PATH.open("r", encoding="utf-8") as handle:
+            config = json.load(handle)
+
+        channel = int(request["channel"])
+        velocity = int(request["velocity"])
+        minimum_repeat_period_ms = max(1, int(round(float(request["period_ms"]))))
+        timestamp = time.strftime("%Y-%m-%dT%H:%M:%S%z")
+
+        actuation = config.setdefault("actuation", {})
+        channel_overrides = actuation.setdefault("channel_overrides", {})
+        override = channel_overrides.setdefault(str(channel), {})
+        override["playback_velocity_override"] = velocity
+        override["minimum_repeat_period_ms"] = minimum_repeat_period_ms
+        override["speed_test_note"] = request["note_label"]
+        override["speed_test_saved_status"] = status
+        override["speed_test_speed_label"] = request["speed_label"]
+        override["speed_test_bpm"] = round(float(request["bpm"]), 3)
+        override["speed_test_period_ms"] = round(float(request["period_ms"]), 3)
+        override["speed_test_saved_at"] = timestamp
+
+        engine.CONFIG_PATH.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
+        self.config_data = engine.load_config()
+        self.append_log(
+            f"Saved solenoid config for {request['note_label']} on channel {channel}: "
+            f"velocity {velocity}, minimum repeat {minimum_repeat_period_ms} ms."
+        )
+        return {
+            "playback_velocity_override": velocity,
+            "minimum_repeat_period_ms": minimum_repeat_period_ms,
+            "timestamp": timestamp,
+        }
+
+    def save_defect_debug_solenoid_settings(self, row, updates, reason):
+        allowed_keys = {
+            "strike_min_pwm",
+            "minimum_rearm_gap_ms",
+            "retrigger_gap_ms",
+            "minimum_repeat_period_ms",
+        }
+        with engine.CONFIG_PATH.open("r", encoding="utf-8") as handle:
+            config = json.load(handle)
+
+        channel = int(row["channel"])
+        note = int(row["note"])
+        timestamp = time.strftime("%Y-%m-%dT%H:%M:%S%z")
+
+        actuation = config.setdefault("actuation", {})
+        channel_overrides = actuation.setdefault("channel_overrides", {})
+        override = channel_overrides.setdefault(str(channel), {})
+        for key, value in updates.items():
+            if key not in allowed_keys:
+                raise ValueError(f"Unsupported defective-note setting: {key}")
+            override[key] = int(value)
+
+        override["defect_debug_note"] = row["note_label"]
+        override["defect_debug_last_reason"] = reason
+        override["defect_debug_saved_at"] = timestamp
+
+        engine.CONFIG_PATH.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
+        self.config_data = engine.load_config()
+        resolved = engine.resolve_note_actuation(note, channel, self.config_data)
+        saved_settings = {
+            "saved_playback_velocity_override": resolved.get("playback_velocity_override"),
+            "strike_min_pwm": int(resolved["strike_min_pwm"]),
+            "strike_max_pwm": int(resolved["strike_max_pwm"]),
+            "strike_ms": int(resolved["strike_ms"]),
+            "hold_min_pwm": int(resolved["hold_min_pwm"]),
+            "hold_max_pwm": int(resolved["hold_max_pwm"]),
+            "hold_ratio": float(resolved["hold_ratio"]),
+            "release_delay_ms": int(resolved["release_delay_ms"]),
+            "minimum_rearm_gap_ms": int(resolved["minimum_rearm_gap_ms"]),
+            "retrigger_gap_ms": int(resolved["retrigger_gap_ms"]),
+            "minimum_repeat_period_ms": int(resolved.get("minimum_repeat_period_ms", 0)),
+        }
+        changed = ", ".join(f"{key} {value}" for key, value in updates.items())
+        self.append_log(f"Saved defective-note {reason} for {row['note_label']} on channel {channel}: {changed}.")
+        return saved_settings
 
     def log_mapping_lines(self, mapping_lines):
         for line in mapping_lines:
@@ -2569,6 +3973,7 @@ class PianoPlayerApp(tk.Tk):
         self.worker.start()
 
     def _run_workflow(self, worker_args):
+        workflow_kind = worker_args.get("workflow_kind", "conversion")
         try:
             workflow_kind = worker_args.pop("workflow_kind", "conversion")
             if workflow_kind == "troubleshooting":
@@ -2577,10 +3982,12 @@ class PianoPlayerApp(tk.Tk):
                 result = self.run_pedal_troubleshooting_workflow(**worker_args)
             elif workflow_kind == "mosfet_test":
                 result = self.run_mosfet_test_workflow(**worker_args)
+            elif workflow_kind == "speed_test":
+                result = self.run_speed_test_workflow(**worker_args)
             else:
                 result = engine.run_conversion_workflow(**worker_args)
         except Exception as error:
-            self.message_queue.put(("error", str(error)))
+            self.message_queue.put(("error", {"workflow_kind": workflow_kind, "message": str(error)}))
             return
 
         self.message_queue.put(("done", result))
@@ -2686,8 +4093,18 @@ class PianoPlayerApp(tk.Tk):
                         self.pending_song_catalog_refresh = None
                         self.refresh_song_catalog_async(**pending_refresh)
                 elif message_type == "error":
+                    if isinstance(payload, dict):
+                        error_kind = payload.get("workflow_kind")
+                        error_message = payload.get("message", "")
+                    else:
+                        error_kind = None
+                        error_message = str(payload)
                     self.set_controls_enabled(True)
                     self.worker = None
+                    if error_kind == "speed_test" and self.speed_test_dialog is not None and self.speed_test_dialog.winfo_exists():
+                        self.speed_test_dialog.speed_test_finished(error_message=error_message)
+                    if self.defect_debug_dialog is not None and self.defect_debug_dialog.winfo_exists():
+                        self.defect_debug_dialog.status_var.set(f"Debug run failed: {error_message}")
                     if self.note_marker_control is not None:
                         marked_lines = self.note_marker_control.get_marked_note_lines()
                         if marked_lines:
@@ -2697,8 +4114,8 @@ class PianoPlayerApp(tk.Tk):
                         self.note_marker_control = None
                         self.refresh_note_marker_controls()
                         self.close_sweep_marker_dialog()
-                    self.append_log(f"Error: {payload}")
-                    messagebox.showerror("Run failed", payload, parent=self)
+                    self.append_log(f"Error: {error_message}")
+                    messagebox.showerror("Run failed", error_message, parent=self)
                 elif message_type == "queue_item_started":
                     self.append_log(f"Queue now playing: {payload['display_name']}")
                     self.refresh_queue_list()
@@ -2771,10 +4188,25 @@ class PianoPlayerApp(tk.Tk):
                     self.set_controls_enabled(True)
                     self.worker = None
                     result = payload
+                    if result.get("workflow_kind") == "speed_test":
+                        speed_dialog_open = self.speed_test_dialog is not None and self.speed_test_dialog.winfo_exists()
+                        if self.speed_test_dialog is not None and self.speed_test_dialog.winfo_exists():
+                            self.speed_test_dialog.speed_test_finished(result)
+                        if self.defect_debug_dialog is not None and self.defect_debug_dialog.winfo_exists():
+                            self.defect_debug_dialog.status_var.set(
+                                f"Played {result['note_label']} repeat burst at {result['speed_label']}."
+                            )
+                        if speed_dialog_open:
+                            self.append_log("Use Meets Benchmark or Slower / Blends in the speed test window to log this result.")
+                        continue
                     if result.get("cancelled"):
                         self.append_log("Cancelled before conversion.")
                     else:
                         if result["workflow_kind"] == "mosfet_test":
+                            if self.defect_debug_dialog is not None and self.defect_debug_dialog.winfo_exists():
+                                self.defect_debug_dialog.status_var.set(
+                                    f"Played one pulse on channel {result['channel']} at velocity {result.get('velocity')}."
+                                )
                             title = "Channel test complete"
                             pulse = result["pulse"]
                             summary = (

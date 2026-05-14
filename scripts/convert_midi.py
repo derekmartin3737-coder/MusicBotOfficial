@@ -1120,16 +1120,23 @@ def get_mapping_channel_order(mapping_config):
     raise ValueError(f"Unsupported mapping mode: {mode}")
 
 
-def get_pedal_channel(mapping_config):
+def get_configured_pedal_channel(mapping_config):
     pedal_config = mapping_config.get("pedal") or {}
-    if not pedal_config.get("enabled", False) or "channel" not in pedal_config:
+    if "channel" not in pedal_config:
         return None
     return int(pedal_config["channel"])
 
 
+def get_pedal_channel(mapping_config):
+    pedal_config = mapping_config.get("pedal") or {}
+    if not pedal_config.get("enabled", False):
+        return None
+    return get_configured_pedal_channel(mapping_config)
+
+
 def get_playable_channel_order(mapping_config):
     channel_order = get_mapping_channel_order(mapping_config)
-    pedal_channel = get_pedal_channel(mapping_config)
+    pedal_channel = get_configured_pedal_channel(mapping_config)
     if pedal_channel is None:
         return channel_order
     return [channel for channel in channel_order if int(channel) != pedal_channel]
@@ -1794,11 +1801,52 @@ def pedal_motion_ms(pedal_config, key, reaction_key=None):
     return max(0, int(round(float(raw_value))))
 
 
-def build_pedal_intervals(pedal_events, minimum_down_ms=0, merge_gap_ms=0, failsafe_release_ms=1000):
+def normalize_pedal_retrigger_events(pedal_events, retrigger_release_ms=0):
+    if retrigger_release_ms <= 0:
+        return list(pedal_events)
+
+    normalized_events = []
+    sorted_events = sorted(pedal_events, key=lambda item: int(item["time_ms"]))
+    index = 0
+    while index < len(sorted_events):
+        time_ms = int(sorted_events[index]["time_ms"])
+        same_time_events = []
+        while index < len(sorted_events) and int(sorted_events[index]["time_ms"]) == time_ms:
+            same_time_events.append(sorted_events[index])
+            index += 1
+
+        down_events = [event for event in same_time_events if bool(event["down"])]
+        up_events = [event for event in same_time_events if not bool(event["down"])]
+        if down_events and up_events:
+            release_event = dict(up_events[-1])
+            release_event["time_ms"] = time_ms
+            release_event["down"] = False
+            release_event["generated"] = "pedal_retrigger_release"
+            normalized_events.append(release_event)
+
+            repress_event = dict(down_events[-1])
+            repress_event["time_ms"] = time_ms + int(retrigger_release_ms)
+            repress_event["down"] = True
+            repress_event["generated"] = "pedal_retrigger_repress"
+            normalized_events.append(repress_event)
+        else:
+            normalized_events.extend(same_time_events)
+
+    return normalized_events
+
+
+def build_pedal_intervals(
+    pedal_events,
+    minimum_down_ms=0,
+    merge_gap_ms=0,
+    failsafe_release_ms=1000,
+    retrigger_release_ms=0,
+):
     intervals = []
     active_down_event = None
 
-    for event in sorted(pedal_events, key=lambda item: int(item["time_ms"])):
+    normalized_pedal_events = normalize_pedal_retrigger_events(pedal_events, retrigger_release_ms)
+    for event in sorted(normalized_pedal_events, key=lambda item: int(item["time_ms"])):
         if bool(event["down"]):
             if active_down_event is None:
                 active_down_event = event
@@ -1869,6 +1917,9 @@ def build_pedal_timeline_events(pedal_events, config):
         return [], []
 
     down_pwm = int(pedal_config.get("down_pwm", config["actuation"]["hold_max_pwm"]))
+    down_strike_ms = int(pedal_config.get("down_strike_ms", 0))
+    hold_pwm = int(pedal_config.get("hold_pwm", down_pwm))
+    hold_refresh_ms = max(0, int(pedal_config.get("hold_refresh_ms", 0)))
     up_pwm = int(pedal_config.get("up_pwm", 0))
     lead_ms = int(pedal_config.get("lead_ms", 0))
     minimum_down_ms = pedal_motion_ms(
@@ -1877,17 +1928,25 @@ def build_pedal_timeline_events(pedal_events, config):
         reaction_key="recommended_down_profile_ms",
     )
     merge_gap_ms = pedal_motion_ms(pedal_config, "merge_gap_ms")
+    retrigger_release_ms = pedal_motion_ms(pedal_config, "retrigger_release_ms")
     failsafe_release_ms = int(pedal_config.get("failsafe_release_ms", 1000))
     timeline = []
     metadata = []
 
-    for interval in build_pedal_intervals(pedal_events, minimum_down_ms, merge_gap_ms, failsafe_release_ms):
+    for interval in build_pedal_intervals(
+        pedal_events,
+        minimum_down_ms,
+        merge_gap_ms,
+        failsafe_release_ms,
+        retrigger_release_ms,
+    ):
         down_event = interval["down_event"]
         up_event = interval.get("up_event")
         down_source_time_ms = int(down_event["time_ms"])
         up_source_time_ms = int(up_event["time_ms"]) if up_event is not None else interval["release_time_ms"]
         down_scheduled_time_ms = max(0, int(interval["down_time_ms"]) - lead_ms)
         up_scheduled_time_ms = max(0, int(interval["release_time_ms"]) - lead_ms)
+        hold_scheduled_time_ms = min(up_scheduled_time_ms, down_scheduled_time_ms + max(0, down_strike_ms))
 
         timeline.append((down_scheduled_time_ms, channel, down_pwm))
         metadata.append(
@@ -1895,18 +1954,56 @@ def build_pedal_timeline_events(pedal_events, config):
                 "source_time_ms": down_source_time_ms,
                 "scheduled_time_ms": down_scheduled_time_ms,
                 "down": True,
+                "phase": "down",
                 "value": down_event["value"],
                 "channel": channel,
                 "pwm": down_pwm,
                 "source_channel": down_event.get("source_channel"),
             }
         )
+        if hold_scheduled_time_ms < up_scheduled_time_ms and hold_pwm != down_pwm:
+            timeline.append((hold_scheduled_time_ms, channel, hold_pwm))
+            metadata.append(
+                {
+                    "source_time_ms": down_source_time_ms,
+                    "scheduled_time_ms": hold_scheduled_time_ms,
+                    "down": True,
+                    "phase": "hold",
+                    "value": down_event["value"],
+                    "channel": channel,
+                    "pwm": hold_pwm,
+                    "source_channel": down_event.get("source_channel"),
+                    "down_strike_ms": down_strike_ms,
+                }
+            )
+        if hold_refresh_ms > 0:
+            hold_refresh_time_ms = max(
+                hold_scheduled_time_ms,
+                down_scheduled_time_ms,
+            ) + hold_refresh_ms
+            while hold_refresh_time_ms < up_scheduled_time_ms:
+                timeline.append((hold_refresh_time_ms, channel, hold_pwm))
+                metadata.append(
+                    {
+                        "source_time_ms": down_source_time_ms,
+                        "scheduled_time_ms": hold_refresh_time_ms,
+                        "down": True,
+                        "phase": "hold_refresh",
+                        "value": down_event["value"],
+                        "channel": channel,
+                        "pwm": hold_pwm,
+                        "source_channel": down_event.get("source_channel"),
+                        "hold_refresh_ms": hold_refresh_ms,
+                    }
+                )
+                hold_refresh_time_ms += hold_refresh_ms
         timeline.append((up_scheduled_time_ms, channel, up_pwm))
         metadata.append(
             {
                 "source_time_ms": up_source_time_ms,
                 "scheduled_time_ms": up_scheduled_time_ms,
                 "down": False,
+                "phase": "up",
                 "value": int(up_event["value"]) if up_event is not None else 0,
                 "channel": channel,
                 "pwm": up_pwm,
@@ -1914,6 +2011,7 @@ def build_pedal_timeline_events(pedal_events, config):
                 "source_duration_ms": max(0, up_source_time_ms - down_source_time_ms),
                 "scheduled_duration_ms": max(0, up_scheduled_time_ms - down_scheduled_time_ms),
                 "minimum_down_ms": minimum_down_ms,
+                "retrigger_release_ms": retrigger_release_ms,
                 "minimum_hold_extended": bool(interval.get("minimum_hold_extended")),
                 "merged_short_gap": bool(interval.get("merged_short_gap")),
                 "failsafe_release": up_event is None,
@@ -1955,8 +2053,10 @@ def schedule_notes(note_intervals, config):
         release_delay_ms = int(channel_actuation["release_delay_ms"])
         minimum_rearm_gap_ms = int(channel_actuation["minimum_rearm_gap_ms"])
         retrigger_gap_ms = int(channel_actuation["retrigger_gap_ms"])
+        minimum_repeat_period_ms = max(0, int(channel_actuation.get("minimum_repeat_period_ms", 0)))
         active_note = None
         last_off_ms = -1_000_000
+        last_start_ms = -1_000_000
 
         for interval in sorted(
             notes_by_channel[channel],
@@ -1977,11 +2077,14 @@ def schedule_notes(note_intervals, config):
                 forced_retriggers += 1
 
             start_ms = max(interval["start_ms"], last_off_ms + gap_ms)
+            if minimum_repeat_period_ms > 0:
+                start_ms = max(start_ms, last_start_ms + minimum_repeat_period_ms)
             if start_ms > interval["start_ms"]:
                 delayed_notes += 1
 
             original_duration_ms = max(1, interval["end_ms"] - interval["start_ms"])
             end_ms = max(start_ms + 1, start_ms + original_duration_ms)
+            last_start_ms = start_ms
 
             active_note = {
                 **interval,
@@ -2041,6 +2144,7 @@ def schedule_notes_with_octave_transpose(note_intervals, config):
         channel_actuation = resolve_channel_actuation(channel, config)
         release_delay_ms = int(channel_actuation["release_delay_ms"])
         minimum_rearm_gap_ms = int(channel_actuation["minimum_rearm_gap_ms"])
+        minimum_repeat_period_ms = max(0, int(channel_actuation.get("minimum_repeat_period_ms", 0)))
 
         previous_note = None
         next_note = None
@@ -2052,12 +2156,16 @@ def schedule_notes_with_octave_transpose(note_intervals, config):
 
         if previous_note is not None:
             earliest_start_ms = previous_note["end_ms"] + release_delay_ms + minimum_rearm_gap_ms
+            if minimum_repeat_period_ms > 0:
+                earliest_start_ms = max(earliest_start_ms, previous_note["start_ms"] + minimum_repeat_period_ms)
             if start_ms < earliest_start_ms:
                 return False
 
         if next_note is not None:
             latest_end_ms = next_note["start_ms"] - release_delay_ms - minimum_rearm_gap_ms
             if end_ms > latest_end_ms:
+                return False
+            if minimum_repeat_period_ms > 0 and start_ms + minimum_repeat_period_ms > next_note["start_ms"]:
                 return False
 
         return True
@@ -2135,6 +2243,13 @@ def velocity_to_strike_pwm(velocity, actuation_config):
     return clamp(pwm_value, minimum_pwm, maximum_pwm)
 
 
+def resolve_playback_velocity(requested_velocity, actuation_config):
+    override = actuation_config.get("playback_velocity_override")
+    if override in (None, ""):
+        return int(requested_velocity), False
+    return int(clamp(int(round(float(override))), 1, 127)), True
+
+
 def strike_to_hold_pwm(strike_pwm, actuation_config):
     hold_ratio = float(actuation_config["hold_ratio"])
     hold_pwm = int(round(strike_pwm * hold_ratio))
@@ -2161,7 +2276,11 @@ def build_playback_events(scheduled_notes, config, pedal_events=None):
         channel_actuation = resolve_note_actuation(note_event["note"], note_event["channel"], config)
         strike_ms = int(channel_actuation["strike_ms"])
         release_delay_ms = int(channel_actuation["release_delay_ms"])
-        strike_pwm = velocity_to_strike_pwm(note_event["velocity"], channel_actuation)
+        output_velocity, velocity_override_applied = resolve_playback_velocity(
+            note_event["velocity"],
+            channel_actuation,
+        )
+        strike_pwm = velocity_to_strike_pwm(output_velocity, channel_actuation)
         hold_pwm = strike_to_hold_pwm(strike_pwm, channel_actuation)
         requested_duration_ms = max(1, note_event["end_ms"] - note_event["start_ms"])
         minimum_duration_ms = max(
@@ -2190,7 +2309,9 @@ def build_playback_events(scheduled_notes, config, pedal_events=None):
                 "source_note_label": midi_note_name(note_event.get("source_note", note_event["note"])),
                 "input_note": note_event["note"],
                 "note_label": midi_note_name(note_event["note"]),
-                "velocity": note_event["velocity"],
+                "source_velocity": note_event["velocity"],
+                "velocity": output_velocity,
+                "velocity_override_applied": velocity_override_applied,
                 "channel": note_event["channel"],
                 "source_channel": note_event.get("source_channel"),
                 "original_start_ms": note_event["original_start_ms"],
@@ -2392,6 +2513,12 @@ def build_actuation_lines(channels_used, config):
             lines.append(f"{color_name.title()} key override: {fields}")
     for channel in channels_used:
         actuation = resolve_channel_actuation(channel, config)
+        extra_fields = []
+        if actuation.get("playback_velocity_override") not in (None, ""):
+            extra_fields.append(f"velocity override {actuation['playback_velocity_override']}")
+        if int(actuation.get("minimum_repeat_period_ms", 0)) > 0:
+            extra_fields.append(f"minimum repeat period {actuation['minimum_repeat_period_ms']} ms")
+        extra_text = "" if not extra_fields else ", " + ", ".join(extra_fields)
         lines.append(
             "Channel "
             f"{channel}: strike {actuation['strike_min_pwm']}-{actuation['strike_max_pwm']}, "
@@ -2402,6 +2529,7 @@ def build_actuation_lines(channels_used, config):
             f"release delay {actuation['release_delay_ms']} ms, "
             f"rearm {actuation['minimum_rearm_gap_ms']} ms, "
             f"retrigger {actuation['retrigger_gap_ms']} ms"
+            f"{extra_text}"
         )
     return lines
 
@@ -3005,14 +3133,20 @@ def run_conversion_workflow(
     if performance_pedal_events and playback_stats["pedal_events"] == 0:
         pedal_channel = get_pedal_channel(effective_config["mapping"])
         if pedal_channel is None:
-            raise RuntimeError(
-                "This MIDI contains sustain pedal events, but the sustain pedal channel is not enabled in the active mapping."
+            configured_pedal_channel = get_configured_pedal_channel(effective_config["mapping"])
+            warning = (
+                "This MIDI contains sustain pedal events, but sustain pedal playback is disabled; "
+                "ignoring those pedal events for this run."
             )
-        raise RuntimeError(
-            "This MIDI contains sustain pedal events, but the configured sustain pedal channel "
-            f"{pedal_channel} is outside the active hardware channels. Set Installed solenoids to include channel "
-            f"{pedal_channel}."
-        )
+            if configured_pedal_channel is not None:
+                warning += f" Configured pedal channel: {configured_pedal_channel}."
+            report_line(reporter, warning)
+        else:
+            raise RuntimeError(
+                "This MIDI contains sustain pedal events, but the configured sustain pedal channel "
+                f"{pedal_channel} is outside the active hardware channels. Set Installed solenoids to include channel "
+                f"{pedal_channel}."
+            )
     delta_events = convert_to_delta_events(timeline)
     unmapped_note_lines = build_unmapped_note_lines(
         {int(note): count for note, count in scheduling_stats["unmapped_note_counts"].items()}
