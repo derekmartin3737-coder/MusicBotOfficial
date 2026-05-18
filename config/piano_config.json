@@ -269,7 +269,7 @@
     }
   },
   "actuation": {
-    "strike_min_pwm": 2900,
+    "strike_min_pwm": 2700,
     "strike_max_pwm": 3900,
     "velocity_curve": 1.0,
     "strike_ms": 45,
@@ -288,7 +288,7 @@
     },
     "channel_overrides": {
       "2": {
-        "strike_min_pwm": 4095,
+        "strike_min_pwm": 3895,
         "strike_max_pwm": 4095,
         "strike_ms": 250,
         "hold_min_pwm": 2600,
@@ -322,12 +322,6 @@
         "speed_test_saved_at": "2026-05-13T17:09:41-0700"
       },
       "13": {
-        "hold_min_pwm": 2400,
-        "hold_max_pwm": 2600,
-        "hold_ratio": 0.66,
-        "temporary_debug_note": "C2 was staccatoing during full sweep; stronger hold keeps the key depressed after strike",
-        "playback_velocity_override": 60,
-        "minimum_repeat_period_ms": 94,
         "speed_test_note": "C2",
         "speed_test_saved_status": "slower_blends",
         "speed_test_speed_label": "32nds",
@@ -336,12 +330,6 @@
         "speed_test_saved_at": "2026-05-13T17:14:41-0700"
       },
       "20": {
-        "hold_min_pwm": 2400,
-        "hold_max_pwm": 2600,
-        "hold_ratio": 0.66,
-        "temporary_debug_note": "A2 was releasing early after strike; stronger hold keeps the key depressed",
-        "playback_velocity_override": 1,
-        "minimum_repeat_period_ms": 94,
         "speed_test_note": "A2",
         "speed_test_saved_status": "slower_blends",
         "speed_test_speed_label": "32nds",
@@ -378,12 +366,6 @@
         "speed_test_saved_at": "2026-05-13T17:15:44-0700"
       },
       "24": {
-        "hold_min_pwm": 2400,
-        "hold_max_pwm": 2600,
-        "hold_ratio": 0.66,
-        "temporary_debug_note": "D3 was releasing early after strike; stronger hold keeps the key depressed",
-        "playback_velocity_override": 10,
-        "minimum_repeat_period_ms": 94,
         "speed_test_note": "D3",
         "speed_test_saved_status": "slower_blends",
         "speed_test_speed_label": "32nds",
@@ -392,12 +374,6 @@
         "speed_test_saved_at": "2026-05-13T17:38:24-0700"
       },
       "25": {
-        "hold_min_pwm": 2400,
-        "hold_max_pwm": 2600,
-        "hold_ratio": 0.66,
-        "temporary_debug_note": "C3 was staccatoing during full sweep; stronger hold keeps the key depressed after strike",
-        "playback_velocity_override": 10,
-        "minimum_repeat_period_ms": 94,
         "speed_test_note": "C3",
         "speed_test_saved_status": "slower_blends",
         "speed_test_speed_label": "32nds",
@@ -406,15 +382,6 @@
         "speed_test_saved_at": "2026-05-13T17:37:10-0700"
       },
       "28": {
-        "strike_min_pwm": 3350,
-        "strike_max_pwm": 4050,
-        "strike_ms": 60,
-        "hold_min_pwm": 2400,
-        "hold_max_pwm": 2600,
-        "hold_ratio": 0.66,
-        "temporary_debug_note": "B3 plays but sounds too soft; stronger strike gives it more attack while preserving the hold fix",
-        "playback_velocity_override": 100,
-        "minimum_repeat_period_ms": 94,
         "speed_test_note": "B3",
         "speed_test_saved_status": "meets",
         "speed_test_speed_label": "32nds",
@@ -437,12 +404,6 @@
         "speed_test_saved_at": "2026-05-13T17:40:08-0700"
       },
       "33": {
-        "hold_min_pwm": 2400,
-        "hold_max_pwm": 2600,
-        "hold_ratio": 0.66,
-        "temporary_debug_note": "G3 was releasing early after strike; stronger hold keeps the key depressed",
-        "playback_velocity_override": 20,
-        "minimum_repeat_period_ms": 94,
         "speed_test_note": "G3",
         "speed_test_saved_status": "slower_blends",
         "speed_test_speed_label": "32nds",
@@ -479,12 +440,6 @@
         "speed_test_saved_at": "2026-05-13T17:39:25-0700"
       },
       "36": {
-        "hold_min_pwm": 2400,
-        "hold_max_pwm": 2600,
-        "hold_ratio": 0.66,
-        "temporary_debug_note": "D4 was releasing early after strike; stronger hold keeps the key depressed",
-        "playback_velocity_override": 1,
-        "minimum_repeat_period_ms": 94,
         "speed_test_note": "D4",
         "speed_test_saved_status": "slower_blends",
         "speed_test_speed_label": "32nds",
@@ -493,19 +448,6 @@
         "speed_test_saved_at": "2026-05-13T17:41:32-0700"
       },
       "38": {
-        "strike_min_pwm": 4095,
-        "strike_max_pwm": 4095,
-        "strike_ms": 500,
-        "minimum_note_duration_ms": 650,
-        "hold_min_pwm": 3100,
-        "hold_max_pwm": 3300,
-        "hold_ratio": 0.82,
-        "release_delay_ms": 20,
-        "minimum_rearm_gap_ms": 40,
-        "retrigger_gap_ms": 25,
-        "temporary_debug_note": "D#4 fired in channel test with 4095 PWM for 500 ms plus 3300 PWM hold through a 650 ms pulse; keep song playback from releasing it earlier",
-        "playback_velocity_override": 127,
-        "minimum_repeat_period_ms": 94,
         "speed_test_note": "D#4",
         "speed_test_saved_status": "slower_blends",
         "speed_test_speed_label": "32nds",
@@ -528,7 +470,7 @@
         "speed_test_saved_at": "2026-05-13T17:44:01-0700"
       },
       "47": {
-        "strike_min_pwm": 4050,
+        "strike_min_pwm": 3850,
         "strike_max_pwm": 4095,
         "strike_ms": 95,
         "hold_min_pwm": 2700,
@@ -562,12 +504,6 @@
         "speed_test_saved_at": "2026-05-13T17:47:56-0700"
       },
       "54": {
-        "hold_min_pwm": 2400,
-        "hold_max_pwm": 2600,
-        "hold_ratio": 0.66,
-        "temporary_debug_note": "G5 was releasing early after strike; stronger hold keeps the key depressed",
-        "playback_velocity_override": 1,
-        "minimum_repeat_period_ms": 94,
         "speed_test_note": "G5",
         "speed_test_saved_status": "slower_blends",
         "speed_test_speed_label": "32nds",
@@ -634,8 +570,6 @@
         "speed_test_saved_at": "2026-05-13T17:09:21-0700"
       },
       "10": {
-        "playback_velocity_override": 20,
-        "minimum_repeat_period_ms": 94,
         "speed_test_note": "F1",
         "speed_test_saved_status": "slower_blends",
         "speed_test_speed_label": "32nds",
@@ -694,8 +628,6 @@
         "speed_test_saved_at": "2026-05-13T17:12:46-0700"
       },
       "4": {
-        "playback_velocity_override": 2,
-        "minimum_repeat_period_ms": 94,
         "speed_test_note": "B1",
         "speed_test_saved_status": "slower_blends",
         "speed_test_speed_label": "32nds",
@@ -734,8 +666,6 @@
         "speed_test_saved_at": "2026-05-13T17:15:14-0700"
       },
       "22": {
-        "playback_velocity_override": 1,
-        "minimum_repeat_period_ms": 94,
         "speed_test_note": "F2",
         "speed_test_saved_status": "slower_blends",
         "speed_test_speed_label": "32nds",
@@ -774,8 +704,6 @@
         "speed_test_saved_at": "2026-05-13T17:18:13-0700"
       },
       "16": {
-        "playback_velocity_override": 1,
-        "minimum_repeat_period_ms": 94,
         "speed_test_note": "B2",
         "speed_test_saved_status": "slower_blends",
         "speed_test_speed_label": "32nds",
@@ -804,8 +732,6 @@
         "speed_test_saved_at": "2026-05-13T17:38:34-0700"
       },
       "31": {
-        "playback_velocity_override": 85,
-        "minimum_repeat_period_ms": 94,
         "speed_test_note": "F#3",
         "speed_test_saved_status": "meets",
         "speed_test_speed_label": "32nds",
@@ -814,8 +740,6 @@
         "speed_test_saved_at": "2026-05-13T17:39:36-0700"
       },
       "30": {
-        "playback_velocity_override": 85,
-        "minimum_repeat_period_ms": 94,
         "speed_test_note": "G#3",
         "speed_test_saved_status": "meets",
         "speed_test_speed_label": "32nds",
@@ -834,8 +758,6 @@
         "speed_test_saved_at": "2026-05-13T17:40:24-0700"
       },
       "37": {
-        "playback_velocity_override": 1,
-        "minimum_repeat_period_ms": 94,
         "speed_test_note": "C4",
         "speed_test_saved_status": "slower_blends",
         "speed_test_speed_label": "32nds",
@@ -864,8 +786,6 @@
         "speed_test_saved_at": "2026-05-13T17:42:51-0700"
       },
       "42": {
-        "playback_velocity_override": 1,
-        "minimum_repeat_period_ms": 94,
         "speed_test_note": "F4",
         "speed_test_saved_status": "slower_blends",
         "speed_test_speed_label": "32nds",
@@ -894,8 +814,6 @@
         "speed_test_saved_at": "2026-05-13T17:43:49-0700"
       },
       "45": {
-        "playback_velocity_override": 1,
-        "minimum_repeat_period_ms": 94,
         "speed_test_note": "A#4",
         "speed_test_saved_status": "slower_blends",
         "speed_test_speed_label": "32nds",
@@ -904,8 +822,6 @@
         "speed_test_saved_at": "2026-05-13T17:44:22-0700"
       },
       "44": {
-        "playback_velocity_override": 1,
-        "minimum_repeat_period_ms": 94,
         "speed_test_note": "B4",
         "speed_test_saved_status": "slower_blends",
         "speed_test_speed_label": "32nds",
@@ -914,8 +830,6 @@
         "speed_test_saved_at": "2026-05-13T17:47:21-0700"
       },
       "48": {
-        "playback_velocity_override": 1,
-        "minimum_repeat_period_ms": 94,
         "speed_test_note": "C#5",
         "speed_test_saved_status": "slower_blends",
         "speed_test_speed_label": "32nds",
@@ -924,8 +838,6 @@
         "speed_test_saved_at": "2026-05-13T17:48:22-0700"
       },
       "51": {
-        "playback_velocity_override": 1,
-        "minimum_repeat_period_ms": 94,
         "speed_test_note": "D5",
         "speed_test_saved_status": "slower_blends",
         "speed_test_speed_label": "32nds",
@@ -934,8 +846,6 @@
         "speed_test_saved_at": "2026-05-13T17:48:35-0700"
       },
       "49": {
-        "playback_velocity_override": 1,
-        "minimum_repeat_period_ms": 94,
         "speed_test_note": "D#5",
         "speed_test_saved_status": "slower_blends",
         "speed_test_speed_label": "32nds",
@@ -974,8 +884,6 @@
         "speed_test_saved_at": "2026-05-13T17:50:30-0700"
       },
       "58": {
-        "playback_velocity_override": 1,
-        "minimum_repeat_period_ms": 94,
         "speed_test_note": "G#5",
         "speed_test_saved_status": "slower_blends",
         "speed_test_speed_label": "32nds",
@@ -984,7 +892,18 @@
         "speed_test_saved_at": "2026-05-13T17:51:21-0700"
       },
       "57": {
-        "playback_velocity_override": 85,
+        "strike_min_pwm": 4095,
+        "strike_max_pwm": 4095,
+        "strike_ms": 500,
+        "minimum_note_duration_ms": 900,
+        "hold_min_pwm": 3300,
+        "hold_max_pwm": 3500,
+        "hold_ratio": 0.85,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 40,
+        "retrigger_gap_ms": 25,
+        "temporary_debug_note": "A#5 buzzed lightly without pulling in; max local strike with a much longer full-power pull tests whether this solenoid needs more pull time",
+        "playback_velocity_override": 127,
         "minimum_repeat_period_ms": 94,
         "speed_test_note": "A#5",
         "speed_test_saved_status": "meets",

@@ -44,6 +44,7 @@ SPEED_TEST_SPEEDS = [
 SPEED_TEST_SPEED_LABELS = [label for label, _division in SPEED_TEST_SPEEDS]
 SPEED_TEST_LOG_JSON_PATH = engine.METADATA_DIR / "speed_test_log.json"
 SPEED_TEST_LOG_CSV_PATH = engine.METADATA_DIR / "speed_test_log.csv"
+FULL_SWEEP_MARKS_JSON_PATH = engine.METADATA_DIR / "full_sweep_marked_notes.json"
 SPEED_TEST_LOG_COLUMNS = [
     "timestamp",
     "status",
@@ -64,6 +65,14 @@ SPEED_TEST_LOG_COLUMNS = [
     "saved_playback_velocity_override",
     "channel_target",
 ]
+VOLUME_TARGET_SOFT = "Softest allowable"
+VOLUME_TARGET_LOUD = "Loudest allowable"
+VOLUME_TARGET_CHOICES = [VOLUME_TARGET_SOFT, VOLUME_TARGET_LOUD]
+SOFT_TARGET_VELOCITY = 1
+LOUD_TARGET_VELOCITY = 127
+REFERENCE_SPEED_LABEL = "32nds"
+REFERENCE_BPM = 80.0
+REFERENCE_REPEATS = 10
 
 
 def speed_test_division_for_label(label):
@@ -243,7 +252,7 @@ class TroubleshootingActionDialog(tk.Toplevel):
         ).grid(row=4, column=0, sticky="w", pady=2)
         ttk.Radiobutton(
             outer,
-            text="Full sweep: soft, medium, and hard chromatic passes",
+            text="Full sweep: standard fast chromatic pass",
             variable=self.key_color_var,
             value="full",
             style="Dialog.TRadiobutton",
@@ -818,7 +827,11 @@ class SolenoidSpeedTestDialog(tk.Toplevel):
         self.results_listbox.delete(0, tk.END)
         visible_entries = self.log_entries[-100:]
         for entry in visible_entries:
-            status = "OK" if entry.get("status") == "meets" else "SLOW"
+            status = {
+                "meets": "OK",
+                "slower_blends": "SLOW",
+                "fixed": "FIX",
+            }.get(entry.get("status"), str(entry.get("status", "?"))[:4].upper())
             self.results_listbox.insert(
                 tk.END,
                 (
@@ -855,10 +868,16 @@ class SolenoidSpeedTestDialog(tk.Toplevel):
 
 
 class DefectiveNoteDebugDialog(tk.Toplevel):
-    def __init__(self, parent, note_rows):
+    def __init__(self, parent, broken_note_rows, selectable_note_rows=None):
         super().__init__(parent)
         self.parent_app = parent
-        self.note_rows = [dict(row) for row in note_rows]
+        self.broken_note_rows = [dict(row) for row in broken_note_rows]
+        self.note_rows = [dict(row) for row in (selectable_note_rows or broken_note_rows)]
+        broken_notes = {int(row["note"]) for row in self.broken_note_rows}
+        for row in self.broken_note_rows:
+            row["is_broken_note"] = True
+        for row in self.note_rows:
+            row["is_broken_note"] = int(row["note"]) in broken_notes
         self.current_index = 0
 
         self.title("Defective Note Debug")
@@ -870,14 +889,22 @@ class DefectiveNoteDebugDialog(tk.Toplevel):
         self.current_note_var = tk.StringVar()
         self.current_channel_var = tk.StringVar()
         self.current_settings_var = tk.StringVar()
+        self.marked_notes_var = tk.StringVar()
+        self.volume_target_var = tk.StringVar(value=VOLUME_TARGET_SOFT)
+        self.target_settings_var = tk.StringVar()
+        self.reference_note_var = tk.StringVar()
         self.speed_var = tk.StringVar(value="32nds")
         self.bpm_var = tk.StringVar(value="80")
         self.repeats_var = tk.StringVar(value="10")
         self.velocity_var = tk.StringVar(value=str(engine.DIAGNOSTIC_MEDIUM_VELOCITY))
         self.strike_min_pwm_var = tk.StringVar()
+        self.strike_max_pwm_var = tk.StringVar()
+        self.hold_min_pwm_var = tk.StringVar()
+        self.strike_ms_var = tk.StringVar()
         self.rearm_gap_ms_var = tk.StringVar()
         self.min_repeat_ms_var = tk.StringVar()
         self.status_var = tk.StringVar(value="Ready.")
+        self.reference_row = parent.build_reference_note_debug_row()
 
         outer = ttk.Frame(self, padding=18, style="App.TFrame")
         outer.grid(row=0, column=0, sticky="nsew")
@@ -889,8 +916,8 @@ class DefectiveNoteDebugDialog(tk.Toplevel):
         ttk.Label(
             outer,
             text=(
-                "This walks only the notes whose latest speed-test result is slower / blends. "
-                "For clicky notes at velocity 1, lower strike min PWM. For blending notes, raise the minimum repeat period."
+                "Pick any mapped note to tune it. The broken-note checklist below still tracks notes marked during "
+                "the latest full sweep, with speed-test failures as a fallback."
             ),
             style="Muted.TLabel",
             wraplength=680,
@@ -931,6 +958,13 @@ class DefectiveNoteDebugDialog(tk.Toplevel):
             sticky="w",
             pady=(4, 0),
         )
+        ttk.Label(control_frame, textvariable=self.marked_notes_var, style="Muted.TLabel", wraplength=680).grid(
+            row=4,
+            column=0,
+            columnspan=2,
+            sticky="w",
+            pady=(6, 0),
+        )
 
         test_frame = ttk.LabelFrame(outer, text="Playback Test", style="Section.TLabelframe")
         test_frame.grid(row=3, column=0, sticky="ew", pady=(14, 0))
@@ -960,8 +994,28 @@ class DefectiveNoteDebugDialog(tk.Toplevel):
                 )
             widget.grid(row=0, column=column * 2 + 1, sticky="w", padx=(8, 14), pady=3)
 
+        target_row = ttk.Frame(test_body, style="Panel.TFrame")
+        target_row.grid(row=1, column=0, columnspan=8, sticky="ew", pady=(10, 0))
+        target_row.columnconfigure(3, weight=1)
+        ttk.Label(target_row, text="Volume target", style="Panel.TLabel").grid(row=0, column=0, sticky="w", pady=3)
+        ttk.Combobox(
+            target_row,
+            state="readonly",
+            values=VOLUME_TARGET_CHOICES,
+            textvariable=self.volume_target_var,
+            style="Panel.TCombobox",
+            width=18,
+        ).grid(row=0, column=1, sticky="w", padx=(8, 14), pady=3)
+        ttk.Label(target_row, textvariable=self.target_settings_var, style="Muted.TLabel", wraplength=470).grid(
+            row=0,
+            column=2,
+            columnspan=2,
+            sticky="w",
+            pady=3,
+        )
+
         test_button_row = ttk.Frame(test_body, style="Panel.TFrame")
-        test_button_row.grid(row=1, column=0, columnspan=8, sticky="ew", pady=(10, 0))
+        test_button_row.grid(row=2, column=0, columnspan=8, sticky="ew", pady=(10, 0))
         test_button_row.columnconfigure(0, weight=1)
         test_button_row.columnconfigure(1, weight=1)
         ttk.Button(test_button_row, text="Play Single Pulse", style="Secondary.TButton", command=self.play_single_pulse).grid(
@@ -975,6 +1029,44 @@ class DefectiveNoteDebugDialog(tk.Toplevel):
             sticky="ew",
             padx=(8, 0),
         )
+
+        reference_frame = ttk.LabelFrame(test_body, text="Middle Reference", style="Section.TLabelframe")
+        reference_frame.grid(row=3, column=0, columnspan=8, sticky="ew", pady=(10, 0))
+        reference_body = ttk.Frame(reference_frame, padding=8, style="Panel.TFrame")
+        reference_body.grid(row=0, column=0, sticky="ew")
+        for column in range(4):
+            reference_body.columnconfigure(column, weight=1)
+        ttk.Label(reference_body, textvariable=self.reference_note_var, style="Muted.TLabel", wraplength=650).grid(
+            row=0,
+            column=0,
+            columnspan=4,
+            sticky="w",
+            pady=(0, 6),
+        )
+        ttk.Button(
+            reference_body,
+            text="Ref Soft Single",
+            style="Secondary.TButton",
+            command=lambda: self.play_reference_single(SOFT_TARGET_VELOCITY),
+        ).grid(row=1, column=0, sticky="ew")
+        ttk.Button(
+            reference_body,
+            text="Ref Loud Single",
+            style="Secondary.TButton",
+            command=lambda: self.play_reference_single(LOUD_TARGET_VELOCITY),
+        ).grid(row=1, column=1, sticky="ew", padx=(8, 0))
+        ttk.Button(
+            reference_body,
+            text="Ref Soft Burst",
+            style="Secondary.TButton",
+            command=lambda: self.play_reference_burst(SOFT_TARGET_VELOCITY),
+        ).grid(row=1, column=2, sticky="ew", padx=(8, 0))
+        ttk.Button(
+            reference_body,
+            text="Ref Loud Burst",
+            style="Secondary.TButton",
+            command=lambda: self.play_reference_burst(LOUD_TARGET_VELOCITY),
+        ).grid(row=1, column=3, sticky="ew", padx=(8, 0))
 
         tune_frame = ttk.LabelFrame(outer, text="Scoped Fixes", style="Section.TLabelframe")
         tune_frame.grid(row=4, column=0, sticky="ew", pady=(14, 0))
@@ -996,29 +1088,71 @@ class DefectiveNoteDebugDialog(tk.Toplevel):
         ttk.Button(click_button_row, text="-100", style="Secondary.TButton", command=lambda: self.adjust_strike_min_pwm(-100)).grid(row=0, column=1, padx=(6, 0))
         ttk.Button(click_button_row, text="Save Click Fix", style="Primary.TButton", command=self.save_click_fix).grid(row=0, column=2, padx=(6, 0))
 
-        ttk.Label(tune_body, text="Retraction gap ms", style="Panel.TLabel").grid(row=1, column=0, sticky="w", pady=3)
-        ttk.Entry(tune_body, textvariable=self.rearm_gap_ms_var, style="Panel.TEntry", width=12).grid(
+        ttk.Label(tune_body, text="Loud fix: strike max PWM", style="Panel.TLabel").grid(row=1, column=0, sticky="w", pady=3)
+        ttk.Entry(tune_body, textvariable=self.strike_max_pwm_var, style="Panel.TEntry", width=12).grid(
             row=1,
             column=1,
             sticky="w",
             padx=(14, 0),
             pady=3,
         )
-        blend_button_row = ttk.Frame(tune_body, style="Panel.TFrame")
-        blend_button_row.grid(row=1, column=2, sticky="w", padx=(8, 0), pady=3)
-        ttk.Button(blend_button_row, text="+10", style="Secondary.TButton", command=lambda: self.adjust_rearm_gap_ms(10)).grid(row=0, column=0)
-        ttk.Button(blend_button_row, text="+25", style="Secondary.TButton", command=lambda: self.adjust_rearm_gap_ms(25)).grid(row=0, column=1, padx=(6, 0))
+        loud_button_row = ttk.Frame(tune_body, style="Panel.TFrame")
+        loud_button_row.grid(row=1, column=2, sticky="w", padx=(8, 0), pady=3)
+        ttk.Button(loud_button_row, text="-25", style="Secondary.TButton", command=lambda: self.adjust_strike_max_pwm(-25)).grid(row=0, column=0)
+        ttk.Button(loud_button_row, text="-100", style="Secondary.TButton", command=lambda: self.adjust_strike_max_pwm(-100)).grid(row=0, column=1, padx=(6, 0))
+        ttk.Button(loud_button_row, text="Save Loud Fix", style="Primary.TButton", command=self.save_loud_strike_fix).grid(row=0, column=2, padx=(6, 0))
 
-        ttk.Label(tune_body, text="Minimum repeat ms", style="Panel.TLabel").grid(row=2, column=0, sticky="w", pady=3)
-        ttk.Entry(tune_body, textvariable=self.min_repeat_ms_var, style="Panel.TEntry", width=12).grid(
+        ttk.Label(tune_body, text="Clicky fix: hold min PWM", style="Panel.TLabel").grid(row=2, column=0, sticky="w", pady=3)
+        ttk.Entry(tune_body, textvariable=self.hold_min_pwm_var, style="Panel.TEntry", width=12).grid(
             row=2,
             column=1,
             sticky="w",
             padx=(14, 0),
             pady=3,
         )
+        hold_button_row = ttk.Frame(tune_body, style="Panel.TFrame")
+        hold_button_row.grid(row=2, column=2, sticky="w", padx=(8, 0), pady=3)
+        ttk.Button(hold_button_row, text="-25", style="Secondary.TButton", command=lambda: self.adjust_hold_min_pwm(-25)).grid(row=0, column=0)
+        ttk.Button(hold_button_row, text="-100", style="Secondary.TButton", command=lambda: self.adjust_hold_min_pwm(-100)).grid(row=0, column=1, padx=(6, 0))
+        ttk.Button(hold_button_row, text="Save Hold Fix", style="Primary.TButton", command=self.save_hold_click_fix).grid(row=0, column=2, padx=(6, 0))
+
+        ttk.Label(tune_body, text="Clicky fix: strike ms", style="Panel.TLabel").grid(row=3, column=0, sticky="w", pady=3)
+        ttk.Entry(tune_body, textvariable=self.strike_ms_var, style="Panel.TEntry", width=12).grid(
+            row=3,
+            column=1,
+            sticky="w",
+            padx=(14, 0),
+            pady=3,
+        )
+        strike_ms_button_row = ttk.Frame(tune_body, style="Panel.TFrame")
+        strike_ms_button_row.grid(row=3, column=2, sticky="w", padx=(8, 0), pady=3)
+        ttk.Button(strike_ms_button_row, text="-5", style="Secondary.TButton", command=lambda: self.adjust_strike_ms(-5)).grid(row=0, column=0)
+        ttk.Button(strike_ms_button_row, text="-10", style="Secondary.TButton", command=lambda: self.adjust_strike_ms(-10)).grid(row=0, column=1, padx=(6, 0))
+        ttk.Button(strike_ms_button_row, text="Save Strike Time", style="Primary.TButton", command=self.save_strike_ms_click_fix).grid(row=0, column=2, padx=(6, 0))
+
+        ttk.Label(tune_body, text="Retraction gap ms", style="Panel.TLabel").grid(row=4, column=0, sticky="w", pady=3)
+        ttk.Entry(tune_body, textvariable=self.rearm_gap_ms_var, style="Panel.TEntry", width=12).grid(
+            row=4,
+            column=1,
+            sticky="w",
+            padx=(14, 0),
+            pady=3,
+        )
+        blend_button_row = ttk.Frame(tune_body, style="Panel.TFrame")
+        blend_button_row.grid(row=4, column=2, sticky="w", padx=(8, 0), pady=3)
+        ttk.Button(blend_button_row, text="+10", style="Secondary.TButton", command=lambda: self.adjust_rearm_gap_ms(10)).grid(row=0, column=0)
+        ttk.Button(blend_button_row, text="+25", style="Secondary.TButton", command=lambda: self.adjust_rearm_gap_ms(25)).grid(row=0, column=1, padx=(6, 0))
+
+        ttk.Label(tune_body, text="Minimum repeat ms", style="Panel.TLabel").grid(row=5, column=0, sticky="w", pady=3)
+        ttk.Entry(tune_body, textvariable=self.min_repeat_ms_var, style="Panel.TEntry", width=12).grid(
+            row=5,
+            column=1,
+            sticky="w",
+            padx=(14, 0),
+            pady=3,
+        )
         repeat_button_row = ttk.Frame(tune_body, style="Panel.TFrame")
-        repeat_button_row.grid(row=2, column=2, sticky="w", padx=(8, 0), pady=3)
+        repeat_button_row.grid(row=5, column=2, sticky="w", padx=(8, 0), pady=3)
         ttk.Button(repeat_button_row, text="+10", style="Secondary.TButton", command=lambda: self.adjust_min_repeat_ms(10)).grid(row=0, column=0)
         ttk.Button(repeat_button_row, text="+25", style="Secondary.TButton", command=lambda: self.adjust_min_repeat_ms(25)).grid(row=0, column=1, padx=(6, 0))
         ttk.Button(repeat_button_row, text="Save Blend Fix", style="Primary.TButton", command=self.save_blend_fix).grid(row=0, column=2, padx=(6, 0))
@@ -1028,9 +1162,16 @@ class DefectiveNoteDebugDialog(tk.Toplevel):
         nav_row.columnconfigure(0, weight=1)
         nav_row.columnconfigure(1, weight=1)
         nav_row.columnconfigure(2, weight=1)
+        nav_row.columnconfigure(3, weight=1)
         ttk.Button(nav_row, text="Previous Note", style="Secondary.TButton", command=self.previous_note).grid(row=0, column=0, sticky="ew")
         ttk.Button(nav_row, text="Next Note", style="Secondary.TButton", command=self.next_note).grid(row=0, column=1, sticky="ew", padx=(8, 0))
-        ttk.Button(nav_row, text="Close", style="Secondary.TButton", command=self.close).grid(row=0, column=2, sticky="ew", padx=(8, 0))
+        ttk.Button(nav_row, text="Fixed Note", style="Primary.TButton", command=self.mark_current_note_fixed).grid(
+            row=0,
+            column=2,
+            sticky="ew",
+            padx=(8, 0),
+        )
+        ttk.Button(nav_row, text="Close", style="Secondary.TButton", command=self.close).grid(row=0, column=3, sticky="ew", padx=(8, 0))
 
         ttk.Label(outer, textvariable=self.status_var, style="Status.Panel.TLabel").grid(
             row=6,
@@ -1039,6 +1180,16 @@ class DefectiveNoteDebugDialog(tk.Toplevel):
             pady=(12, 0),
         )
 
+        self.volume_target_var.trace_add("write", lambda *_args: self.apply_volume_target())
+        for variable in (
+            self.velocity_var,
+            self.strike_min_pwm_var,
+            self.strike_max_pwm_var,
+            self.hold_min_pwm_var,
+            self.strike_ms_var,
+        ):
+            variable.trace_add("write", lambda *_args: self.refresh_target_settings())
+        self.refresh_reference_label()
         self.set_note_index(0)
         self.protocol("WM_DELETE_WINDOW", self.close)
         self.bind("<Escape>", lambda _event: self.close())
@@ -1050,11 +1201,90 @@ class DefectiveNoteDebugDialog(tk.Toplevel):
         self.focus_set()
 
     def format_note_choice(self, row):
-        reason = row.get("source_speed_label", "32nds")
-        return f"{row['note_label']} ({row['note']}) | channel {row['channel']} | {reason}"
+        if row.get("source_kind") == "full_sweep_mark":
+            mark_count = int(row.get("mark_count", 1))
+            reason = "full sweep mark" if mark_count == 1 else f"{mark_count} full sweep marks"
+        elif row.get("source_kind") == "speed_test_failure":
+            reason = row.get("source_speed_label", "32nds")
+        else:
+            reason = "mapped note"
+        prefix = "* " if row.get("is_broken_note") else ""
+        return f"{prefix}{row['note_label']} ({row['note']}) | channel {row['channel']} | {reason}"
 
     def current_row(self):
         return self.note_rows[self.current_index]
+
+    def current_target_velocity(self):
+        if self.volume_target_var.get() == VOLUME_TARGET_LOUD:
+            return LOUD_TARGET_VELOCITY
+        return SOFT_TARGET_VELOCITY
+
+    def apply_volume_target(self):
+        if not self.note_rows:
+            return
+        self.speed_var.set(REFERENCE_SPEED_LABEL)
+        self.bpm_var.set(f"{REFERENCE_BPM:.2f}".rstrip("0").rstrip("."))
+        self.repeats_var.set(str(REFERENCE_REPEATS))
+        self.velocity_var.set(str(self.current_target_velocity()))
+        self.refresh_current_labels()
+        self.refresh_target_settings()
+
+    def _entry_int_or_current(self, variable, row_key, minimum=0, maximum=4095):
+        try:
+            value = int(variable.get().strip())
+        except ValueError:
+            value = int(self.current_row()[row_key])
+        return max(minimum, min(maximum, value))
+
+    def current_editable_actuation(self):
+        row = self.current_row()
+        strike_min_pwm = self._entry_int_or_current(self.strike_min_pwm_var, "strike_min_pwm", 0, 4095)
+        strike_max_pwm = self._entry_int_or_current(self.strike_max_pwm_var, "strike_max_pwm", 0, 4095)
+        if strike_max_pwm < strike_min_pwm:
+            strike_max_pwm = strike_min_pwm
+        hold_min_pwm = self._entry_int_or_current(self.hold_min_pwm_var, "hold_min_pwm", 0, 4095)
+        strike_ms = self._entry_int_or_current(self.strike_ms_var, "strike_ms", 1, 2000)
+        return {
+            "strike_min_pwm": strike_min_pwm,
+            "strike_max_pwm": strike_max_pwm,
+            "velocity_curve": float(row.get("velocity_curve", 1.0)),
+            "strike_ms": strike_ms,
+            "hold_min_pwm": hold_min_pwm,
+            "hold_max_pwm": int(row["hold_max_pwm"]),
+            "hold_ratio": float(row["hold_ratio"]),
+        }
+
+    def refresh_target_settings(self):
+        if not self.note_rows:
+            self.target_settings_var.set("")
+            return
+        try:
+            velocity = self._parse_int(self.velocity_var, "Velocity", 1, 127)
+        except ValueError:
+            velocity = self.current_target_velocity()
+        actuation = self.current_editable_actuation()
+        strike_pwm = engine.velocity_to_strike_pwm(velocity, actuation)
+        hold_pwm = engine.strike_to_hold_pwm(strike_pwm, actuation)
+        target = self.volume_target_var.get()
+        if target == VOLUME_TARGET_LOUD:
+            tune_text = "Tune strike max PWM + strike ms."
+        else:
+            tune_text = "Tune strike min PWM + strike ms; use hold min if it chatters after pull."
+        self.target_settings_var.set(
+            f"{target}: velocity {velocity} -> strike {strike_pwm}/4095, "
+            f"hold {hold_pwm}/4095, strike {actuation['strike_ms']} ms. {tune_text}"
+        )
+
+    def refresh_reference_label(self):
+        if self.reference_row is None:
+            self.reference_note_var.set("Reference: no clean middle reference note found.")
+            return
+        row = self.reference_row
+        self.reference_note_var.set(
+            f"Reference: {row['note_label']} ({row['note']}) on channel {row['channel']} | "
+            f"soft velocity {SOFT_TARGET_VELOCITY}, loud velocity {LOUD_TARGET_VELOCITY}, "
+            f"burst {REFERENCE_REPEATS}x {REFERENCE_SPEED_LABEL} at {REFERENCE_BPM:.0f} BPM."
+        )
 
     def set_note_index(self, index):
         if not self.note_rows:
@@ -1071,16 +1301,25 @@ class DefectiveNoteDebugDialog(tk.Toplevel):
             velocity = row.get("source_velocity", engine.DIAGNOSTIC_MEDIUM_VELOCITY)
         self.velocity_var.set(str(int(velocity)))
         self.strike_min_pwm_var.set(str(int(row["strike_min_pwm"])))
+        self.strike_max_pwm_var.set(str(int(row["strike_max_pwm"])))
+        self.hold_min_pwm_var.set(str(int(row["hold_min_pwm"])))
+        self.strike_ms_var.set(str(int(row["strike_ms"])))
         self.rearm_gap_ms_var.set(str(int(row["minimum_rearm_gap_ms"])))
         self.min_repeat_ms_var.set(str(int(row.get("minimum_repeat_period_ms") or 0)))
-        self.refresh_current_labels()
+        self.apply_volume_target()
 
     def refresh_current_labels(self):
         row = self.current_row()
-        self.current_channel_var.set(
-            f"{row['channel_target']} | {row['channel_label']} | latest failed test: "
-            f"{row.get('source_speed_label', '32nds')} at {float(row.get('source_bpm', 80.0)):.2f} BPM"
-        )
+        if row.get("source_kind") == "full_sweep_mark":
+            source_text = f"marked during full sweep: {row.get('mark_context', 'full sweep')}"
+        elif row.get("source_kind") == "speed_test_failure":
+            source_text = (
+                "latest failed test: "
+                f"{row.get('source_speed_label', '32nds')} at {float(row.get('source_bpm', 80.0)):.2f} BPM"
+            )
+        else:
+            source_text = "mapped note available for manual tuning"
+        self.current_channel_var.set(f"{row['channel_target']} | {row['channel_label']} | {source_text}")
         self.current_settings_var.set(
             "Current scoped settings: "
             f"velocity override {row.get('saved_playback_velocity_override', 'none')}, "
@@ -1090,6 +1329,26 @@ class DefectiveNoteDebugDialog(tk.Toplevel):
             f"retraction gap {row['minimum_rearm_gap_ms']} ms, "
             f"minimum repeat {row.get('minimum_repeat_period_ms') or 0} ms"
         )
+        self.refresh_marked_notes_label()
+
+    def refresh_marked_notes_label(self):
+        labels = []
+        current_note = None
+        if self.note_rows:
+            current_note = int(self.current_row()["note"])
+        for row in self.broken_note_rows:
+            label = row["note_label"]
+            if current_note is not None and int(row["note"]) == current_note:
+                label = f"[{label}]"
+            labels.append(label)
+        if not labels:
+            self.marked_notes_var.set("Broken note list: none")
+            return
+        visible_labels = labels[:24]
+        extra_count = len(labels) - len(visible_labels)
+        extra_text = "" if extra_count <= 0 else f", ... and {extra_count} more"
+        list_text = ", ".join(visible_labels) + extra_text
+        self.marked_notes_var.set(f"Broken note list ({len(labels)} remaining): {list_text}")
 
     def select_note_from_box(self, _event=None):
         selected = self.note_var.get()
@@ -1103,6 +1362,51 @@ class DefectiveNoteDebugDialog(tk.Toplevel):
 
     def next_note(self):
         self.set_note_index(self.current_index + 1)
+
+    def refresh_note_choices(self):
+        self.note_box.configure(values=[self.format_note_choice(row) for row in self.note_rows])
+        if self.note_rows:
+            self.set_note_index(min(self.current_index, len(self.note_rows) - 1))
+        else:
+            self.note_var.set("")
+            self.current_note_var.set("All marked notes fixed.")
+            self.current_channel_var.set("")
+            self.current_settings_var.set("")
+            self.refresh_marked_notes_label()
+
+    def mark_current_note_fixed(self):
+        if not self.note_rows:
+            return
+        row = self.current_row()
+        note = int(row["note"])
+        if not any(int(existing["note"]) == note for existing in self.broken_note_rows):
+            self.status_var.set(f"{row['note_label']} is not on the broken-note list.")
+            return
+        self.parent_app.mark_defect_debug_note_fixed(row)
+        self.broken_note_rows = [existing for existing in self.broken_note_rows if int(existing["note"]) != note]
+        for existing in self.note_rows:
+            if int(existing["note"]) != note:
+                continue
+            existing["is_broken_note"] = False
+            if existing.get("source_kind") in {"full_sweep_mark", "speed_test_failure"}:
+                existing["source_kind"] = "mapped_note"
+                existing["source_speed_label"] = REFERENCE_SPEED_LABEL
+                existing["source_bpm"] = REFERENCE_BPM
+                existing["source_repeats"] = REFERENCE_REPEATS
+                existing["source_velocity"] = SOFT_TARGET_VELOCITY
+                existing.pop("mark_context", None)
+                existing.pop("mark_count", None)
+        if not self.broken_note_rows:
+            self.status_var.set("All broken notes have been cleared; the full keyboard is still selectable.")
+            messagebox.showinfo(
+                "Broken-note list complete",
+                "All broken notes have been cleared from the checklist. You can still tune any mapped note from the dropdown.",
+                parent=self,
+            )
+            self.refresh_note_choices()
+            return
+        self.refresh_note_choices()
+        self.status_var.set(f"Removed {row['note_label']} from the broken-note list.")
 
     def _parse_int(self, variable, label, minimum, maximum):
         raw = variable.get().strip()
@@ -1160,12 +1464,67 @@ class DefectiveNoteDebugDialog(tk.Toplevel):
         self.status_var.set(f"Playing repeat burst for {request['note_label']}...")
         self.parent_app.start_speed_test_burst(request)
 
+    def build_burst_request_for_row(self, row, velocity):
+        division = speed_test_division_for_label(REFERENCE_SPEED_LABEL)
+        period_ms = speed_test_period_ms(REFERENCE_BPM, division)
+        return {
+            "note": int(row["note"]),
+            "note_label": row["note_label"],
+            "channel": int(row["channel"]),
+            "channel_label": row["channel_label"],
+            "channel_target": row["channel_target"],
+            "speed_label": REFERENCE_SPEED_LABEL,
+            "division": division,
+            "bpm": REFERENCE_BPM,
+            "period_ms": period_ms,
+            "repeats": REFERENCE_REPEATS,
+            "velocity": int(velocity),
+        }
+
+    def play_reference_single(self, velocity):
+        if self.reference_row is None:
+            messagebox.showerror("Reference unavailable", "No clean middle reference note was found.", parent=self)
+            return
+        row = self.reference_row
+        self.status_var.set(f"Playing reference {row['note_label']} single pulse at velocity {velocity}...")
+        self.parent_app.start_defective_note_single_pulse(row, int(velocity))
+
+    def play_reference_burst(self, velocity):
+        if self.reference_row is None:
+            messagebox.showerror("Reference unavailable", "No clean middle reference note was found.", parent=self)
+            return
+        row = self.reference_row
+        request = self.build_burst_request_for_row(row, int(velocity))
+        self.status_var.set(f"Playing reference {row['note_label']} burst at velocity {velocity}...")
+        self.parent_app.start_speed_test_burst(request)
+
     def adjust_strike_min_pwm(self, delta):
         try:
             value = self._parse_int(self.strike_min_pwm_var, "Strike min PWM", 0, 4095)
         except ValueError:
             value = int(self.current_row()["strike_min_pwm"])
         self.strike_min_pwm_var.set(str(max(0, min(4095, value + int(delta)))))
+
+    def adjust_strike_max_pwm(self, delta):
+        try:
+            value = self._parse_int(self.strike_max_pwm_var, "Strike max PWM", 0, 4095)
+        except ValueError:
+            value = int(self.current_row()["strike_max_pwm"])
+        self.strike_max_pwm_var.set(str(max(0, min(4095, value + int(delta)))))
+
+    def adjust_hold_min_pwm(self, delta):
+        try:
+            value = self._parse_int(self.hold_min_pwm_var, "Hold min PWM", 0, 4095)
+        except ValueError:
+            value = int(self.current_row()["hold_min_pwm"])
+        self.hold_min_pwm_var.set(str(max(0, min(4095, value + int(delta)))))
+
+    def adjust_strike_ms(self, delta):
+        try:
+            value = self._parse_int(self.strike_ms_var, "Strike ms", 1, 2000)
+        except ValueError:
+            value = int(self.current_row()["strike_ms"])
+        self.strike_ms_var.set(str(max(1, min(2000, value + int(delta)))))
 
     def adjust_min_repeat_ms(self, delta):
         try:
@@ -1203,6 +1562,66 @@ class DefectiveNoteDebugDialog(tk.Toplevel):
         self.apply_saved_settings(saved_settings)
         self.status_var.set(f"Saved click fix for {row['note_label']}: strike min PWM {strike_min_pwm}.")
 
+    def save_loud_strike_fix(self):
+        row = self.current_row()
+        try:
+            strike_max_pwm = self._parse_int(self.strike_max_pwm_var, "Strike max PWM", 0, 4095)
+            strike_min_pwm = self._parse_int(self.strike_min_pwm_var, "Strike min PWM", 0, 4095)
+        except ValueError as error:
+            messagebox.showerror("Invalid loud fix", str(error), parent=self)
+            return
+        if strike_max_pwm < strike_min_pwm:
+            messagebox.showerror(
+                "Invalid loud fix",
+                "Strike max PWM cannot be lower than this solenoid's strike min PWM.",
+                parent=self,
+            )
+            return
+        saved_settings = self.parent_app.save_defect_debug_solenoid_settings(
+            row,
+            {"strike_max_pwm": strike_max_pwm},
+            "loud_strike_fix",
+        )
+        self.apply_saved_settings(saved_settings)
+        self.status_var.set(f"Saved loud fix for {row['note_label']}: strike max PWM {strike_max_pwm}.")
+
+    def save_hold_click_fix(self):
+        row = self.current_row()
+        try:
+            hold_min_pwm = self._parse_int(self.hold_min_pwm_var, "Hold min PWM", 0, 4095)
+        except ValueError as error:
+            messagebox.showerror("Invalid hold click fix", str(error), parent=self)
+            return
+        if hold_min_pwm > int(row["hold_max_pwm"]):
+            messagebox.showerror(
+                "Invalid hold click fix",
+                "Hold min PWM cannot be higher than this solenoid's hold max PWM.",
+                parent=self,
+            )
+            return
+        saved_settings = self.parent_app.save_defect_debug_solenoid_settings(
+            row,
+            {"hold_min_pwm": hold_min_pwm},
+            "hold_click_fix",
+        )
+        self.apply_saved_settings(saved_settings)
+        self.status_var.set(f"Saved hold click fix for {row['note_label']}: hold min PWM {hold_min_pwm}.")
+
+    def save_strike_ms_click_fix(self):
+        row = self.current_row()
+        try:
+            strike_ms = self._parse_int(self.strike_ms_var, "Strike ms", 1, 2000)
+        except ValueError as error:
+            messagebox.showerror("Invalid strike time fix", str(error), parent=self)
+            return
+        saved_settings = self.parent_app.save_defect_debug_solenoid_settings(
+            row,
+            {"strike_ms": strike_ms},
+            "strike_time_click_fix",
+        )
+        self.apply_saved_settings(saved_settings)
+        self.status_var.set(f"Saved strike-time click fix for {row['note_label']}: strike {strike_ms} ms.")
+
     def save_blend_fix(self):
         row = self.current_row()
         try:
@@ -1230,6 +1649,9 @@ class DefectiveNoteDebugDialog(tk.Toplevel):
         row = self.current_row()
         row.update(saved_settings)
         self.strike_min_pwm_var.set(str(int(row["strike_min_pwm"])))
+        self.strike_max_pwm_var.set(str(int(row["strike_max_pwm"])))
+        self.hold_min_pwm_var.set(str(int(row["hold_min_pwm"])))
+        self.strike_ms_var.set(str(int(row["strike_ms"])))
         self.rearm_gap_ms_var.set(str(int(row["minimum_rearm_gap_ms"])))
         self.min_repeat_ms_var.set(str(int(row.get("minimum_repeat_period_ms") or 0)))
         self.refresh_current_labels()
@@ -2708,6 +3130,161 @@ class PianoPlayerApp(tk.Tk):
             except tk.TclError:
                 pass
 
+    def load_full_sweep_mark_entries(self):
+        if not FULL_SWEEP_MARKS_JSON_PATH.exists():
+            return []
+        try:
+            payload = json.loads(FULL_SWEEP_MARKS_JSON_PATH.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return []
+        if isinstance(payload, list):
+            return [entry for entry in payload if isinstance(entry, dict)]
+        return [entry for entry in payload.get("entries", []) if isinstance(entry, dict)]
+
+    def save_full_sweep_mark_entries(self, entries):
+        engine.METADATA_DIR.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "updated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+            "entries": entries,
+        }
+        FULL_SWEEP_MARKS_JSON_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    def reset_full_sweep_mark_entries(self):
+        self.save_full_sweep_mark_entries([])
+
+    def append_full_sweep_mark_entry(self, step):
+        config = engine.load_config()
+        channel_labels = config["mapping"].get("channel_labels", {})
+        entries = self.load_full_sweep_mark_entries()
+        timestamp = time.strftime("%Y-%m-%dT%H:%M:%S%z")
+        notes = step.get("notes", [])
+        note_labels = step.get("note_labels", [])
+        existing_keys = set()
+        for entry in entries:
+            if entry.get("status", "open") == "fixed":
+                continue
+            try:
+                existing_keys.add(
+                    (
+                        int(entry.get("note", -1)),
+                        str(entry.get("phase_name", "")),
+                        int(entry.get("velocity", -1)),
+                    )
+                )
+            except (TypeError, ValueError):
+                continue
+
+        saved_entries = []
+        for index, note in enumerate(notes):
+            try:
+                note = int(note)
+            except (TypeError, ValueError):
+                continue
+            key = (note, str(step.get("phase_name", "")), int(step.get("velocity", -1)))
+            if key in existing_keys:
+                continue
+            channel = engine.map_note_to_channel(note, config["mapping"])
+            if channel is None:
+                continue
+            channel = int(channel)
+            entry = {
+                "timestamp": timestamp,
+                "status": "open",
+                "note": note,
+                "note_label": note_labels[index] if index < len(note_labels) else engine.midi_note_name(note),
+                "channel": channel,
+                "channel_label": channel_labels.get(str(channel), f"Channel {channel}"),
+                "channel_target": engine.describe_global_channel(channel, config["pca9685"]),
+                "velocity": int(step.get("velocity", engine.DIAGNOSTIC_MEDIUM_VELOCITY)),
+                "phase_name": step.get("phase_name", "full sweep"),
+                "phase_label": step.get("phase_label", "Full sweep"),
+                "step_index": int(step.get("index", 0)),
+                "start_ms": int(step.get("start_ms", 0)),
+                "end_ms": int(step.get("end_ms", 0)),
+            }
+            entries.append(entry)
+            saved_entries.append(entry)
+        if saved_entries:
+            self.save_full_sweep_mark_entries(entries)
+        return saved_entries
+
+    def mark_defect_debug_note_fixed(self, row):
+        note = int(row["note"])
+        entries = self.load_full_sweep_mark_entries()
+        timestamp = time.strftime("%Y-%m-%dT%H:%M:%S%z")
+        sweep_changed = False
+        for entry in entries:
+            try:
+                entry_note = int(entry.get("note"))
+            except (TypeError, ValueError):
+                continue
+            if entry_note != note or entry.get("status", "open") == "fixed":
+                continue
+            entry["status"] = "fixed"
+            entry["fixed_at"] = timestamp
+            sweep_changed = True
+        if sweep_changed:
+            self.save_full_sweep_mark_entries(entries)
+        speed_log_changed = self.mark_speed_test_note_fixed(row, timestamp)
+        if sweep_changed and speed_log_changed:
+            self.append_log(
+                f"Marked {row['note_label']} fixed in the full-sweep list and speed-test defect log."
+            )
+        elif sweep_changed:
+            self.append_log(f"Marked {row['note_label']} fixed and removed it from the full-sweep broken-note list.")
+        elif speed_log_changed:
+            self.append_log(f"Marked {row['note_label']} fixed and removed it from the speed-test defect log.")
+        else:
+            self.append_log(f"Marked {row['note_label']} fixed in the current debug window.")
+
+    def mark_speed_test_note_fixed(self, row, timestamp):
+        note = int(row["note"])
+        entries = self.load_speed_test_log_entries()
+        latest_entry = None
+        for entry in entries:
+            try:
+                entry_note = int(entry.get("note"))
+            except (TypeError, ValueError):
+                continue
+            if entry_note == note:
+                latest_entry = entry
+        if latest_entry is not None and latest_entry.get("status") != "slower_blends":
+            return False
+
+        speed_label = row.get("source_speed_label", "32nds")
+        try:
+            division = speed_test_division_for_label(speed_label)
+        except ValueError:
+            speed_label = "32nds"
+            division = speed_test_division_for_label(speed_label)
+        bpm = float(row.get("source_bpm", 80.0))
+        period_ms = speed_test_period_ms(bpm, division)
+        entry = {
+            "timestamp": timestamp,
+            "status": "fixed",
+            "note_label": row["note_label"],
+            "note": note,
+            "channel": int(row["channel"]),
+            "channel_label": row["channel_label"],
+            "channel_target": row["channel_target"],
+            "speed_label": speed_label,
+            "division": int(division),
+            "bpm": bpm,
+            "period_ms": round(float(row.get("source_period_ms", period_ms)), 3),
+            "repeats": int(row.get("source_repeats", 10)),
+            "velocity": int(row.get("source_velocity", engine.DIAGNOSTIC_MEDIUM_VELOCITY)),
+            "strike_pwm": int(row.get("strike_min_pwm", "")),
+            "hold_pwm": int(row.get("hold_min_pwm", "")),
+            "strike_ms": int(row.get("strike_ms", "")),
+            "release_gap_ms": int(row.get("minimum_rearm_gap_ms", "")),
+            "saved_to_config": True,
+            "saved_minimum_repeat_period_ms": int(row.get("minimum_repeat_period_ms") or 0),
+            "saved_playback_velocity_override": row.get("saved_playback_velocity_override", ""),
+        }
+        entries.append(entry)
+        self.save_speed_test_log_entries(entries)
+        return True
+
     def mark_current_full_sweep_note(self):
         control = self.note_marker_control
         if control is None:
@@ -2728,6 +3305,7 @@ class PianoPlayerApp(tk.Tk):
                 f"Full sweep marker saved: {notes} "
                 f"(velocity {step.get('velocity')}, {step.get('phase_name')})"
             )
+            self.append_full_sweep_mark_entry(step)
         self.refresh_sweep_marker_dialog()
         return "break"
 
@@ -2836,7 +3414,216 @@ class PianoPlayerApp(tk.Tk):
         }
         self.speed_test_dialog = SolenoidSpeedTestDialog(self, note_rows, defaults)
 
+    def format_full_sweep_mark_context(self, marks):
+        contexts = []
+        for mark in marks:
+            phase = str(mark.get("phase_name") or "full sweep").replace(" chromatic full sweep", "")
+            velocity = mark.get("velocity", engine.DIAGNOSTIC_MEDIUM_VELOCITY)
+            contexts.append(f"{phase}, velocity {velocity}")
+        visible_contexts = contexts[:3]
+        extra_count = len(contexts) - len(visible_contexts)
+        extra_text = "" if extra_count <= 0 else f"; +{extra_count} more mark(s)"
+        return "; ".join(visible_contexts) + extra_text
+
+    def build_full_sweep_mark_debug_rows(self):
+        entries = [
+            entry
+            for entry in self.load_full_sweep_mark_entries()
+            if entry.get("status", "open") != "fixed"
+        ]
+        if not entries:
+            return []
+
+        marks_by_note = {}
+        for entry in entries:
+            try:
+                note = int(entry["note"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            marks_by_note.setdefault(note, []).append(entry)
+
+        config = engine.load_config()
+        channel_labels = config["mapping"].get("channel_labels", {})
+        rows = []
+        for note in sorted(marks_by_note):
+            channel = engine.map_note_to_channel(note, config["mapping"])
+            if channel is None:
+                continue
+            channel = int(channel)
+            marks = marks_by_note[note]
+            actuation = engine.resolve_note_actuation(note, channel, config)
+            source_velocity = int(marks[-1].get("velocity", engine.DIAGNOSTIC_MEDIUM_VELOCITY))
+            rows.append(
+                {
+                    "source_kind": "full_sweep_mark",
+                    "note": note,
+                    "note_label": engine.midi_note_name(note),
+                    "channel": channel,
+                    "channel_label": channel_labels.get(str(channel), f"Channel {channel}"),
+                    "channel_target": engine.describe_global_channel(channel, config["pca9685"]),
+                    "source_speed_label": "32nds",
+                    "source_bpm": 80.0,
+                    "source_repeats": 10,
+                    "source_velocity": source_velocity,
+                    "mark_count": len(marks),
+                    "mark_context": self.format_full_sweep_mark_context(marks),
+                    "saved_playback_velocity_override": actuation.get("playback_velocity_override"),
+                    "strike_min_pwm": int(actuation["strike_min_pwm"]),
+                    "strike_max_pwm": int(actuation["strike_max_pwm"]),
+                    "strike_ms": int(actuation["strike_ms"]),
+                    "hold_min_pwm": int(actuation["hold_min_pwm"]),
+                    "hold_max_pwm": int(actuation["hold_max_pwm"]),
+                    "hold_ratio": float(actuation["hold_ratio"]),
+                    "release_delay_ms": int(actuation["release_delay_ms"]),
+                    "minimum_rearm_gap_ms": int(actuation["minimum_rearm_gap_ms"]),
+                    "retrigger_gap_ms": int(actuation["retrigger_gap_ms"]),
+                    "minimum_repeat_period_ms": int(actuation.get("minimum_repeat_period_ms", 0)),
+                }
+            )
+        return rows
+
+    def build_reference_note_debug_row(self):
+        config = engine.load_config()
+        latest_by_note = {}
+        for entry in self.load_speed_test_log_entries():
+            try:
+                latest_by_note[int(entry["note"])] = entry
+            except (KeyError, TypeError, ValueError):
+                continue
+
+        open_mark_notes = set()
+        for entry in self.load_full_sweep_mark_entries():
+            if entry.get("status", "open") == "fixed":
+                continue
+            try:
+                open_mark_notes.add(int(entry["note"]))
+            except (KeyError, TypeError, ValueError):
+                continue
+
+        custom_actuation_keys = {
+            "strike_min_pwm",
+            "strike_max_pwm",
+            "velocity_curve",
+            "strike_ms",
+            "hold_min_pwm",
+            "hold_max_pwm",
+            "hold_ratio",
+            "release_delay_ms",
+            "minimum_rearm_gap_ms",
+            "retrigger_gap_ms",
+            "minimum_note_duration_ms",
+            "temporary_debug_note",
+            "defect_debug_note",
+            "defect_debug_last_reason",
+            "defect_debug_saved_at",
+        }
+        channel_overrides = config["actuation"].get("channel_overrides", {})
+        candidates = []
+        for note, channel in piano_tools.iter_mapping_in_note_order(config["mapping"]):
+            note = int(note)
+            channel = int(channel)
+            latest_entry = latest_by_note.get(note, {})
+            status = latest_entry.get("status", "")
+            if status == "slower_blends" or note in open_mark_notes:
+                continue
+            override = channel_overrides.get(str(channel), {})
+            custom_count = sum(1 for key in custom_actuation_keys if key in override)
+            status_score = 0 if status == "meets" else 1
+            color_score = 0 if note % 12 in engine.WHITE_KEY_PITCH_CLASSES else 1
+            candidates.append((status_score, custom_count, color_score, abs(note - 60), note, channel))
+
+        if not candidates:
+            return None
+
+        _status_score, _custom_count, _color_score, _distance, note, channel = sorted(candidates)[0]
+        channel_labels = config["mapping"].get("channel_labels", {})
+        actuation = engine.resolve_note_actuation(note, channel, config)
+        return {
+            "source_kind": "reference_note",
+            "note": note,
+            "note_label": engine.midi_note_name(note),
+            "channel": channel,
+            "channel_label": channel_labels.get(str(channel), f"Channel {channel}"),
+            "channel_target": engine.describe_global_channel(channel, config["pca9685"]),
+            "source_speed_label": REFERENCE_SPEED_LABEL,
+            "source_bpm": REFERENCE_BPM,
+            "source_repeats": REFERENCE_REPEATS,
+            "source_velocity": SOFT_TARGET_VELOCITY,
+            "saved_playback_velocity_override": actuation.get("playback_velocity_override"),
+            "strike_min_pwm": int(actuation["strike_min_pwm"]),
+            "strike_max_pwm": int(actuation["strike_max_pwm"]),
+            "strike_ms": int(actuation["strike_ms"]),
+            "hold_min_pwm": int(actuation["hold_min_pwm"]),
+            "hold_max_pwm": int(actuation["hold_max_pwm"]),
+            "hold_ratio": float(actuation["hold_ratio"]),
+            "release_delay_ms": int(actuation["release_delay_ms"]),
+            "minimum_rearm_gap_ms": int(actuation["minimum_rearm_gap_ms"]),
+            "retrigger_gap_ms": int(actuation["retrigger_gap_ms"]),
+            "minimum_repeat_period_ms": int(actuation.get("minimum_repeat_period_ms", 0)),
+        }
+
+    def build_all_defective_note_debug_rows(self, broken_rows):
+        config = engine.load_config()
+        channel_labels = config["mapping"].get("channel_labels", {})
+        broken_by_note = {}
+        for row in broken_rows:
+            try:
+                broken_by_note[int(row["note"])] = dict(row)
+            except (KeyError, TypeError, ValueError):
+                continue
+
+        rows = []
+        for note, channel in piano_tools.iter_mapping_in_note_order(config["mapping"]):
+            if note is None:
+                continue
+            note = int(note)
+            channel = int(channel)
+            actuation = engine.resolve_note_actuation(note, channel, config)
+            if note in broken_by_note:
+                row = dict(broken_by_note[note])
+                row["source_kind"] = row.get("source_kind") or "speed_test_failure"
+                row["is_broken_note"] = True
+            else:
+                row = {
+                    "source_kind": "mapped_note",
+                    "is_broken_note": False,
+                    "note": note,
+                    "note_label": engine.midi_note_name(note),
+                    "channel": channel,
+                    "channel_label": channel_labels.get(str(channel), f"Channel {channel}"),
+                    "channel_target": engine.describe_global_channel(channel, config["pca9685"]),
+                    "source_speed_label": REFERENCE_SPEED_LABEL,
+                    "source_bpm": REFERENCE_BPM,
+                    "source_repeats": REFERENCE_REPEATS,
+                    "source_velocity": SOFT_TARGET_VELOCITY,
+                }
+            row["note"] = note
+            row["note_label"] = engine.midi_note_name(note)
+            row["channel"] = channel
+            row["channel_label"] = channel_labels.get(str(channel), f"Channel {channel}")
+            row["channel_target"] = engine.describe_global_channel(channel, config["pca9685"])
+            row["saved_playback_velocity_override"] = actuation.get("playback_velocity_override")
+            row["strike_min_pwm"] = int(actuation["strike_min_pwm"])
+            row["strike_max_pwm"] = int(actuation["strike_max_pwm"])
+            row["strike_ms"] = int(actuation["strike_ms"])
+            row["hold_min_pwm"] = int(actuation["hold_min_pwm"])
+            row["hold_max_pwm"] = int(actuation["hold_max_pwm"])
+            row["hold_ratio"] = float(actuation["hold_ratio"])
+            row["release_delay_ms"] = int(actuation["release_delay_ms"])
+            row["minimum_rearm_gap_ms"] = int(actuation["minimum_rearm_gap_ms"])
+            row["retrigger_gap_ms"] = int(actuation["retrigger_gap_ms"])
+            row["minimum_repeat_period_ms"] = int(actuation.get("minimum_repeat_period_ms", 0))
+            rows.append(row)
+
+        if not rows:
+            raise RuntimeError("No mapped piano notes are available for defective-note debugging.")
+        return rows
+
     def build_defective_note_debug_rows(self):
+        full_sweep_rows = self.build_full_sweep_mark_debug_rows()
+        if full_sweep_rows:
+            return full_sweep_rows
+
         entries = self.load_speed_test_log_entries()
         latest_by_note = {}
         for entry in entries:
@@ -2852,7 +3639,10 @@ class PianoPlayerApp(tk.Tk):
             if entry.get("status") == "slower_blends"
         ]
         if not slow_entries:
-            raise RuntimeError("No notes currently have a latest speed-test result of slower / blends.")
+            raise RuntimeError(
+                "No open full-sweep marked notes were saved, and no notes currently have a latest speed-test "
+                "result of slower / blends."
+            )
 
         config = engine.load_config()
         channel_labels = config["mapping"].get("channel_labels", {})
@@ -2868,6 +3658,7 @@ class PianoPlayerApp(tk.Tk):
             actuation = engine.resolve_note_actuation(note, channel, config)
             rows.append(
                 {
+                    "source_kind": "speed_test_failure",
                     "note": note,
                     "note_label": engine.midi_note_name(note),
                     "channel": channel,
@@ -2901,12 +3692,16 @@ class PianoPlayerApp(tk.Tk):
             return
 
         try:
-            note_rows = self.build_defective_note_debug_rows()
+            broken_rows = self.build_defective_note_debug_rows()
+        except RuntimeError:
+            broken_rows = []
+        try:
+            selectable_rows = self.build_all_defective_note_debug_rows(broken_rows)
         except RuntimeError as error:
             messagebox.showerror("Defective note debug unavailable", str(error), parent=self)
             return
 
-        self.defect_debug_dialog = DefectiveNoteDebugDialog(self, note_rows)
+        self.defect_debug_dialog = DefectiveNoteDebugDialog(self, broken_rows, selectable_rows)
 
     def start_speed_test_burst(self, request):
         if self.worker is not None and self.worker.is_alive():
@@ -2939,6 +3734,7 @@ class PianoPlayerApp(tk.Tk):
         pulse = {
             "channel": int(row["channel"]),
             "velocity": int(velocity),
+            "apply_velocity_override": False,
         }
         self.append_log("")
         self.append_log(
@@ -3157,6 +3953,9 @@ class PianoPlayerApp(tk.Tk):
     def save_defect_debug_solenoid_settings(self, row, updates, reason):
         allowed_keys = {
             "strike_min_pwm",
+            "strike_max_pwm",
+            "strike_ms",
+            "hold_min_pwm",
             "minimum_rearm_gap_ms",
             "retrigger_gap_ms",
             "minimum_repeat_period_ms",
@@ -3829,10 +4628,16 @@ class PianoPlayerApp(tk.Tk):
         config = engine.load_config()
         channel = int(pulse["channel"])
         velocity = int(pulse.get("velocity", engine.DIAGNOSTIC_MEDIUM_VELOCITY))
+        apply_velocity_override = bool(pulse.get("apply_velocity_override", True))
         capacity = engine.get_global_channel_capacity(config["pca9685"])
         if channel < 0 or channel >= capacity:
             raise RuntimeError(f"Channel {channel} is outside the configured PCA9685 range 0-{capacity - 1}.")
-        playback_pulse = piano_tools.build_regular_playback_channel_pulse(channel, config, velocity=velocity)
+        playback_pulse = piano_tools.build_regular_playback_channel_pulse(
+            channel,
+            config,
+            velocity=velocity,
+            apply_velocity_override=apply_velocity_override,
+        )
         mapped_note = piano_tools.mapped_note_for_channel(config["mapping"], channel)
 
         connection = None
@@ -3857,6 +4662,8 @@ class PianoPlayerApp(tk.Tk):
                 f"hold {playback_pulse['hold_pwm']}/4095 for {playback_pulse['hold_ms']} ms, "
                 f"release wait {playback_pulse['release_ms']} ms."
             )
+            if not apply_velocity_override:
+                reporter("Saved playback velocity override ignored for this defective-note single pulse.")
 
             piano_tools.fire_channel(connection, channel, playback_pulse)
             reporter("Channel test complete. All outputs are off.")
@@ -3948,6 +4755,7 @@ class PianoPlayerApp(tk.Tk):
         else:
             playback_control = None
             if dialog.result == "full" and not run_options["export_only"]:
+                self.reset_full_sweep_mark_entries()
                 playback_control = PlaybackControlState()
                 self.note_marker_control = playback_control
                 self.append_log(

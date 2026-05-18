@@ -87,6 +87,8 @@ BLACK_KEY_PITCH_CLASSES = {1, 3, 6, 8, 10}
 DIAGNOSTIC_BASE_BPM = 60.0
 DIAGNOSTIC_STEP_MS = 1000
 DIAGNOSTIC_FULL_SWEEP_STEP_MS = 1200
+DIAGNOSTIC_FAST_FULL_SWEEP_STEP_MS = 720
+DIAGNOSTIC_FAST_FULL_SWEEP_DURATION_MS = 560
 DIAGNOSTIC_NOTE_DURATION_MS = 650
 DIAGNOSTIC_PHASE_GAP_MS = 1400
 DIAGNOSTIC_VELOCITY = 100
@@ -1248,25 +1250,12 @@ def build_diagnostic_phases(note_numbers, key_color: str):
         sorted_notes = sorted(note_numbers)
         return [
             {
-                "name": "soft chromatic full sweep",
-                "label": "All keys: soft regular-playback sweep, bottom to top",
-                "groups": [[note] for note in sorted_notes],
-                "velocity": DIAGNOSTIC_SOFT_VELOCITY,
-                "step_ms": DIAGNOSTIC_FULL_SWEEP_STEP_MS,
-            },
-            {
-                "name": "medium chromatic full sweep",
-                "label": "All keys: medium regular-playback sweep, bottom to top",
+                "name": "standard chromatic full sweep",
+                "label": "All keys: standard fast bottom-to-top chromatic scale",
                 "groups": [[note] for note in sorted_notes],
                 "velocity": DIAGNOSTIC_MEDIUM_VELOCITY,
-                "step_ms": DIAGNOSTIC_FULL_SWEEP_STEP_MS,
-            },
-            {
-                "name": "hard chromatic full sweep",
-                "label": "All keys: hard regular-playback sweep, bottom to top",
-                "groups": [[note] for note in sorted_notes],
-                "velocity": DIAGNOSTIC_HARD_VELOCITY,
-                "step_ms": DIAGNOSTIC_FULL_SWEEP_STEP_MS,
+                "step_ms": DIAGNOSTIC_FAST_FULL_SWEEP_STEP_MS,
+                "duration_ms": DIAGNOSTIC_FAST_FULL_SWEEP_DURATION_MS,
             },
         ]
 
@@ -1331,7 +1320,8 @@ def build_diagnostic_note_intervals(note_numbers, key_color: str):
         velocity = int(phase.get("velocity", DIAGNOSTIC_VELOCITY))
         step_ms = int(phase.get("step_ms", DIAGNOSTIC_STEP_MS))
         for group in phase["groups"]:
-            end_ms = current_start_ms + DIAGNOSTIC_NOTE_DURATION_MS
+            duration_ms = int(phase.get("duration_ms", DIAGNOSTIC_NOTE_DURATION_MS))
+            end_ms = current_start_ms + duration_ms
             note_labels = [midi_note_name(note) for note in group]
             step_plan.append(
                 {
@@ -3413,7 +3403,7 @@ def run_troubleshooting_workflow(
     key_color = str(key_color).strip().lower()
     key_label = "Full sweep" if key_color == "full" else key_color.title()
     selection_reason = (
-        "generated full sweep troubleshooting sequence (soft, medium, and hard regular-playback chromatic passes)"
+        "generated fast full sweep troubleshooting sequence using standard regular-playback settings"
         if key_color == "full"
         else f"generated troubleshooting sequence for {key_label.lower()} keys"
     )

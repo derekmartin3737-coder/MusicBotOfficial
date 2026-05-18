@@ -45,7 +45,13 @@ def mapped_note_for_channel(mapping, channel):
     return None
 
 
-def build_regular_playback_pulse(note, channel, config, velocity=engine.DIAGNOSTIC_MEDIUM_VELOCITY):
+def build_regular_playback_pulse(
+    note,
+    channel,
+    config,
+    velocity=engine.DIAGNOSTIC_MEDIUM_VELOCITY,
+    apply_velocity_override=True,
+):
     """Build one FIRE pulse using the same actuation math as normal playback."""
     if note is None:
         note = mapped_note_for_channel(config["mapping"], channel)
@@ -55,7 +61,10 @@ def build_regular_playback_pulse(note, channel, config, velocity=engine.DIAGNOST
     else:
         actuation = engine.resolve_note_actuation(note, channel, config)
     strike_ms = int(actuation["strike_ms"])
-    output_velocity, _velocity_override_applied = engine.resolve_playback_velocity(int(velocity), actuation)
+    if apply_velocity_override:
+        output_velocity, _velocity_override_applied = engine.resolve_playback_velocity(int(velocity), actuation)
+    else:
+        output_velocity = int(velocity)
     strike_pwm = engine.velocity_to_strike_pwm(output_velocity, actuation)
     hold_pwm = engine.strike_to_hold_pwm(strike_pwm, actuation)
     hold_ms = max(0, engine.DIAGNOSTIC_NOTE_DURATION_MS - strike_ms)
@@ -68,10 +77,21 @@ def build_regular_playback_pulse(note, channel, config, velocity=engine.DIAGNOST
     }
 
 
-def build_regular_playback_channel_pulse(channel, config, velocity=engine.DIAGNOSTIC_MEDIUM_VELOCITY):
+def build_regular_playback_channel_pulse(
+    channel,
+    config,
+    velocity=engine.DIAGNOSTIC_MEDIUM_VELOCITY,
+    apply_velocity_override=True,
+):
     """Build a debug pulse for a channel using the mapped note's song-playback settings."""
     note = mapped_note_for_channel(config["mapping"], channel)
-    return build_regular_playback_pulse(note, channel, config, velocity=velocity)
+    return build_regular_playback_pulse(
+        note,
+        channel,
+        config,
+        velocity=velocity,
+        apply_velocity_override=apply_velocity_override,
+    )
 
 
 def build_calibration_channel_labels(pca_config, active_sequence, existing_labels=None):

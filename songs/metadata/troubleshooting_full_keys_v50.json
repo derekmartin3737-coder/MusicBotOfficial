@@ -1,0 +1,5625 @@
+{
+  "source_midi": "troubleshooting_full_keys.mid",
+  "source_midi_path": "songs\\midi\\troubleshooting_full_keys.mid",
+  "output_header": "troubleshooting_full_keys_v50.h",
+  "output_header_path": "songs\\headers\\troubleshooting_full_keys_v50.h",
+  "active_header": "current_song.h",
+  "active_header_path": "arduino\\MusicBotOfficial\\generated\\current_song.h",
+  "config_path": "config\\piano_config.json",
+  "events": [
+    {
+      "dt_ms": 0,
+      "channel": 1,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 1,
+      "pwm": 1750
+    },
+    {
+      "dt_ms": 535,
+      "channel": 1,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 3,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 3,
+      "pwm": 2520
+    },
+    {
+      "dt_ms": 535,
+      "channel": 3,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 0,
+      "pwm": 2881
+    },
+    {
+      "dt_ms": 45,
+      "channel": 0,
+      "pwm": 1440
+    },
+    {
+      "dt_ms": 535,
+      "channel": 0,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 2,
+      "pwm": 4028
+    },
+    {
+      "dt_ms": 250,
+      "channel": 2,
+      "pwm": 2739
+    },
+    {
+      "dt_ms": 330,
+      "channel": 2,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 11,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 11,
+      "pwm": 2400
+    },
+    {
+      "dt_ms": 535,
+      "channel": 11,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 10,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 10,
+      "pwm": 1750
+    },
+    {
+      "dt_ms": 535,
+      "channel": 10,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 7,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 7,
+      "pwm": 2520
+    },
+    {
+      "dt_ms": 535,
+      "channel": 7,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 9,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 9,
+      "pwm": 1750
+    },
+    {
+      "dt_ms": 535,
+      "channel": 9,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 6,
+      "pwm": 2976
+    },
+    {
+      "dt_ms": 45,
+      "channel": 6,
+      "pwm": 2400
+    },
+    {
+      "dt_ms": 535,
+      "channel": 6,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 8,
+      "pwm": 3071
+    },
+    {
+      "dt_ms": 45,
+      "channel": 8,
+      "pwm": 1536
+    },
+    {
+      "dt_ms": 535,
+      "channel": 8,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 5,
+      "pwm": 3071
+    },
+    {
+      "dt_ms": 45,
+      "channel": 5,
+      "pwm": 2400
+    },
+    {
+      "dt_ms": 535,
+      "channel": 5,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 4,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 4,
+      "pwm": 1750
+    },
+    {
+      "dt_ms": 535,
+      "channel": 4,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 13,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 13,
+      "pwm": 1750
+    },
+    {
+      "dt_ms": 535,
+      "channel": 13,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 15,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 15,
+      "pwm": 2520
+    },
+    {
+      "dt_ms": 535,
+      "channel": 15,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 12,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 12,
+      "pwm": 1750
+    },
+    {
+      "dt_ms": 535,
+      "channel": 12,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 14,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 14,
+      "pwm": 2520
+    },
+    {
+      "dt_ms": 535,
+      "channel": 14,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 23,
+      "pwm": 3119
+    },
+    {
+      "dt_ms": 45,
+      "channel": 23,
+      "pwm": 2400
+    },
+    {
+      "dt_ms": 535,
+      "channel": 23,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 22,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 22,
+      "pwm": 1750
+    },
+    {
+      "dt_ms": 535,
+      "channel": 22,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 19,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 19,
+      "pwm": 2520
+    },
+    {
+      "dt_ms": 535,
+      "channel": 19,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 21,
+      "pwm": 3167
+    },
+    {
+      "dt_ms": 45,
+      "channel": 21,
+      "pwm": 2400
+    },
+    {
+      "dt_ms": 535,
+      "channel": 21,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 18,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 18,
+      "pwm": 2520
+    },
+    {
+      "dt_ms": 535,
+      "channel": 18,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 20,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 20,
+      "pwm": 1750
+    },
+    {
+      "dt_ms": 535,
+      "channel": 20,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 17,
+      "pwm": 3071
+    },
+    {
+      "dt_ms": 45,
+      "channel": 17,
+      "pwm": 2400
+    },
+    {
+      "dt_ms": 535,
+      "channel": 17,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 16,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 16,
+      "pwm": 1750
+    },
+    {
+      "dt_ms": 535,
+      "channel": 16,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 25,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 25,
+      "pwm": 1750
+    },
+    {
+      "dt_ms": 535,
+      "channel": 25,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 27,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 27,
+      "pwm": 2520
+    },
+    {
+      "dt_ms": 535,
+      "channel": 27,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 24,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 24,
+      "pwm": 1750
+    },
+    {
+      "dt_ms": 535,
+      "channel": 24,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 26,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 26,
+      "pwm": 2520
+    },
+    {
+      "dt_ms": 535,
+      "channel": 26,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 35,
+      "pwm": 3643
+    },
+    {
+      "dt_ms": 45,
+      "channel": 35,
+      "pwm": 2404
+    },
+    {
+      "dt_ms": 535,
+      "channel": 35,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 34,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 34,
+      "pwm": 2400
+    },
+    {
+      "dt_ms": 535,
+      "channel": 34,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 31,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 31,
+      "pwm": 2520
+    },
+    {
+      "dt_ms": 535,
+      "channel": 31,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 33,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 33,
+      "pwm": 1750
+    },
+    {
+      "dt_ms": 535,
+      "channel": 33,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 30,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 30,
+      "pwm": 2520
+    },
+    {
+      "dt_ms": 535,
+      "channel": 30,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 32,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 32,
+      "pwm": 2400
+    },
+    {
+      "dt_ms": 535,
+      "channel": 32,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 29,
+      "pwm": 3071
+    },
+    {
+      "dt_ms": 45,
+      "channel": 29,
+      "pwm": 2400
+    },
+    {
+      "dt_ms": 535,
+      "channel": 29,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 28,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 28,
+      "pwm": 1750
+    },
+    {
+      "dt_ms": 535,
+      "channel": 28,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 37,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 37,
+      "pwm": 1750
+    },
+    {
+      "dt_ms": 535,
+      "channel": 37,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 39,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 39,
+      "pwm": 2520
+    },
+    {
+      "dt_ms": 535,
+      "channel": 39,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 36,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 36,
+      "pwm": 1750
+    },
+    {
+      "dt_ms": 535,
+      "channel": 36,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 38,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 38,
+      "pwm": 2520
+    },
+    {
+      "dt_ms": 535,
+      "channel": 38,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 43,
+      "pwm": 2881
+    },
+    {
+      "dt_ms": 45,
+      "channel": 43,
+      "pwm": 1440
+    },
+    {
+      "dt_ms": 535,
+      "channel": 43,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 42,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 42,
+      "pwm": 1750
+    },
+    {
+      "dt_ms": 535,
+      "channel": 42,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 47,
+      "pwm": 4013
+    },
+    {
+      "dt_ms": 95,
+      "channel": 47,
+      "pwm": 2889
+    },
+    {
+      "dt_ms": 485,
+      "channel": 47,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 41,
+      "pwm": 3071
+    },
+    {
+      "dt_ms": 45,
+      "channel": 41,
+      "pwm": 1536
+    },
+    {
+      "dt_ms": 535,
+      "channel": 41,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 46,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 46,
+      "pwm": 2520
+    },
+    {
+      "dt_ms": 535,
+      "channel": 46,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 40,
+      "pwm": 2786
+    },
+    {
+      "dt_ms": 45,
+      "channel": 40,
+      "pwm": 2400
+    },
+    {
+      "dt_ms": 535,
+      "channel": 40,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 45,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 45,
+      "pwm": 2520
+    },
+    {
+      "dt_ms": 535,
+      "channel": 45,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 44,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 44,
+      "pwm": 1750
+    },
+    {
+      "dt_ms": 535,
+      "channel": 44,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 50,
+      "pwm": 2786
+    },
+    {
+      "dt_ms": 45,
+      "channel": 50,
+      "pwm": 2400
+    },
+    {
+      "dt_ms": 535,
+      "channel": 50,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 48,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 48,
+      "pwm": 2520
+    },
+    {
+      "dt_ms": 535,
+      "channel": 48,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 51,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 51,
+      "pwm": 1750
+    },
+    {
+      "dt_ms": 535,
+      "channel": 51,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 49,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 49,
+      "pwm": 2520
+    },
+    {
+      "dt_ms": 535,
+      "channel": 49,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 52,
+      "pwm": 2738
+    },
+    {
+      "dt_ms": 45,
+      "channel": 52,
+      "pwm": 1369
+    },
+    {
+      "dt_ms": 535,
+      "channel": 52,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 53,
+      "pwm": 2700
+    },
+    {
+      "dt_ms": 45,
+      "channel": 53,
+      "pwm": 1350
+    },
+    {
+      "dt_ms": 535,
+      "channel": 53,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 59,
+      "pwm": 3167
+    },
+    {
+      "dt_ms": 45,
+      "channel": 59,
+      "pwm": 2400
+    },
+    {
+      "dt_ms": 535,
+      "channel": 59,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 54,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 54,
+      "pwm": 1750
+    },
+    {
+      "dt_ms": 535,
+      "channel": 54,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 58,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 58,
+      "pwm": 2520
+    },
+    {
+      "dt_ms": 535,
+      "channel": 58,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 55,
+      "pwm": 3357
+    },
+    {
+      "dt_ms": 45,
+      "channel": 55,
+      "pwm": 2400
+    },
+    {
+      "dt_ms": 535,
+      "channel": 55,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 57,
+      "pwm": 4095
+    },
+    {
+      "dt_ms": 500,
+      "channel": 57,
+      "pwm": 3481
+    },
+    {
+      "dt_ms": 220,
+      "channel": 56,
+      "pwm": 3262
+    },
+    {
+      "dt_ms": 45,
+      "channel": 56,
+      "pwm": 1631
+    },
+    {
+      "dt_ms": 155,
+      "channel": 57,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 380,
+      "channel": 56,
+      "pwm": 0
+    },
+    {
+      "dt_ms": 140,
+      "channel": 60,
+      "pwm": 3500
+    },
+    {
+      "dt_ms": 45,
+      "channel": 60,
+      "pwm": 2400
+    },
+    {
+      "dt_ms": 535,
+      "channel": 60,
+      "pwm": 0
+    }
+  ],
+  "scheduled_notes": [
+    {
+      "source_note": 24,
+      "source_note_label": "C1",
+      "input_note": 24,
+      "note_label": "C1",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": true,
+      "channel": 1,
+      "source_channel": null,
+      "original_start_ms": 0,
+      "original_end_ms": 560,
+      "scheduled_start_ms": 0,
+      "scheduled_end_ms": 560,
+      "requested_end_ms": 560,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 1750,
+      "release_ms": 580,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 1200,
+        "hold_max_pwm": 2000,
+        "hold_ratio": 0.5,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "playback_velocity_override": 85,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "C1",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:08:16-0700"
+      }
+    },
+    {
+      "source_note": 25,
+      "source_note_label": "C#1",
+      "input_note": 25,
+      "note_label": "C#1",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": true,
+      "channel": 3,
+      "source_channel": null,
+      "original_start_ms": 720,
+      "original_end_ms": 1280,
+      "scheduled_start_ms": 720,
+      "scheduled_end_ms": 1280,
+      "requested_end_ms": 1280,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 2520,
+      "release_ms": 1300,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2800,
+        "hold_ratio": 0.72,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "playback_velocity_override": 85,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "C#1",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:08:27-0700"
+      }
+    },
+    {
+      "source_note": 26,
+      "source_note_label": "D1",
+      "input_note": 26,
+      "note_label": "D1",
+      "source_velocity": 85,
+      "velocity": 20,
+      "velocity_override_applied": true,
+      "channel": 0,
+      "source_channel": null,
+      "original_start_ms": 1440,
+      "original_end_ms": 2000,
+      "scheduled_start_ms": 1440,
+      "scheduled_end_ms": 2000,
+      "requested_end_ms": 2000,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 2881,
+      "hold_pwm": 1440,
+      "release_ms": 2020,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 1200,
+        "hold_max_pwm": 2000,
+        "hold_ratio": 0.5,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "playback_velocity_override": 20,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "D1",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:09:21-0700"
+      }
+    },
+    {
+      "source_note": 27,
+      "source_note_label": "D#1",
+      "input_note": 27,
+      "note_label": "D#1",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": true,
+      "channel": 2,
+      "source_channel": null,
+      "original_start_ms": 2160,
+      "original_end_ms": 2720,
+      "scheduled_start_ms": 2160,
+      "scheduled_end_ms": 2720,
+      "requested_end_ms": 2720,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 4028,
+      "hold_pwm": 2739,
+      "release_ms": 2740,
+      "actuation": {
+        "strike_min_pwm": 3895,
+        "strike_max_pwm": 4095,
+        "velocity_curve": 1.0,
+        "strike_ms": 250,
+        "hold_min_pwm": 2600,
+        "hold_max_pwm": 2800,
+        "hold_ratio": 0.68,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 40,
+        "retrigger_gap_ms": 25,
+        "temporary_debug_note": "D#1 channel 2 weak MOSFET path; bench test needed 4095 PWM for 250 ms to snap reliably, with stronger hold so the note does not release early",
+        "playback_velocity_override": 85,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "D#1",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:09:31-0700"
+      }
+    },
+    {
+      "source_note": 28,
+      "source_note_label": "E1",
+      "input_note": 28,
+      "note_label": "E1",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": true,
+      "channel": 11,
+      "source_channel": null,
+      "original_start_ms": 2880,
+      "original_end_ms": 3440,
+      "scheduled_start_ms": 2880,
+      "scheduled_end_ms": 3440,
+      "requested_end_ms": 3440,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 2400,
+      "release_ms": 3460,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2600,
+        "hold_ratio": 0.66,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "temporary_debug_note": "E1 was releasing early during full sweep; stronger hold keeps the key depressed after strike",
+        "playback_velocity_override": 85,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "E1",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:09:41-0700"
+      }
+    },
+    {
+      "source_note": 29,
+      "source_note_label": "F1",
+      "input_note": 29,
+      "note_label": "F1",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": false,
+      "channel": 10,
+      "source_channel": null,
+      "original_start_ms": 3600,
+      "original_end_ms": 4160,
+      "scheduled_start_ms": 3600,
+      "scheduled_end_ms": 4160,
+      "requested_end_ms": 4160,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 1750,
+      "release_ms": 4180,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 1200,
+        "hold_max_pwm": 2000,
+        "hold_ratio": 0.5,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "speed_test_note": "F1",
+        "speed_test_saved_status": "slower_blends",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:10:49-0700"
+      }
+    },
+    {
+      "source_note": 30,
+      "source_note_label": "F#1",
+      "input_note": 30,
+      "note_label": "F#1",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": true,
+      "channel": 7,
+      "source_channel": null,
+      "original_start_ms": 4320,
+      "original_end_ms": 4880,
+      "scheduled_start_ms": 4320,
+      "scheduled_end_ms": 4880,
+      "requested_end_ms": 4880,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 2520,
+      "release_ms": 4900,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2800,
+        "hold_ratio": 0.72,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "playback_velocity_override": 85,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "F#1",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:10:58-0700"
+      }
+    },
+    {
+      "source_note": 31,
+      "source_note_label": "G1",
+      "input_note": 31,
+      "note_label": "G1",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": true,
+      "channel": 9,
+      "source_channel": null,
+      "original_start_ms": 5040,
+      "original_end_ms": 5600,
+      "scheduled_start_ms": 5040,
+      "scheduled_end_ms": 5600,
+      "requested_end_ms": 5600,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 1750,
+      "release_ms": 5620,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 1200,
+        "hold_max_pwm": 2000,
+        "hold_ratio": 0.5,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "playback_velocity_override": 85,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "G1",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:11:05-0700"
+      }
+    },
+    {
+      "source_note": 32,
+      "source_note_label": "G#1",
+      "input_note": 32,
+      "note_label": "G#1",
+      "source_velocity": 85,
+      "velocity": 30,
+      "velocity_override_applied": true,
+      "channel": 6,
+      "source_channel": null,
+      "original_start_ms": 5760,
+      "original_end_ms": 6320,
+      "scheduled_start_ms": 5760,
+      "scheduled_end_ms": 6320,
+      "requested_end_ms": 6320,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 2976,
+      "hold_pwm": 2400,
+      "release_ms": 6340,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2800,
+        "hold_ratio": 0.72,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "playback_velocity_override": 30,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "G#1",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:11:48-0700"
+      }
+    },
+    {
+      "source_note": 33,
+      "source_note_label": "A1",
+      "input_note": 33,
+      "note_label": "A1",
+      "source_velocity": 85,
+      "velocity": 40,
+      "velocity_override_applied": true,
+      "channel": 8,
+      "source_channel": null,
+      "original_start_ms": 6480,
+      "original_end_ms": 7040,
+      "scheduled_start_ms": 6480,
+      "scheduled_end_ms": 7040,
+      "requested_end_ms": 7040,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3071,
+      "hold_pwm": 1536,
+      "release_ms": 7060,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 1200,
+        "hold_max_pwm": 2000,
+        "hold_ratio": 0.5,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "playback_velocity_override": 40,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "A1",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:12:14-0700"
+      }
+    },
+    {
+      "source_note": 34,
+      "source_note_label": "A#1",
+      "input_note": 34,
+      "note_label": "A#1",
+      "source_velocity": 85,
+      "velocity": 40,
+      "velocity_override_applied": true,
+      "channel": 5,
+      "source_channel": null,
+      "original_start_ms": 7200,
+      "original_end_ms": 7760,
+      "scheduled_start_ms": 7200,
+      "scheduled_end_ms": 7760,
+      "requested_end_ms": 7760,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3071,
+      "hold_pwm": 2400,
+      "release_ms": 7780,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2800,
+        "hold_ratio": 0.72,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "playback_velocity_override": 40,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "A#1",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:12:46-0700"
+      }
+    },
+    {
+      "source_note": 35,
+      "source_note_label": "B1",
+      "input_note": 35,
+      "note_label": "B1",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": false,
+      "channel": 4,
+      "source_channel": null,
+      "original_start_ms": 7920,
+      "original_end_ms": 8480,
+      "scheduled_start_ms": 7920,
+      "scheduled_end_ms": 8480,
+      "requested_end_ms": 8480,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 1750,
+      "release_ms": 8500,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 1200,
+        "hold_max_pwm": 2000,
+        "hold_ratio": 0.5,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "speed_test_note": "B1",
+        "speed_test_saved_status": "slower_blends",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:14:25-0700"
+      }
+    },
+    {
+      "source_note": 36,
+      "source_note_label": "C2",
+      "input_note": 36,
+      "note_label": "C2",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": false,
+      "channel": 13,
+      "source_channel": null,
+      "original_start_ms": 8640,
+      "original_end_ms": 9200,
+      "scheduled_start_ms": 8640,
+      "scheduled_end_ms": 9200,
+      "requested_end_ms": 9200,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 1750,
+      "release_ms": 9220,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 1200,
+        "hold_max_pwm": 2000,
+        "hold_ratio": 0.5,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "speed_test_note": "C2",
+        "speed_test_saved_status": "slower_blends",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:14:41-0700"
+      }
+    },
+    {
+      "source_note": 37,
+      "source_note_label": "C#2",
+      "input_note": 37,
+      "note_label": "C#2",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": true,
+      "channel": 15,
+      "source_channel": null,
+      "original_start_ms": 9360,
+      "original_end_ms": 9920,
+      "scheduled_start_ms": 9360,
+      "scheduled_end_ms": 9920,
+      "requested_end_ms": 9920,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 2520,
+      "release_ms": 9940,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2800,
+        "hold_ratio": 0.72,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "playback_velocity_override": 85,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "C#2",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:14:50-0700"
+      }
+    },
+    {
+      "source_note": 38,
+      "source_note_label": "D2",
+      "input_note": 38,
+      "note_label": "D2",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": true,
+      "channel": 12,
+      "source_channel": null,
+      "original_start_ms": 10080,
+      "original_end_ms": 10640,
+      "scheduled_start_ms": 10080,
+      "scheduled_end_ms": 10640,
+      "requested_end_ms": 10640,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 1750,
+      "release_ms": 10660,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 1200,
+        "hold_max_pwm": 2000,
+        "hold_ratio": 0.5,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "playback_velocity_override": 85,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "D2",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:15:08-0700"
+      }
+    },
+    {
+      "source_note": 39,
+      "source_note_label": "D#2",
+      "input_note": 39,
+      "note_label": "D#2",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": true,
+      "channel": 14,
+      "source_channel": null,
+      "original_start_ms": 10800,
+      "original_end_ms": 11360,
+      "scheduled_start_ms": 10800,
+      "scheduled_end_ms": 11360,
+      "requested_end_ms": 11360,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 2520,
+      "release_ms": 11380,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2800,
+        "hold_ratio": 0.72,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "playback_velocity_override": 85,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "D#2",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:15:14-0700"
+      }
+    },
+    {
+      "source_note": 40,
+      "source_note_label": "E2",
+      "input_note": 40,
+      "note_label": "E2",
+      "source_velocity": 85,
+      "velocity": 45,
+      "velocity_override_applied": true,
+      "channel": 23,
+      "source_channel": null,
+      "original_start_ms": 11520,
+      "original_end_ms": 12080,
+      "scheduled_start_ms": 11520,
+      "scheduled_end_ms": 12080,
+      "requested_end_ms": 12080,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3119,
+      "hold_pwm": 2400,
+      "release_ms": 12100,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2600,
+        "hold_ratio": 0.66,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "temporary_debug_note": "E2 was staccatoing during full sweep; stronger hold keeps the key depressed after strike",
+        "playback_velocity_override": 45,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "E2",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:15:44-0700"
+      }
+    },
+    {
+      "source_note": 41,
+      "source_note_label": "F2",
+      "input_note": 41,
+      "note_label": "F2",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": false,
+      "channel": 22,
+      "source_channel": null,
+      "original_start_ms": 12240,
+      "original_end_ms": 12800,
+      "scheduled_start_ms": 12240,
+      "scheduled_end_ms": 12800,
+      "requested_end_ms": 12800,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 1750,
+      "release_ms": 12820,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 1200,
+        "hold_max_pwm": 2000,
+        "hold_ratio": 0.5,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "speed_test_note": "F2",
+        "speed_test_saved_status": "slower_blends",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:16:26-0700"
+      }
+    },
+    {
+      "source_note": 42,
+      "source_note_label": "F#2",
+      "input_note": 42,
+      "note_label": "F#2",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": true,
+      "channel": 19,
+      "source_channel": null,
+      "original_start_ms": 12960,
+      "original_end_ms": 13520,
+      "scheduled_start_ms": 12960,
+      "scheduled_end_ms": 13520,
+      "requested_end_ms": 13520,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 2520,
+      "release_ms": 13540,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2800,
+        "hold_ratio": 0.72,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "playback_velocity_override": 85,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "F#2",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:16:33-0700"
+      }
+    },
+    {
+      "source_note": 43,
+      "source_note_label": "G2",
+      "input_note": 43,
+      "note_label": "G2",
+      "source_velocity": 85,
+      "velocity": 50,
+      "velocity_override_applied": true,
+      "channel": 21,
+      "source_channel": null,
+      "original_start_ms": 13680,
+      "original_end_ms": 14240,
+      "scheduled_start_ms": 13680,
+      "scheduled_end_ms": 14240,
+      "requested_end_ms": 14240,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3167,
+      "hold_pwm": 2400,
+      "release_ms": 14260,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2600,
+        "hold_ratio": 0.66,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "temporary_debug_note": "G2 was staccatoing during full sweep; stronger hold keeps the key depressed after strike",
+        "playback_velocity_override": 50,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "G2",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:17:08-0700"
+      }
+    },
+    {
+      "source_note": 44,
+      "source_note_label": "G#2",
+      "input_note": 44,
+      "note_label": "G#2",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": true,
+      "channel": 18,
+      "source_channel": null,
+      "original_start_ms": 14400,
+      "original_end_ms": 14960,
+      "scheduled_start_ms": 14400,
+      "scheduled_end_ms": 14960,
+      "requested_end_ms": 14960,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 2520,
+      "release_ms": 14980,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2800,
+        "hold_ratio": 0.72,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "playback_velocity_override": 85,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "G#2",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:17:17-0700"
+      }
+    },
+    {
+      "source_note": 45,
+      "source_note_label": "A2",
+      "input_note": 45,
+      "note_label": "A2",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": false,
+      "channel": 20,
+      "source_channel": null,
+      "original_start_ms": 15120,
+      "original_end_ms": 15680,
+      "scheduled_start_ms": 15120,
+      "scheduled_end_ms": 15680,
+      "requested_end_ms": 15680,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 1750,
+      "release_ms": 15700,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 1200,
+        "hold_max_pwm": 2000,
+        "hold_ratio": 0.5,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "speed_test_note": "A2",
+        "speed_test_saved_status": "slower_blends",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:17:47-0700"
+      }
+    },
+    {
+      "source_note": 46,
+      "source_note_label": "A#2",
+      "input_note": 46,
+      "note_label": "A#2",
+      "source_velocity": 85,
+      "velocity": 40,
+      "velocity_override_applied": true,
+      "channel": 17,
+      "source_channel": null,
+      "original_start_ms": 15840,
+      "original_end_ms": 16400,
+      "scheduled_start_ms": 15840,
+      "scheduled_end_ms": 16400,
+      "requested_end_ms": 16400,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3071,
+      "hold_pwm": 2400,
+      "release_ms": 16420,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2800,
+        "hold_ratio": 0.72,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "playback_velocity_override": 40,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "A#2",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:18:13-0700"
+      }
+    },
+    {
+      "source_note": 47,
+      "source_note_label": "B2",
+      "input_note": 47,
+      "note_label": "B2",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": false,
+      "channel": 16,
+      "source_channel": null,
+      "original_start_ms": 16560,
+      "original_end_ms": 17120,
+      "scheduled_start_ms": 16560,
+      "scheduled_end_ms": 17120,
+      "requested_end_ms": 17120,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 1750,
+      "release_ms": 17140,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 1200,
+        "hold_max_pwm": 2000,
+        "hold_ratio": 0.5,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "speed_test_note": "B2",
+        "speed_test_saved_status": "slower_blends",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:18:32-0700"
+      }
+    },
+    {
+      "source_note": 48,
+      "source_note_label": "C3",
+      "input_note": 48,
+      "note_label": "C3",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": false,
+      "channel": 25,
+      "source_channel": null,
+      "original_start_ms": 17280,
+      "original_end_ms": 17840,
+      "scheduled_start_ms": 17280,
+      "scheduled_end_ms": 17840,
+      "requested_end_ms": 17840,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 1750,
+      "release_ms": 17860,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 1200,
+        "hold_max_pwm": 2000,
+        "hold_ratio": 0.5,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "speed_test_note": "C3",
+        "speed_test_saved_status": "slower_blends",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:37:10-0700"
+      }
+    },
+    {
+      "source_note": 49,
+      "source_note_label": "C#3",
+      "input_note": 49,
+      "note_label": "C#3",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": true,
+      "channel": 27,
+      "source_channel": null,
+      "original_start_ms": 18000,
+      "original_end_ms": 18560,
+      "scheduled_start_ms": 18000,
+      "scheduled_end_ms": 18560,
+      "requested_end_ms": 18560,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 2520,
+      "release_ms": 18580,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2800,
+        "hold_ratio": 0.72,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "playback_velocity_override": 85,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "C#3",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:37:18-0700"
+      }
+    },
+    {
+      "source_note": 50,
+      "source_note_label": "D3",
+      "input_note": 50,
+      "note_label": "D3",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": false,
+      "channel": 24,
+      "source_channel": null,
+      "original_start_ms": 18720,
+      "original_end_ms": 19280,
+      "scheduled_start_ms": 18720,
+      "scheduled_end_ms": 19280,
+      "requested_end_ms": 19280,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 1750,
+      "release_ms": 19300,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 1200,
+        "hold_max_pwm": 2000,
+        "hold_ratio": 0.5,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "speed_test_note": "D3",
+        "speed_test_saved_status": "slower_blends",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:38:24-0700"
+      }
+    },
+    {
+      "source_note": 51,
+      "source_note_label": "D#3",
+      "input_note": 51,
+      "note_label": "D#3",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": true,
+      "channel": 26,
+      "source_channel": null,
+      "original_start_ms": 19440,
+      "original_end_ms": 20000,
+      "scheduled_start_ms": 19440,
+      "scheduled_end_ms": 20000,
+      "requested_end_ms": 20000,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 2520,
+      "release_ms": 20020,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2800,
+        "hold_ratio": 0.72,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "playback_velocity_override": 85,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "D#3",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:38:34-0700"
+      }
+    },
+    {
+      "source_note": 52,
+      "source_note_label": "E3",
+      "input_note": 52,
+      "note_label": "E3",
+      "source_velocity": 85,
+      "velocity": 100,
+      "velocity_override_applied": true,
+      "channel": 35,
+      "source_channel": null,
+      "original_start_ms": 20160,
+      "original_end_ms": 20720,
+      "scheduled_start_ms": 20160,
+      "scheduled_end_ms": 20720,
+      "requested_end_ms": 20720,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3643,
+      "hold_pwm": 2404,
+      "release_ms": 20740,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2600,
+        "hold_ratio": 0.66,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "temporary_debug_note": "E3 was releasing early during full sweep; stronger hold keeps the key depressed after strike",
+        "playback_velocity_override": 100,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "E3",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:39:25-0700"
+      }
+    },
+    {
+      "source_note": 53,
+      "source_note_label": "F3",
+      "input_note": 53,
+      "note_label": "F3",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": true,
+      "channel": 34,
+      "source_channel": null,
+      "original_start_ms": 20880,
+      "original_end_ms": 21440,
+      "scheduled_start_ms": 20880,
+      "scheduled_end_ms": 21440,
+      "requested_end_ms": 21440,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 2400,
+      "release_ms": 21460,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2600,
+        "hold_ratio": 0.66,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "temporary_debug_note": "F3 was staccatoing during full sweep; stronger hold keeps the key depressed after strike",
+        "playback_velocity_override": 85,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "F3",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:39:30-0700"
+      }
+    },
+    {
+      "source_note": 54,
+      "source_note_label": "F#3",
+      "input_note": 54,
+      "note_label": "F#3",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": false,
+      "channel": 31,
+      "source_channel": null,
+      "original_start_ms": 21600,
+      "original_end_ms": 22160,
+      "scheduled_start_ms": 21600,
+      "scheduled_end_ms": 22160,
+      "requested_end_ms": 22160,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 2520,
+      "release_ms": 22180,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2800,
+        "hold_ratio": 0.72,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "speed_test_note": "F#3",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:39:36-0700"
+      }
+    },
+    {
+      "source_note": 55,
+      "source_note_label": "G3",
+      "input_note": 55,
+      "note_label": "G3",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": false,
+      "channel": 33,
+      "source_channel": null,
+      "original_start_ms": 22320,
+      "original_end_ms": 22880,
+      "scheduled_start_ms": 22320,
+      "scheduled_end_ms": 22880,
+      "requested_end_ms": 22880,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 1750,
+      "release_ms": 22900,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 1200,
+        "hold_max_pwm": 2000,
+        "hold_ratio": 0.5,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "speed_test_note": "G3",
+        "speed_test_saved_status": "slower_blends",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:39:55-0700"
+      }
+    },
+    {
+      "source_note": 56,
+      "source_note_label": "G#3",
+      "input_note": 56,
+      "note_label": "G#3",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": false,
+      "channel": 30,
+      "source_channel": null,
+      "original_start_ms": 23040,
+      "original_end_ms": 23600,
+      "scheduled_start_ms": 23040,
+      "scheduled_end_ms": 23600,
+      "requested_end_ms": 23600,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 2520,
+      "release_ms": 23620,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2800,
+        "hold_ratio": 0.72,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "speed_test_note": "G#3",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:40:02-0700"
+      }
+    },
+    {
+      "source_note": 57,
+      "source_note_label": "A3",
+      "input_note": 57,
+      "note_label": "A3",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": true,
+      "channel": 32,
+      "source_channel": null,
+      "original_start_ms": 23760,
+      "original_end_ms": 24320,
+      "scheduled_start_ms": 23760,
+      "scheduled_end_ms": 24320,
+      "requested_end_ms": 24320,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 2400,
+      "release_ms": 24340,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2600,
+        "hold_ratio": 0.66,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "temporary_debug_note": "A3 was releasing early after strike; stronger hold keeps the key depressed",
+        "playback_velocity_override": 85,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "A3",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:40:08-0700"
+      }
+    },
+    {
+      "source_note": 58,
+      "source_note_label": "A#3",
+      "input_note": 58,
+      "note_label": "A#3",
+      "source_velocity": 85,
+      "velocity": 40,
+      "velocity_override_applied": true,
+      "channel": 29,
+      "source_channel": null,
+      "original_start_ms": 24480,
+      "original_end_ms": 25040,
+      "scheduled_start_ms": 24480,
+      "scheduled_end_ms": 25040,
+      "requested_end_ms": 25040,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3071,
+      "hold_pwm": 2400,
+      "release_ms": 25060,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2800,
+        "hold_ratio": 0.72,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "playback_velocity_override": 40,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "A#3",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:40:24-0700"
+      }
+    },
+    {
+      "source_note": 59,
+      "source_note_label": "B3",
+      "input_note": 59,
+      "note_label": "B3",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": false,
+      "channel": 28,
+      "source_channel": null,
+      "original_start_ms": 25200,
+      "original_end_ms": 25760,
+      "scheduled_start_ms": 25200,
+      "scheduled_end_ms": 25760,
+      "requested_end_ms": 25760,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 1750,
+      "release_ms": 25780,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 1200,
+        "hold_max_pwm": 2000,
+        "hold_ratio": 0.5,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "speed_test_note": "B3",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:40:46-0700"
+      }
+    },
+    {
+      "source_note": 60,
+      "source_note_label": "C4",
+      "input_note": 60,
+      "note_label": "C4",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": false,
+      "channel": 37,
+      "source_channel": null,
+      "original_start_ms": 25920,
+      "original_end_ms": 26480,
+      "scheduled_start_ms": 25920,
+      "scheduled_end_ms": 26480,
+      "requested_end_ms": 26480,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 1750,
+      "release_ms": 26500,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 1200,
+        "hold_max_pwm": 2000,
+        "hold_ratio": 0.5,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "speed_test_note": "C4",
+        "speed_test_saved_status": "slower_blends",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:41:06-0700"
+      }
+    },
+    {
+      "source_note": 61,
+      "source_note_label": "C#4",
+      "input_note": 61,
+      "note_label": "C#4",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": true,
+      "channel": 39,
+      "source_channel": null,
+      "original_start_ms": 26640,
+      "original_end_ms": 27200,
+      "scheduled_start_ms": 26640,
+      "scheduled_end_ms": 27200,
+      "requested_end_ms": 27200,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 2520,
+      "release_ms": 27220,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2800,
+        "hold_ratio": 0.72,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "playback_velocity_override": 85,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "C#4",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:41:13-0700"
+      }
+    },
+    {
+      "source_note": 62,
+      "source_note_label": "D4",
+      "input_note": 62,
+      "note_label": "D4",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": false,
+      "channel": 36,
+      "source_channel": null,
+      "original_start_ms": 27360,
+      "original_end_ms": 27920,
+      "scheduled_start_ms": 27360,
+      "scheduled_end_ms": 27920,
+      "requested_end_ms": 27920,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 1750,
+      "release_ms": 27940,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 1200,
+        "hold_max_pwm": 2000,
+        "hold_ratio": 0.5,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "speed_test_note": "D4",
+        "speed_test_saved_status": "slower_blends",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:41:32-0700"
+      }
+    },
+    {
+      "source_note": 63,
+      "source_note_label": "D#4",
+      "input_note": 63,
+      "note_label": "D#4",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": false,
+      "channel": 38,
+      "source_channel": null,
+      "original_start_ms": 28080,
+      "original_end_ms": 28640,
+      "scheduled_start_ms": 28080,
+      "scheduled_end_ms": 28640,
+      "requested_end_ms": 28640,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 2520,
+      "release_ms": 28660,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2800,
+        "hold_ratio": 0.72,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "speed_test_note": "D#4",
+        "speed_test_saved_status": "slower_blends",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:42:00-0700"
+      }
+    },
+    {
+      "source_note": 64,
+      "source_note_label": "E4",
+      "input_note": 64,
+      "note_label": "E4",
+      "source_velocity": 85,
+      "velocity": 20,
+      "velocity_override_applied": true,
+      "channel": 43,
+      "source_channel": null,
+      "original_start_ms": 28800,
+      "original_end_ms": 29360,
+      "scheduled_start_ms": 28800,
+      "scheduled_end_ms": 29360,
+      "requested_end_ms": 29360,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 2881,
+      "hold_pwm": 1440,
+      "release_ms": 29380,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 1200,
+        "hold_max_pwm": 2000,
+        "hold_ratio": 0.5,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "playback_velocity_override": 20,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "E4",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:42:51-0700"
+      }
+    },
+    {
+      "source_note": 65,
+      "source_note_label": "F4",
+      "input_note": 65,
+      "note_label": "F4",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": false,
+      "channel": 42,
+      "source_channel": null,
+      "original_start_ms": 29520,
+      "original_end_ms": 30080,
+      "scheduled_start_ms": 29520,
+      "scheduled_end_ms": 30080,
+      "requested_end_ms": 30080,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 1750,
+      "release_ms": 30100,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 1200,
+        "hold_max_pwm": 2000,
+        "hold_ratio": 0.5,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "speed_test_note": "F4",
+        "speed_test_saved_status": "slower_blends",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:43:16-0700"
+      }
+    },
+    {
+      "source_note": 66,
+      "source_note_label": "F#4",
+      "input_note": 66,
+      "note_label": "F#4",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": true,
+      "channel": 47,
+      "source_channel": null,
+      "original_start_ms": 30240,
+      "original_end_ms": 30800,
+      "scheduled_start_ms": 30240,
+      "scheduled_end_ms": 30800,
+      "requested_end_ms": 30800,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 4013,
+      "hold_pwm": 2889,
+      "release_ms": 30820,
+      "actuation": {
+        "strike_min_pwm": 3850,
+        "strike_max_pwm": 4095,
+        "velocity_curve": 1.0,
+        "strike_ms": 95,
+        "hold_min_pwm": 2700,
+        "hold_max_pwm": 2900,
+        "hold_ratio": 0.72,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 40,
+        "retrigger_gap_ms": 25,
+        "temporary_debug_note": "F#4 was silent during full sweep; stronger and slightly longer strike tests whether the key needs more pull power",
+        "playback_velocity_override": 85,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "F#4",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:43:24-0700"
+      }
+    },
+    {
+      "source_note": 67,
+      "source_note_label": "G4",
+      "input_note": 67,
+      "note_label": "G4",
+      "source_velocity": 85,
+      "velocity": 40,
+      "velocity_override_applied": true,
+      "channel": 41,
+      "source_channel": null,
+      "original_start_ms": 30960,
+      "original_end_ms": 31520,
+      "scheduled_start_ms": 30960,
+      "scheduled_end_ms": 31520,
+      "requested_end_ms": 31520,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3071,
+      "hold_pwm": 1536,
+      "release_ms": 31540,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 1200,
+        "hold_max_pwm": 2000,
+        "hold_ratio": 0.5,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "playback_velocity_override": 40,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "G4",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:43:43-0700"
+      }
+    },
+    {
+      "source_note": 68,
+      "source_note_label": "G#4",
+      "input_note": 68,
+      "note_label": "G#4",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": true,
+      "channel": 46,
+      "source_channel": null,
+      "original_start_ms": 31680,
+      "original_end_ms": 32240,
+      "scheduled_start_ms": 31680,
+      "scheduled_end_ms": 32240,
+      "requested_end_ms": 32240,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 2520,
+      "release_ms": 32260,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2800,
+        "hold_ratio": 0.72,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "playback_velocity_override": 85,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "G#4",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:43:49-0700"
+      }
+    },
+    {
+      "source_note": 69,
+      "source_note_label": "A4",
+      "input_note": 69,
+      "note_label": "A4",
+      "source_velocity": 85,
+      "velocity": 10,
+      "velocity_override_applied": true,
+      "channel": 40,
+      "source_channel": null,
+      "original_start_ms": 32400,
+      "original_end_ms": 32960,
+      "scheduled_start_ms": 32400,
+      "scheduled_end_ms": 32960,
+      "requested_end_ms": 32960,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 2786,
+      "hold_pwm": 2400,
+      "release_ms": 32980,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2600,
+        "hold_ratio": 0.66,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "temporary_debug_note": "A4 was releasing early after strike; stronger hold keeps the key depressed",
+        "playback_velocity_override": 10,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "A4",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:44:01-0700"
+      }
+    },
+    {
+      "source_note": 70,
+      "source_note_label": "A#4",
+      "input_note": 70,
+      "note_label": "A#4",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": false,
+      "channel": 45,
+      "source_channel": null,
+      "original_start_ms": 33120,
+      "original_end_ms": 33680,
+      "scheduled_start_ms": 33120,
+      "scheduled_end_ms": 33680,
+      "requested_end_ms": 33680,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 2520,
+      "release_ms": 33700,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2800,
+        "hold_ratio": 0.72,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "speed_test_note": "A#4",
+        "speed_test_saved_status": "slower_blends",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:44:22-0700"
+      }
+    },
+    {
+      "source_note": 71,
+      "source_note_label": "B4",
+      "input_note": 71,
+      "note_label": "B4",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": false,
+      "channel": 44,
+      "source_channel": null,
+      "original_start_ms": 33840,
+      "original_end_ms": 34400,
+      "scheduled_start_ms": 33840,
+      "scheduled_end_ms": 34400,
+      "requested_end_ms": 34400,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 1750,
+      "release_ms": 34420,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 1200,
+        "hold_max_pwm": 2000,
+        "hold_ratio": 0.5,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "speed_test_note": "B4",
+        "speed_test_saved_status": "slower_blends",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:47:21-0700"
+      }
+    },
+    {
+      "source_note": 72,
+      "source_note_label": "C5",
+      "input_note": 72,
+      "note_label": "C5",
+      "source_velocity": 85,
+      "velocity": 10,
+      "velocity_override_applied": true,
+      "channel": 50,
+      "source_channel": null,
+      "original_start_ms": 34560,
+      "original_end_ms": 35120,
+      "scheduled_start_ms": 34560,
+      "scheduled_end_ms": 35120,
+      "requested_end_ms": 35120,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 2786,
+      "hold_pwm": 2400,
+      "release_ms": 35140,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2600,
+        "hold_ratio": 0.66,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "temporary_debug_note": "C5 was releasing early after strike; stronger hold keeps the key depressed",
+        "playback_velocity_override": 10,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "C5",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:47:56-0700"
+      }
+    },
+    {
+      "source_note": 73,
+      "source_note_label": "C#5",
+      "input_note": 73,
+      "note_label": "C#5",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": false,
+      "channel": 48,
+      "source_channel": null,
+      "original_start_ms": 35280,
+      "original_end_ms": 35840,
+      "scheduled_start_ms": 35280,
+      "scheduled_end_ms": 35840,
+      "requested_end_ms": 35840,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 2520,
+      "release_ms": 35860,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2800,
+        "hold_ratio": 0.72,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "speed_test_note": "C#5",
+        "speed_test_saved_status": "slower_blends",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:48:22-0700"
+      }
+    },
+    {
+      "source_note": 74,
+      "source_note_label": "D5",
+      "input_note": 74,
+      "note_label": "D5",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": false,
+      "channel": 51,
+      "source_channel": null,
+      "original_start_ms": 36000,
+      "original_end_ms": 36560,
+      "scheduled_start_ms": 36000,
+      "scheduled_end_ms": 36560,
+      "requested_end_ms": 36560,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 1750,
+      "release_ms": 36580,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 1200,
+        "hold_max_pwm": 2000,
+        "hold_ratio": 0.5,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "speed_test_note": "D5",
+        "speed_test_saved_status": "slower_blends",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:48:35-0700"
+      }
+    },
+    {
+      "source_note": 75,
+      "source_note_label": "D#5",
+      "input_note": 75,
+      "note_label": "D#5",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": false,
+      "channel": 49,
+      "source_channel": null,
+      "original_start_ms": 36720,
+      "original_end_ms": 37280,
+      "scheduled_start_ms": 36720,
+      "scheduled_end_ms": 37280,
+      "requested_end_ms": 37280,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 2520,
+      "release_ms": 37300,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2800,
+        "hold_ratio": 0.72,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "speed_test_note": "D#5",
+        "speed_test_saved_status": "slower_blends",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:48:46-0700"
+      }
+    },
+    {
+      "source_note": 76,
+      "source_note_label": "E5",
+      "input_note": 76,
+      "note_label": "E5",
+      "source_velocity": 85,
+      "velocity": 5,
+      "velocity_override_applied": true,
+      "channel": 52,
+      "source_channel": null,
+      "original_start_ms": 37440,
+      "original_end_ms": 38000,
+      "scheduled_start_ms": 37440,
+      "scheduled_end_ms": 38000,
+      "requested_end_ms": 38000,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 2738,
+      "hold_pwm": 1369,
+      "release_ms": 38020,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 1200,
+        "hold_max_pwm": 2000,
+        "hold_ratio": 0.5,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "playback_velocity_override": 5,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "E5",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:49:41-0700"
+      }
+    },
+    {
+      "source_note": 77,
+      "source_note_label": "F5",
+      "input_note": 77,
+      "note_label": "F5",
+      "source_velocity": 85,
+      "velocity": 1,
+      "velocity_override_applied": true,
+      "channel": 53,
+      "source_channel": null,
+      "original_start_ms": 38160,
+      "original_end_ms": 38720,
+      "scheduled_start_ms": 38160,
+      "scheduled_end_ms": 38720,
+      "requested_end_ms": 38720,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 2700,
+      "hold_pwm": 1350,
+      "release_ms": 38740,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 1200,
+        "hold_max_pwm": 2000,
+        "hold_ratio": 0.5,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "playback_velocity_override": 1,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "F5",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:50:17-0700"
+      }
+    },
+    {
+      "source_note": 78,
+      "source_note_label": "F#5",
+      "input_note": 78,
+      "note_label": "F#5",
+      "source_velocity": 85,
+      "velocity": 50,
+      "velocity_override_applied": true,
+      "channel": 59,
+      "source_channel": null,
+      "original_start_ms": 38880,
+      "original_end_ms": 39440,
+      "scheduled_start_ms": 38880,
+      "scheduled_end_ms": 39440,
+      "requested_end_ms": 39440,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3167,
+      "hold_pwm": 2400,
+      "release_ms": 39460,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2800,
+        "hold_ratio": 0.72,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "playback_velocity_override": 50,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "F#5",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:50:30-0700"
+      }
+    },
+    {
+      "source_note": 79,
+      "source_note_label": "G5",
+      "input_note": 79,
+      "note_label": "G5",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": false,
+      "channel": 54,
+      "source_channel": null,
+      "original_start_ms": 39600,
+      "original_end_ms": 40160,
+      "scheduled_start_ms": 39600,
+      "scheduled_end_ms": 40160,
+      "requested_end_ms": 40160,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 1750,
+      "release_ms": 40180,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 1200,
+        "hold_max_pwm": 2000,
+        "hold_ratio": 0.5,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "speed_test_note": "G5",
+        "speed_test_saved_status": "slower_blends",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:50:57-0700"
+      }
+    },
+    {
+      "source_note": 80,
+      "source_note_label": "G#5",
+      "input_note": 80,
+      "note_label": "G#5",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": false,
+      "channel": 58,
+      "source_channel": null,
+      "original_start_ms": 40320,
+      "original_end_ms": 40880,
+      "scheduled_start_ms": 40320,
+      "scheduled_end_ms": 40880,
+      "requested_end_ms": 40880,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 2520,
+      "release_ms": 40900,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2800,
+        "hold_ratio": 0.72,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "speed_test_note": "G#5",
+        "speed_test_saved_status": "slower_blends",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:51:21-0700"
+      }
+    },
+    {
+      "source_note": 81,
+      "source_note_label": "A5",
+      "input_note": 81,
+      "note_label": "A5",
+      "source_velocity": 85,
+      "velocity": 70,
+      "velocity_override_applied": true,
+      "channel": 55,
+      "source_channel": null,
+      "original_start_ms": 41040,
+      "original_end_ms": 41600,
+      "scheduled_start_ms": 41040,
+      "scheduled_end_ms": 41600,
+      "requested_end_ms": 41600,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3357,
+      "hold_pwm": 2400,
+      "release_ms": 41620,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2600,
+        "hold_ratio": 0.66,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "temporary_debug_note": "A5 was staccatoing during full sweep; stronger hold keeps the key depressed after strike",
+        "playback_velocity_override": 70,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "A5",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:52:02-0700"
+      }
+    },
+    {
+      "source_note": 82,
+      "source_note_label": "A#5",
+      "input_note": 82,
+      "note_label": "A#5",
+      "source_velocity": 85,
+      "velocity": 127,
+      "velocity_override_applied": true,
+      "channel": 57,
+      "source_channel": null,
+      "original_start_ms": 41760,
+      "original_end_ms": 42320,
+      "scheduled_start_ms": 41760,
+      "scheduled_end_ms": 42660,
+      "requested_end_ms": 42320,
+      "minimum_duration_applied": true,
+      "scheduled_duration_ms": 900,
+      "requested_duration_ms": 560,
+      "strike_pwm": 4095,
+      "hold_pwm": 3481,
+      "release_ms": 42680,
+      "actuation": {
+        "strike_min_pwm": 4095,
+        "strike_max_pwm": 4095,
+        "velocity_curve": 1.0,
+        "strike_ms": 500,
+        "hold_min_pwm": 3300,
+        "hold_max_pwm": 3500,
+        "hold_ratio": 0.85,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 40,
+        "retrigger_gap_ms": 25,
+        "minimum_note_duration_ms": 900,
+        "temporary_debug_note": "A#5 buzzed lightly without pulling in; max local strike with a much longer full-power pull tests whether this solenoid needs more pull time",
+        "playback_velocity_override": 127,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "A#5",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:52:09-0700"
+      }
+    },
+    {
+      "source_note": 83,
+      "source_note_label": "B5",
+      "input_note": 83,
+      "note_label": "B5",
+      "source_velocity": 85,
+      "velocity": 60,
+      "velocity_override_applied": true,
+      "channel": 56,
+      "source_channel": null,
+      "original_start_ms": 42480,
+      "original_end_ms": 43040,
+      "scheduled_start_ms": 42480,
+      "scheduled_end_ms": 43040,
+      "requested_end_ms": 43040,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3262,
+      "hold_pwm": 1631,
+      "release_ms": 43060,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 1200,
+        "hold_max_pwm": 2000,
+        "hold_ratio": 0.5,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "playback_velocity_override": 60,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "B5",
+        "speed_test_saved_status": "meets",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:52:22-0700"
+      }
+    },
+    {
+      "source_note": 84,
+      "source_note_label": "C6",
+      "input_note": 84,
+      "note_label": "C6",
+      "source_velocity": 85,
+      "velocity": 85,
+      "velocity_override_applied": true,
+      "channel": 60,
+      "source_channel": null,
+      "original_start_ms": 43200,
+      "original_end_ms": 43760,
+      "scheduled_start_ms": 43200,
+      "scheduled_end_ms": 43760,
+      "requested_end_ms": 43760,
+      "minimum_duration_applied": false,
+      "scheduled_duration_ms": 560,
+      "requested_duration_ms": 560,
+      "strike_pwm": 3500,
+      "hold_pwm": 2400,
+      "release_ms": 43780,
+      "actuation": {
+        "strike_min_pwm": 2700,
+        "strike_max_pwm": 3900,
+        "velocity_curve": 1.0,
+        "strike_ms": 45,
+        "hold_min_pwm": 2400,
+        "hold_max_pwm": 2600,
+        "hold_ratio": 0.66,
+        "release_delay_ms": 20,
+        "minimum_rearm_gap_ms": 25,
+        "retrigger_gap_ms": 16,
+        "temporary_debug_note": "C6 was releasing early after strike; stronger hold keeps the key depressed",
+        "playback_velocity_override": 85,
+        "minimum_repeat_period_ms": 94,
+        "speed_test_note": "C6",
+        "speed_test_saved_status": "manual_save",
+        "speed_test_speed_label": "32nds",
+        "speed_test_bpm": 80.0,
+        "speed_test_period_ms": 93.75,
+        "speed_test_saved_at": "2026-05-13T17:52:43-0700"
+      }
+    }
+  ],
+  "metadata": {
+    "project_mode": "full_62_actuator_calibrated_bench",
+    "output_version_label": "v50",
+    "original_bpm": 60.0,
+    "tempo_label": "original timing",
+    "effective_bpm": 60.0,
+    "tempo_change_count": 0,
+    "active_hardware_channel_count": 62,
+    "active_hardware_channel_summary": "62 active hardware channels from global channel 0 (PCA9685 0x60 channel 0) through global channel 61 (PCA9685 0x40 channel 13)",
+    "source_range_label": "C1 to C6",
+    "playable_layout_label": "61 mapped notes from C1 to C6",
+    "fit_mode": "troubleshooting",
+    "fit_mode_label": "Full sweep troubleshooting sweep",
+    "transpose_semitones": 0,
+    "transpose_strategy": "none",
+    "transpose_remapped_note_events": 0,
+    "transpose_shift_counts": {},
+    "transpose_shift_summary": "not applicable for troubleshooting sequence",
+    "transpose_skipped_for_timing": 0,
+    "strict_playable_count": 61,
+    "strict_playable_summary": "61 of 61 note events playable (100.0%)",
+    "transpose_playable_count": 61,
+    "transpose_playable_summary": "61 of 61 note events playable (100.0%)",
+    "mapping_override_used": false,
+    "selection_reason": "generated fast full sweep troubleshooting sequence using standard regular-playback settings",
+    "recognizability_summary": "diagnostic sequence",
+    "unmapped_note_lines": [],
+    "source_note_count": 61,
+    "scheduled_note_count": 61,
+    "event_count": 183,
+    "forced_retriggers": 0,
+    "delayed_notes": 0,
+    "unmapped_notes": 0,
+    "unmapped_note_counts": {},
+    "unmatched_note_offs": 0,
+    "dangling_note_ons_closed": 0,
+    "percussion_events_skipped": 0,
+    "hold_events": 61,
+    "strike_only_notes": 0,
+    "mapping_lines": [
+      "Explicit note-to-channel mode",
+      "MIDI note 24 (C1) -> global channel 1 (PCA9685 0x60 channel 1) (PCA9685 0x60 channel 1)",
+      "MIDI note 25 (C#1) -> global channel 3 (PCA9685 0x60 channel 3) (PCA9685 0x60 channel 3)",
+      "MIDI note 26 (D1) -> global channel 0 (PCA9685 0x60 channel 0) (PCA9685 0x60 channel 0)",
+      "MIDI note 27 (D#1) -> global channel 2 (PCA9685 0x60 channel 2) (PCA9685 0x60 channel 2)",
+      "MIDI note 28 (E1) -> global channel 11 (PCA9685 0x60 channel 11) (PCA9685 0x60 channel 11)",
+      "MIDI note 29 (F1) -> global channel 10 (PCA9685 0x60 channel 10) (PCA9685 0x60 channel 10)",
+      "MIDI note 30 (F#1) -> global channel 7 (PCA9685 0x60 channel 7) (PCA9685 0x60 channel 7)",
+      "MIDI note 31 (G1) -> global channel 9 (PCA9685 0x60 channel 9) (PCA9685 0x60 channel 9)",
+      "MIDI note 32 (G#1) -> global channel 6 (PCA9685 0x60 channel 6) (PCA9685 0x60 channel 6)",
+      "MIDI note 33 (A1) -> global channel 8 (PCA9685 0x60 channel 8) (PCA9685 0x60 channel 8)",
+      "MIDI note 34 (A#1) -> global channel 5 (PCA9685 0x60 channel 5) (PCA9685 0x60 channel 5)",
+      "MIDI note 35 (B1) -> global channel 4 (PCA9685 0x60 channel 4) (PCA9685 0x60 channel 4)",
+      "MIDI note 36 (C2) -> global channel 13 (PCA9685 0x60 channel 13) (PCA9685 0x60 channel 13)",
+      "MIDI note 37 (C#2) -> global channel 15 (PCA9685 0x60 channel 15) (PCA9685 0x60 channel 15)",
+      "MIDI note 38 (D2) -> global channel 12 (PCA9685 0x60 channel 12) (PCA9685 0x60 channel 12)",
+      "MIDI note 39 (D#2) -> global channel 14 (PCA9685 0x60 channel 14) (PCA9685 0x60 channel 14)",
+      "MIDI note 40 (E2) -> global channel 23 (PCA9685 0x50 channel 7) (PCA9685 0x50 channel 7)",
+      "MIDI note 41 (F2) -> global channel 22 (PCA9685 0x50 channel 6) (PCA9685 0x50 channel 6)",
+      "MIDI note 42 (F#2) -> global channel 19 (PCA9685 0x50 channel 3) (PCA9685 0x50 channel 3)",
+      "MIDI note 43 (G2) -> global channel 21 (PCA9685 0x50 channel 5) (PCA9685 0x50 channel 5)",
+      "MIDI note 44 (G#2) -> global channel 18 (PCA9685 0x50 channel 2) (PCA9685 0x50 channel 2)",
+      "MIDI note 45 (A2) -> global channel 20 (PCA9685 0x50 channel 4) (PCA9685 0x50 channel 4)",
+      "MIDI note 46 (A#2) -> global channel 17 (PCA9685 0x50 channel 1) (PCA9685 0x50 channel 1)",
+      "MIDI note 47 (B2) -> global channel 16 (PCA9685 0x50 channel 0) (PCA9685 0x50 channel 0)",
+      "MIDI note 48 (C3) -> global channel 25 (PCA9685 0x50 channel 9) (PCA9685 0x50 channel 9)",
+      "MIDI note 49 (C#3) -> global channel 27 (PCA9685 0x50 channel 11) (PCA9685 0x50 channel 11)",
+      "MIDI note 50 (D3) -> global channel 24 (PCA9685 0x50 channel 8) (PCA9685 0x50 channel 8)",
+      "MIDI note 51 (D#3) -> global channel 26 (PCA9685 0x50 channel 10) (PCA9685 0x50 channel 10)",
+      "MIDI note 52 (E3) -> global channel 35 (PCA9685 0x48 channel 3) (PCA9685 0x48 channel 3)",
+      "MIDI note 53 (F3) -> global channel 34 (PCA9685 0x48 channel 2) (PCA9685 0x48 channel 2)",
+      "MIDI note 54 (F#3) -> global channel 31 (PCA9685 0x50 channel 15) (PCA9685 0x50 channel 15)",
+      "MIDI note 55 (G3) -> global channel 33 (PCA9685 0x48 channel 1) (PCA9685 0x48 channel 1)",
+      "MIDI note 56 (G#3) -> global channel 30 (PCA9685 0x50 channel 14) (PCA9685 0x50 channel 14)",
+      "MIDI note 57 (A3) -> global channel 32 (PCA9685 0x48 channel 0) (PCA9685 0x48 channel 0)",
+      "MIDI note 58 (A#3) -> global channel 29 (PCA9685 0x50 channel 13) (PCA9685 0x50 channel 13)",
+      "MIDI note 59 (B3) -> global channel 28 (PCA9685 0x50 channel 12) (PCA9685 0x50 channel 12)",
+      "MIDI note 60 (C4) -> global channel 37 (PCA9685 0x48 channel 5) (PCA9685 0x48 channel 5)",
+      "MIDI note 61 (C#4) -> global channel 39 (PCA9685 0x48 channel 7) (PCA9685 0x48 channel 7)",
+      "MIDI note 62 (D4) -> global channel 36 (PCA9685 0x48 channel 4) (PCA9685 0x48 channel 4)",
+      "MIDI note 63 (D#4) -> global channel 38 (PCA9685 0x48 channel 6) (PCA9685 0x48 channel 6)",
+      "MIDI note 64 (E4) -> global channel 43 (PCA9685 0x48 channel 11) (PCA9685 0x48 channel 11)",
+      "MIDI note 65 (F4) -> global channel 42 (PCA9685 0x48 channel 10) (PCA9685 0x48 channel 10)",
+      "MIDI note 66 (F#4) -> global channel 47 (PCA9685 0x48 channel 15) (PCA9685 0x48 channel 15)",
+      "MIDI note 67 (G4) -> global channel 41 (PCA9685 0x48 channel 9) (PCA9685 0x48 channel 9)",
+      "MIDI note 68 (G#4) -> global channel 46 (PCA9685 0x48 channel 14) (PCA9685 0x48 channel 14)",
+      "MIDI note 69 (A4) -> global channel 40 (PCA9685 0x48 channel 8) (PCA9685 0x48 channel 8)",
+      "MIDI note 70 (A#4) -> global channel 45 (PCA9685 0x48 channel 13) (PCA9685 0x48 channel 13)",
+      "MIDI note 71 (B4) -> global channel 44 (PCA9685 0x48 channel 12) (PCA9685 0x48 channel 12)",
+      "MIDI note 72 (C5) -> global channel 50 (PCA9685 0x40 channel 2) (PCA9685 0x40 channel 2)",
+      "MIDI note 73 (C#5) -> global channel 48 (PCA9685 0x40 channel 0) (PCA9685 0x40 channel 0)",
+      "MIDI note 74 (D5) -> global channel 51 (PCA9685 0x40 channel 3) (PCA9685 0x40 channel 3)",
+      "MIDI note 75 (D#5) -> global channel 49 (PCA9685 0x40 channel 1) (PCA9685 0x40 channel 1)",
+      "MIDI note 76 (E5) -> global channel 52 (PCA9685 0x40 channel 4) (PCA9685 0x40 channel 4)",
+      "MIDI note 77 (F5) -> global channel 53 (PCA9685 0x40 channel 5) (PCA9685 0x40 channel 5)",
+      "MIDI note 78 (F#5) -> global channel 59 (PCA9685 0x40 channel 11) (PCA9685 0x40 channel 11)",
+      "MIDI note 79 (G5) -> global channel 54 (PCA9685 0x40 channel 6) (PCA9685 0x40 channel 6)",
+      "MIDI note 80 (G#5) -> global channel 58 (PCA9685 0x40 channel 10) (PCA9685 0x40 channel 10)",
+      "MIDI note 81 (A5) -> global channel 55 (PCA9685 0x40 channel 7) (PCA9685 0x40 channel 7)",
+      "MIDI note 82 (A#5) -> global channel 57 (PCA9685 0x40 channel 9) (PCA9685 0x40 channel 9)",
+      "MIDI note 83 (B5) -> global channel 56 (PCA9685 0x40 channel 8) (PCA9685 0x40 channel 8)",
+      "MIDI note 84 (C6) -> global channel 60 (PCA9685 0x40 channel 12) (PCA9685 0x40 channel 12)",
+      "Sustain pedal -> global channel 61 (PCA9685 0x40 channel 13) (Sustain pedal (PCA9685 0x40 channel 13))"
+    ],
+    "channel_lines": [
+      "global channel 0 (PCA9685 0x60 channel 0): PCA9685 0x60 channel 0",
+      "global channel 1 (PCA9685 0x60 channel 1): PCA9685 0x60 channel 1",
+      "global channel 2 (PCA9685 0x60 channel 2): PCA9685 0x60 channel 2",
+      "global channel 3 (PCA9685 0x60 channel 3): PCA9685 0x60 channel 3",
+      "global channel 4 (PCA9685 0x60 channel 4): PCA9685 0x60 channel 4",
+      "global channel 5 (PCA9685 0x60 channel 5): PCA9685 0x60 channel 5",
+      "global channel 6 (PCA9685 0x60 channel 6): PCA9685 0x60 channel 6",
+      "global channel 7 (PCA9685 0x60 channel 7): PCA9685 0x60 channel 7",
+      "global channel 8 (PCA9685 0x60 channel 8): PCA9685 0x60 channel 8",
+      "global channel 9 (PCA9685 0x60 channel 9): PCA9685 0x60 channel 9",
+      "global channel 10 (PCA9685 0x60 channel 10): PCA9685 0x60 channel 10",
+      "global channel 11 (PCA9685 0x60 channel 11): PCA9685 0x60 channel 11",
+      "global channel 12 (PCA9685 0x60 channel 12): PCA9685 0x60 channel 12",
+      "global channel 13 (PCA9685 0x60 channel 13): PCA9685 0x60 channel 13",
+      "global channel 14 (PCA9685 0x60 channel 14): PCA9685 0x60 channel 14",
+      "global channel 15 (PCA9685 0x60 channel 15): PCA9685 0x60 channel 15",
+      "global channel 16 (PCA9685 0x50 channel 0): PCA9685 0x50 channel 0",
+      "global channel 17 (PCA9685 0x50 channel 1): PCA9685 0x50 channel 1",
+      "global channel 18 (PCA9685 0x50 channel 2): PCA9685 0x50 channel 2",
+      "global channel 19 (PCA9685 0x50 channel 3): PCA9685 0x50 channel 3",
+      "global channel 20 (PCA9685 0x50 channel 4): PCA9685 0x50 channel 4",
+      "global channel 21 (PCA9685 0x50 channel 5): PCA9685 0x50 channel 5",
+      "global channel 22 (PCA9685 0x50 channel 6): PCA9685 0x50 channel 6",
+      "global channel 23 (PCA9685 0x50 channel 7): PCA9685 0x50 channel 7",
+      "global channel 24 (PCA9685 0x50 channel 8): PCA9685 0x50 channel 8",
+      "global channel 25 (PCA9685 0x50 channel 9): PCA9685 0x50 channel 9",
+      "global channel 26 (PCA9685 0x50 channel 10): PCA9685 0x50 channel 10",
+      "global channel 27 (PCA9685 0x50 channel 11): PCA9685 0x50 channel 11",
+      "global channel 28 (PCA9685 0x50 channel 12): PCA9685 0x50 channel 12",
+      "global channel 29 (PCA9685 0x50 channel 13): PCA9685 0x50 channel 13",
+      "global channel 30 (PCA9685 0x50 channel 14): PCA9685 0x50 channel 14",
+      "global channel 31 (PCA9685 0x50 channel 15): PCA9685 0x50 channel 15",
+      "global channel 32 (PCA9685 0x48 channel 0): PCA9685 0x48 channel 0",
+      "global channel 33 (PCA9685 0x48 channel 1): PCA9685 0x48 channel 1",
+      "global channel 34 (PCA9685 0x48 channel 2): PCA9685 0x48 channel 2",
+      "global channel 35 (PCA9685 0x48 channel 3): PCA9685 0x48 channel 3",
+      "global channel 36 (PCA9685 0x48 channel 4): PCA9685 0x48 channel 4",
+      "global channel 37 (PCA9685 0x48 channel 5): PCA9685 0x48 channel 5",
+      "global channel 38 (PCA9685 0x48 channel 6): PCA9685 0x48 channel 6",
+      "global channel 39 (PCA9685 0x48 channel 7): PCA9685 0x48 channel 7",
+      "global channel 40 (PCA9685 0x48 channel 8): PCA9685 0x48 channel 8",
+      "global channel 41 (PCA9685 0x48 channel 9): PCA9685 0x48 channel 9",
+      "global channel 42 (PCA9685 0x48 channel 10): PCA9685 0x48 channel 10",
+      "global channel 43 (PCA9685 0x48 channel 11): PCA9685 0x48 channel 11",
+      "global channel 44 (PCA9685 0x48 channel 12): PCA9685 0x48 channel 12",
+      "global channel 45 (PCA9685 0x48 channel 13): PCA9685 0x48 channel 13",
+      "global channel 46 (PCA9685 0x48 channel 14): PCA9685 0x48 channel 14",
+      "global channel 47 (PCA9685 0x48 channel 15): PCA9685 0x48 channel 15",
+      "global channel 48 (PCA9685 0x40 channel 0): PCA9685 0x40 channel 0",
+      "global channel 49 (PCA9685 0x40 channel 1): PCA9685 0x40 channel 1",
+      "global channel 50 (PCA9685 0x40 channel 2): PCA9685 0x40 channel 2",
+      "global channel 51 (PCA9685 0x40 channel 3): PCA9685 0x40 channel 3",
+      "global channel 52 (PCA9685 0x40 channel 4): PCA9685 0x40 channel 4",
+      "global channel 53 (PCA9685 0x40 channel 5): PCA9685 0x40 channel 5",
+      "global channel 54 (PCA9685 0x40 channel 6): PCA9685 0x40 channel 6",
+      "global channel 55 (PCA9685 0x40 channel 7): PCA9685 0x40 channel 7",
+      "global channel 56 (PCA9685 0x40 channel 8): PCA9685 0x40 channel 8",
+      "global channel 57 (PCA9685 0x40 channel 9): PCA9685 0x40 channel 9",
+      "global channel 58 (PCA9685 0x40 channel 10): PCA9685 0x40 channel 10",
+      "global channel 59 (PCA9685 0x40 channel 11): PCA9685 0x40 channel 11",
+      "global channel 60 (PCA9685 0x40 channel 12): PCA9685 0x40 channel 12"
+    ],
+    "actuation_lines": [
+      "Black key override: hold_max_pwm 2800, hold_min_pwm 2400, hold_ratio 0.72",
+      "Channel 0: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 20, minimum repeat period 94 ms",
+      "Channel 1: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 85, minimum repeat period 94 ms",
+      "Channel 2: strike 3895-4095, velocity curve 1.0, hold 2600-2800, hold ratio 0.68, strike 250 ms, release delay 20 ms, rearm 40 ms, retrigger 25 ms, velocity override 85, minimum repeat period 94 ms",
+      "Channel 3: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 85, minimum repeat period 94 ms",
+      "Channel 4: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 5: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 40, minimum repeat period 94 ms",
+      "Channel 6: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 30, minimum repeat period 94 ms",
+      "Channel 7: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 85, minimum repeat period 94 ms",
+      "Channel 8: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 40, minimum repeat period 94 ms",
+      "Channel 9: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 85, minimum repeat period 94 ms",
+      "Channel 10: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 11: strike 2700-3900, velocity curve 1.0, hold 2400-2600, hold ratio 0.66, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 85, minimum repeat period 94 ms",
+      "Channel 12: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 85, minimum repeat period 94 ms",
+      "Channel 13: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 14: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 85, minimum repeat period 94 ms",
+      "Channel 15: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 85, minimum repeat period 94 ms",
+      "Channel 16: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 17: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 40, minimum repeat period 94 ms",
+      "Channel 18: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 85, minimum repeat period 94 ms",
+      "Channel 19: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 85, minimum repeat period 94 ms",
+      "Channel 20: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 21: strike 2700-3900, velocity curve 1.0, hold 2400-2600, hold ratio 0.66, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 50, minimum repeat period 94 ms",
+      "Channel 22: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 23: strike 2700-3900, velocity curve 1.0, hold 2400-2600, hold ratio 0.66, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 45, minimum repeat period 94 ms",
+      "Channel 24: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 25: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 26: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 85, minimum repeat period 94 ms",
+      "Channel 27: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 85, minimum repeat period 94 ms",
+      "Channel 28: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 29: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 40, minimum repeat period 94 ms",
+      "Channel 30: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 31: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 32: strike 2700-3900, velocity curve 1.0, hold 2400-2600, hold ratio 0.66, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 85, minimum repeat period 94 ms",
+      "Channel 33: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 34: strike 2700-3900, velocity curve 1.0, hold 2400-2600, hold ratio 0.66, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 85, minimum repeat period 94 ms",
+      "Channel 35: strike 2700-3900, velocity curve 1.0, hold 2400-2600, hold ratio 0.66, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 100, minimum repeat period 94 ms",
+      "Channel 36: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 37: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 38: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 39: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 85, minimum repeat period 94 ms",
+      "Channel 40: strike 2700-3900, velocity curve 1.0, hold 2400-2600, hold ratio 0.66, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 10, minimum repeat period 94 ms",
+      "Channel 41: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 40, minimum repeat period 94 ms",
+      "Channel 42: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 43: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 20, minimum repeat period 94 ms",
+      "Channel 44: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 45: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 46: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 85, minimum repeat period 94 ms",
+      "Channel 47: strike 3850-4095, velocity curve 1.0, hold 2700-2900, hold ratio 0.72, strike 95 ms, release delay 20 ms, rearm 40 ms, retrigger 25 ms, velocity override 85, minimum repeat period 94 ms",
+      "Channel 48: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 49: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 50: strike 2700-3900, velocity curve 1.0, hold 2400-2600, hold ratio 0.66, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 10, minimum repeat period 94 ms",
+      "Channel 51: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 52: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 5, minimum repeat period 94 ms",
+      "Channel 53: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 1, minimum repeat period 94 ms",
+      "Channel 54: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 55: strike 2700-3900, velocity curve 1.0, hold 2400-2600, hold ratio 0.66, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 70, minimum repeat period 94 ms",
+      "Channel 56: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 60, minimum repeat period 94 ms",
+      "Channel 57: strike 4095-4095, velocity curve 1.0, hold 3300-3500, hold ratio 0.85, strike 500 ms, release delay 20 ms, rearm 40 ms, retrigger 25 ms, velocity override 127, minimum repeat period 94 ms",
+      "Channel 58: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms",
+      "Channel 59: strike 2700-3900, velocity curve 1.0, hold 1200-2000, hold ratio 0.5, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 50, minimum repeat period 94 ms",
+      "Channel 60: strike 2700-3900, velocity curve 1.0, hold 2400-2600, hold ratio 0.66, strike 45 ms, release delay 20 ms, rearm 25 ms, retrigger 16 ms, velocity override 85, minimum repeat period 94 ms"
+    ],
+    "channels_used": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59,
+      60
+    ],
+    "diagnostic_key_color": "full",
+    "diagnostic_filtered_note_set_label": "61 mapped notes (full range) from C1 to C6",
+    "diagnostic_phase_labels": [
+      "All keys: standard fast bottom-to-top chromatic scale"
+    ],
+    "diagnostic_step_count": 61,
+    "diagnostic_step_plan": [
+      {
+        "index": 1,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          24
+        ],
+        "note_labels": [
+          "C1"
+        ],
+        "velocity": 85,
+        "start_ms": 0,
+        "end_ms": 560
+      },
+      {
+        "index": 2,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          25
+        ],
+        "note_labels": [
+          "C#1"
+        ],
+        "velocity": 85,
+        "start_ms": 720,
+        "end_ms": 1280
+      },
+      {
+        "index": 3,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          26
+        ],
+        "note_labels": [
+          "D1"
+        ],
+        "velocity": 85,
+        "start_ms": 1440,
+        "end_ms": 2000
+      },
+      {
+        "index": 4,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          27
+        ],
+        "note_labels": [
+          "D#1"
+        ],
+        "velocity": 85,
+        "start_ms": 2160,
+        "end_ms": 2720
+      },
+      {
+        "index": 5,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          28
+        ],
+        "note_labels": [
+          "E1"
+        ],
+        "velocity": 85,
+        "start_ms": 2880,
+        "end_ms": 3440
+      },
+      {
+        "index": 6,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          29
+        ],
+        "note_labels": [
+          "F1"
+        ],
+        "velocity": 85,
+        "start_ms": 3600,
+        "end_ms": 4160
+      },
+      {
+        "index": 7,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          30
+        ],
+        "note_labels": [
+          "F#1"
+        ],
+        "velocity": 85,
+        "start_ms": 4320,
+        "end_ms": 4880
+      },
+      {
+        "index": 8,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          31
+        ],
+        "note_labels": [
+          "G1"
+        ],
+        "velocity": 85,
+        "start_ms": 5040,
+        "end_ms": 5600
+      },
+      {
+        "index": 9,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          32
+        ],
+        "note_labels": [
+          "G#1"
+        ],
+        "velocity": 85,
+        "start_ms": 5760,
+        "end_ms": 6320
+      },
+      {
+        "index": 10,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          33
+        ],
+        "note_labels": [
+          "A1"
+        ],
+        "velocity": 85,
+        "start_ms": 6480,
+        "end_ms": 7040
+      },
+      {
+        "index": 11,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          34
+        ],
+        "note_labels": [
+          "A#1"
+        ],
+        "velocity": 85,
+        "start_ms": 7200,
+        "end_ms": 7760
+      },
+      {
+        "index": 12,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          35
+        ],
+        "note_labels": [
+          "B1"
+        ],
+        "velocity": 85,
+        "start_ms": 7920,
+        "end_ms": 8480
+      },
+      {
+        "index": 13,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          36
+        ],
+        "note_labels": [
+          "C2"
+        ],
+        "velocity": 85,
+        "start_ms": 8640,
+        "end_ms": 9200
+      },
+      {
+        "index": 14,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          37
+        ],
+        "note_labels": [
+          "C#2"
+        ],
+        "velocity": 85,
+        "start_ms": 9360,
+        "end_ms": 9920
+      },
+      {
+        "index": 15,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          38
+        ],
+        "note_labels": [
+          "D2"
+        ],
+        "velocity": 85,
+        "start_ms": 10080,
+        "end_ms": 10640
+      },
+      {
+        "index": 16,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          39
+        ],
+        "note_labels": [
+          "D#2"
+        ],
+        "velocity": 85,
+        "start_ms": 10800,
+        "end_ms": 11360
+      },
+      {
+        "index": 17,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          40
+        ],
+        "note_labels": [
+          "E2"
+        ],
+        "velocity": 85,
+        "start_ms": 11520,
+        "end_ms": 12080
+      },
+      {
+        "index": 18,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          41
+        ],
+        "note_labels": [
+          "F2"
+        ],
+        "velocity": 85,
+        "start_ms": 12240,
+        "end_ms": 12800
+      },
+      {
+        "index": 19,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          42
+        ],
+        "note_labels": [
+          "F#2"
+        ],
+        "velocity": 85,
+        "start_ms": 12960,
+        "end_ms": 13520
+      },
+      {
+        "index": 20,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          43
+        ],
+        "note_labels": [
+          "G2"
+        ],
+        "velocity": 85,
+        "start_ms": 13680,
+        "end_ms": 14240
+      },
+      {
+        "index": 21,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          44
+        ],
+        "note_labels": [
+          "G#2"
+        ],
+        "velocity": 85,
+        "start_ms": 14400,
+        "end_ms": 14960
+      },
+      {
+        "index": 22,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          45
+        ],
+        "note_labels": [
+          "A2"
+        ],
+        "velocity": 85,
+        "start_ms": 15120,
+        "end_ms": 15680
+      },
+      {
+        "index": 23,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          46
+        ],
+        "note_labels": [
+          "A#2"
+        ],
+        "velocity": 85,
+        "start_ms": 15840,
+        "end_ms": 16400
+      },
+      {
+        "index": 24,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          47
+        ],
+        "note_labels": [
+          "B2"
+        ],
+        "velocity": 85,
+        "start_ms": 16560,
+        "end_ms": 17120
+      },
+      {
+        "index": 25,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          48
+        ],
+        "note_labels": [
+          "C3"
+        ],
+        "velocity": 85,
+        "start_ms": 17280,
+        "end_ms": 17840
+      },
+      {
+        "index": 26,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          49
+        ],
+        "note_labels": [
+          "C#3"
+        ],
+        "velocity": 85,
+        "start_ms": 18000,
+        "end_ms": 18560
+      },
+      {
+        "index": 27,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          50
+        ],
+        "note_labels": [
+          "D3"
+        ],
+        "velocity": 85,
+        "start_ms": 18720,
+        "end_ms": 19280
+      },
+      {
+        "index": 28,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          51
+        ],
+        "note_labels": [
+          "D#3"
+        ],
+        "velocity": 85,
+        "start_ms": 19440,
+        "end_ms": 20000
+      },
+      {
+        "index": 29,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          52
+        ],
+        "note_labels": [
+          "E3"
+        ],
+        "velocity": 85,
+        "start_ms": 20160,
+        "end_ms": 20720
+      },
+      {
+        "index": 30,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          53
+        ],
+        "note_labels": [
+          "F3"
+        ],
+        "velocity": 85,
+        "start_ms": 20880,
+        "end_ms": 21440
+      },
+      {
+        "index": 31,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          54
+        ],
+        "note_labels": [
+          "F#3"
+        ],
+        "velocity": 85,
+        "start_ms": 21600,
+        "end_ms": 22160
+      },
+      {
+        "index": 32,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          55
+        ],
+        "note_labels": [
+          "G3"
+        ],
+        "velocity": 85,
+        "start_ms": 22320,
+        "end_ms": 22880
+      },
+      {
+        "index": 33,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          56
+        ],
+        "note_labels": [
+          "G#3"
+        ],
+        "velocity": 85,
+        "start_ms": 23040,
+        "end_ms": 23600
+      },
+      {
+        "index": 34,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          57
+        ],
+        "note_labels": [
+          "A3"
+        ],
+        "velocity": 85,
+        "start_ms": 23760,
+        "end_ms": 24320
+      },
+      {
+        "index": 35,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          58
+        ],
+        "note_labels": [
+          "A#3"
+        ],
+        "velocity": 85,
+        "start_ms": 24480,
+        "end_ms": 25040
+      },
+      {
+        "index": 36,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          59
+        ],
+        "note_labels": [
+          "B3"
+        ],
+        "velocity": 85,
+        "start_ms": 25200,
+        "end_ms": 25760
+      },
+      {
+        "index": 37,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          60
+        ],
+        "note_labels": [
+          "C4"
+        ],
+        "velocity": 85,
+        "start_ms": 25920,
+        "end_ms": 26480
+      },
+      {
+        "index": 38,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          61
+        ],
+        "note_labels": [
+          "C#4"
+        ],
+        "velocity": 85,
+        "start_ms": 26640,
+        "end_ms": 27200
+      },
+      {
+        "index": 39,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          62
+        ],
+        "note_labels": [
+          "D4"
+        ],
+        "velocity": 85,
+        "start_ms": 27360,
+        "end_ms": 27920
+      },
+      {
+        "index": 40,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          63
+        ],
+        "note_labels": [
+          "D#4"
+        ],
+        "velocity": 85,
+        "start_ms": 28080,
+        "end_ms": 28640
+      },
+      {
+        "index": 41,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          64
+        ],
+        "note_labels": [
+          "E4"
+        ],
+        "velocity": 85,
+        "start_ms": 28800,
+        "end_ms": 29360
+      },
+      {
+        "index": 42,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          65
+        ],
+        "note_labels": [
+          "F4"
+        ],
+        "velocity": 85,
+        "start_ms": 29520,
+        "end_ms": 30080
+      },
+      {
+        "index": 43,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          66
+        ],
+        "note_labels": [
+          "F#4"
+        ],
+        "velocity": 85,
+        "start_ms": 30240,
+        "end_ms": 30800
+      },
+      {
+        "index": 44,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          67
+        ],
+        "note_labels": [
+          "G4"
+        ],
+        "velocity": 85,
+        "start_ms": 30960,
+        "end_ms": 31520
+      },
+      {
+        "index": 45,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          68
+        ],
+        "note_labels": [
+          "G#4"
+        ],
+        "velocity": 85,
+        "start_ms": 31680,
+        "end_ms": 32240
+      },
+      {
+        "index": 46,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          69
+        ],
+        "note_labels": [
+          "A4"
+        ],
+        "velocity": 85,
+        "start_ms": 32400,
+        "end_ms": 32960
+      },
+      {
+        "index": 47,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          70
+        ],
+        "note_labels": [
+          "A#4"
+        ],
+        "velocity": 85,
+        "start_ms": 33120,
+        "end_ms": 33680
+      },
+      {
+        "index": 48,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          71
+        ],
+        "note_labels": [
+          "B4"
+        ],
+        "velocity": 85,
+        "start_ms": 33840,
+        "end_ms": 34400
+      },
+      {
+        "index": 49,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          72
+        ],
+        "note_labels": [
+          "C5"
+        ],
+        "velocity": 85,
+        "start_ms": 34560,
+        "end_ms": 35120
+      },
+      {
+        "index": 50,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          73
+        ],
+        "note_labels": [
+          "C#5"
+        ],
+        "velocity": 85,
+        "start_ms": 35280,
+        "end_ms": 35840
+      },
+      {
+        "index": 51,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          74
+        ],
+        "note_labels": [
+          "D5"
+        ],
+        "velocity": 85,
+        "start_ms": 36000,
+        "end_ms": 36560
+      },
+      {
+        "index": 52,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          75
+        ],
+        "note_labels": [
+          "D#5"
+        ],
+        "velocity": 85,
+        "start_ms": 36720,
+        "end_ms": 37280
+      },
+      {
+        "index": 53,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          76
+        ],
+        "note_labels": [
+          "E5"
+        ],
+        "velocity": 85,
+        "start_ms": 37440,
+        "end_ms": 38000
+      },
+      {
+        "index": 54,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          77
+        ],
+        "note_labels": [
+          "F5"
+        ],
+        "velocity": 85,
+        "start_ms": 38160,
+        "end_ms": 38720
+      },
+      {
+        "index": 55,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          78
+        ],
+        "note_labels": [
+          "F#5"
+        ],
+        "velocity": 85,
+        "start_ms": 38880,
+        "end_ms": 39440
+      },
+      {
+        "index": 56,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          79
+        ],
+        "note_labels": [
+          "G5"
+        ],
+        "velocity": 85,
+        "start_ms": 39600,
+        "end_ms": 40160
+      },
+      {
+        "index": 57,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          80
+        ],
+        "note_labels": [
+          "G#5"
+        ],
+        "velocity": 85,
+        "start_ms": 40320,
+        "end_ms": 40880
+      },
+      {
+        "index": 58,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          81
+        ],
+        "note_labels": [
+          "A5"
+        ],
+        "velocity": 85,
+        "start_ms": 41040,
+        "end_ms": 41600
+      },
+      {
+        "index": 59,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          82
+        ],
+        "note_labels": [
+          "A#5"
+        ],
+        "velocity": 85,
+        "start_ms": 41760,
+        "end_ms": 42320
+      },
+      {
+        "index": 60,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          83
+        ],
+        "note_labels": [
+          "B5"
+        ],
+        "velocity": 85,
+        "start_ms": 42480,
+        "end_ms": 43040
+      },
+      {
+        "index": 61,
+        "phase_name": "standard chromatic full sweep",
+        "phase_label": "All keys: standard fast bottom-to-top chromatic scale",
+        "notes": [
+          84
+        ],
+        "note_labels": [
+          "C6"
+        ],
+        "velocity": 85,
+        "start_ms": 43200,
+        "end_ms": 43760
+      }
+    ]
+  },
+  "config": {
+    "project_mode": "full_62_actuator_calibrated_bench",
+    "pca9685": {
+      "board_addresses": [
+        96,
+        80,
+        72,
+        64
+      ],
+      "pwm_frequency_hz": 250
+    },
+    "mapping": {
+      "mode": "explicit_note_map",
+      "note_to_channel": {
+        "24": 1,
+        "25": 3,
+        "26": 0,
+        "27": 2,
+        "28": 11,
+        "29": 10,
+        "30": 7,
+        "31": 9,
+        "32": 6,
+        "33": 8,
+        "34": 5,
+        "35": 4,
+        "36": 13,
+        "37": 15,
+        "38": 12,
+        "39": 14,
+        "40": 23,
+        "41": 22,
+        "42": 19,
+        "43": 21,
+        "44": 18,
+        "45": 20,
+        "46": 17,
+        "47": 16,
+        "48": 25,
+        "49": 27,
+        "50": 24,
+        "51": 26,
+        "52": 35,
+        "53": 34,
+        "54": 31,
+        "55": 33,
+        "56": 30,
+        "57": 32,
+        "58": 29,
+        "59": 28,
+        "60": 37,
+        "61": 39,
+        "62": 36,
+        "63": 38,
+        "64": 43,
+        "65": 42,
+        "66": 47,
+        "67": 41,
+        "68": 46,
+        "69": 40,
+        "70": 45,
+        "71": 44,
+        "72": 50,
+        "73": 48,
+        "74": 51,
+        "75": 49,
+        "76": 52,
+        "77": 53,
+        "78": 59,
+        "79": 54,
+        "80": 58,
+        "81": 55,
+        "82": 57,
+        "83": 56,
+        "84": 60
+      },
+      "note_labels": {
+        "24": "C1",
+        "25": "C#1",
+        "26": "D1",
+        "27": "D#1",
+        "28": "E1",
+        "29": "F1",
+        "30": "F#1",
+        "31": "G1",
+        "32": "G#1",
+        "33": "A1",
+        "34": "A#1",
+        "35": "B1",
+        "36": "C2",
+        "37": "C#2",
+        "38": "D2",
+        "39": "D#2",
+        "40": "E2",
+        "41": "F2",
+        "42": "F#2",
+        "43": "G2",
+        "44": "G#2",
+        "45": "A2",
+        "46": "A#2",
+        "47": "B2",
+        "48": "C3",
+        "49": "C#3",
+        "50": "D3",
+        "51": "D#3",
+        "52": "E3",
+        "53": "F3",
+        "54": "F#3",
+        "55": "G3",
+        "56": "G#3",
+        "57": "A3",
+        "58": "A#3",
+        "59": "B3",
+        "60": "C4",
+        "61": "C#4",
+        "62": "D4",
+        "63": "D#4",
+        "64": "E4",
+        "65": "F4",
+        "66": "F#4",
+        "67": "G4",
+        "68": "G#4",
+        "69": "A4",
+        "70": "A#4",
+        "71": "B4",
+        "72": "C5",
+        "73": "C#5",
+        "74": "D5",
+        "75": "D#5",
+        "76": "E5",
+        "77": "F5",
+        "78": "F#5",
+        "79": "G5",
+        "80": "G#5",
+        "81": "A5",
+        "82": "A#5",
+        "83": "B5",
+        "84": "C6"
+      },
+      "channel_labels": {
+        "0": "PCA9685 0x60 channel 0",
+        "1": "PCA9685 0x60 channel 1",
+        "2": "PCA9685 0x60 channel 2",
+        "3": "PCA9685 0x60 channel 3",
+        "4": "PCA9685 0x60 channel 4",
+        "5": "PCA9685 0x60 channel 5",
+        "6": "PCA9685 0x60 channel 6",
+        "7": "PCA9685 0x60 channel 7",
+        "8": "PCA9685 0x60 channel 8",
+        "9": "PCA9685 0x60 channel 9",
+        "10": "PCA9685 0x60 channel 10",
+        "11": "PCA9685 0x60 channel 11",
+        "12": "PCA9685 0x60 channel 12",
+        "13": "PCA9685 0x60 channel 13",
+        "14": "PCA9685 0x60 channel 14",
+        "15": "PCA9685 0x60 channel 15",
+        "16": "PCA9685 0x50 channel 0",
+        "17": "PCA9685 0x50 channel 1",
+        "18": "PCA9685 0x50 channel 2",
+        "19": "PCA9685 0x50 channel 3",
+        "20": "PCA9685 0x50 channel 4",
+        "21": "PCA9685 0x50 channel 5",
+        "22": "PCA9685 0x50 channel 6",
+        "23": "PCA9685 0x50 channel 7",
+        "24": "PCA9685 0x50 channel 8",
+        "25": "PCA9685 0x50 channel 9",
+        "26": "PCA9685 0x50 channel 10",
+        "27": "PCA9685 0x50 channel 11",
+        "28": "PCA9685 0x50 channel 12",
+        "29": "PCA9685 0x50 channel 13",
+        "30": "PCA9685 0x50 channel 14",
+        "31": "PCA9685 0x50 channel 15",
+        "32": "PCA9685 0x48 channel 0",
+        "33": "PCA9685 0x48 channel 1",
+        "34": "PCA9685 0x48 channel 2",
+        "35": "PCA9685 0x48 channel 3",
+        "36": "PCA9685 0x48 channel 4",
+        "37": "PCA9685 0x48 channel 5",
+        "38": "PCA9685 0x48 channel 6",
+        "39": "PCA9685 0x48 channel 7",
+        "40": "PCA9685 0x48 channel 8",
+        "41": "PCA9685 0x48 channel 9",
+        "42": "PCA9685 0x48 channel 10",
+        "43": "PCA9685 0x48 channel 11",
+        "44": "PCA9685 0x48 channel 12",
+        "45": "PCA9685 0x48 channel 13",
+        "46": "PCA9685 0x48 channel 14",
+        "47": "PCA9685 0x48 channel 15",
+        "48": "PCA9685 0x40 channel 0",
+        "49": "PCA9685 0x40 channel 1",
+        "50": "PCA9685 0x40 channel 2",
+        "51": "PCA9685 0x40 channel 3",
+        "52": "PCA9685 0x40 channel 4",
+        "53": "PCA9685 0x40 channel 5",
+        "54": "PCA9685 0x40 channel 6",
+        "55": "PCA9685 0x40 channel 7",
+        "56": "PCA9685 0x40 channel 8",
+        "57": "PCA9685 0x40 channel 9",
+        "58": "PCA9685 0x40 channel 10",
+        "59": "PCA9685 0x40 channel 11",
+        "60": "PCA9685 0x40 channel 12",
+        "61": "Sustain pedal (PCA9685 0x40 channel 13)"
+      },
+      "channel_sequence": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61
+      ],
+      "pedal": {
+        "enabled": true,
+        "channel": 61
+      }
+    },
+    "actuation": {
+      "strike_min_pwm": 2700,
+      "strike_max_pwm": 3900,
+      "velocity_curve": 1.0,
+      "strike_ms": 45,
+      "hold_min_pwm": 1200,
+      "hold_max_pwm": 2000,
+      "hold_ratio": 0.5,
+      "release_delay_ms": 20,
+      "minimum_rearm_gap_ms": 25,
+      "retrigger_gap_ms": 16,
+      "note_color_overrides": {
+        "black": {
+          "hold_min_pwm": 2400,
+          "hold_max_pwm": 2800,
+          "hold_ratio": 0.72
+        }
+      },
+      "channel_overrides": {
+        "2": {
+          "strike_min_pwm": 3895,
+          "strike_max_pwm": 4095,
+          "strike_ms": 250,
+          "hold_min_pwm": 2600,
+          "hold_max_pwm": 2800,
+          "hold_ratio": 0.68,
+          "release_delay_ms": 20,
+          "minimum_rearm_gap_ms": 40,
+          "retrigger_gap_ms": 25,
+          "temporary_debug_note": "D#1 channel 2 weak MOSFET path; bench test needed 4095 PWM for 250 ms to snap reliably, with stronger hold so the note does not release early",
+          "playback_velocity_override": 85,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "D#1",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:09:31-0700"
+        },
+        "11": {
+          "hold_min_pwm": 2400,
+          "hold_max_pwm": 2600,
+          "hold_ratio": 0.66,
+          "temporary_debug_note": "E1 was releasing early during full sweep; stronger hold keeps the key depressed after strike",
+          "playback_velocity_override": 85,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "E1",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:09:41-0700"
+        },
+        "13": {
+          "speed_test_note": "C2",
+          "speed_test_saved_status": "slower_blends",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:14:41-0700"
+        },
+        "20": {
+          "speed_test_note": "A2",
+          "speed_test_saved_status": "slower_blends",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:17:47-0700"
+        },
+        "21": {
+          "hold_min_pwm": 2400,
+          "hold_max_pwm": 2600,
+          "hold_ratio": 0.66,
+          "temporary_debug_note": "G2 was staccatoing during full sweep; stronger hold keeps the key depressed after strike",
+          "playback_velocity_override": 50,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "G2",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:17:08-0700"
+        },
+        "23": {
+          "hold_min_pwm": 2400,
+          "hold_max_pwm": 2600,
+          "hold_ratio": 0.66,
+          "temporary_debug_note": "E2 was staccatoing during full sweep; stronger hold keeps the key depressed after strike",
+          "playback_velocity_override": 45,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "E2",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:15:44-0700"
+        },
+        "24": {
+          "speed_test_note": "D3",
+          "speed_test_saved_status": "slower_blends",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:38:24-0700"
+        },
+        "25": {
+          "speed_test_note": "C3",
+          "speed_test_saved_status": "slower_blends",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:37:10-0700"
+        },
+        "28": {
+          "speed_test_note": "B3",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:40:46-0700"
+        },
+        "32": {
+          "hold_min_pwm": 2400,
+          "hold_max_pwm": 2600,
+          "hold_ratio": 0.66,
+          "temporary_debug_note": "A3 was releasing early after strike; stronger hold keeps the key depressed",
+          "playback_velocity_override": 85,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "A3",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:40:08-0700"
+        },
+        "33": {
+          "speed_test_note": "G3",
+          "speed_test_saved_status": "slower_blends",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:39:55-0700"
+        },
+        "34": {
+          "hold_min_pwm": 2400,
+          "hold_max_pwm": 2600,
+          "hold_ratio": 0.66,
+          "temporary_debug_note": "F3 was staccatoing during full sweep; stronger hold keeps the key depressed after strike",
+          "playback_velocity_override": 85,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "F3",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:39:30-0700"
+        },
+        "35": {
+          "hold_min_pwm": 2400,
+          "hold_max_pwm": 2600,
+          "hold_ratio": 0.66,
+          "temporary_debug_note": "E3 was releasing early during full sweep; stronger hold keeps the key depressed after strike",
+          "playback_velocity_override": 100,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "E3",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:39:25-0700"
+        },
+        "36": {
+          "speed_test_note": "D4",
+          "speed_test_saved_status": "slower_blends",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:41:32-0700"
+        },
+        "38": {
+          "speed_test_note": "D#4",
+          "speed_test_saved_status": "slower_blends",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:42:00-0700"
+        },
+        "40": {
+          "hold_min_pwm": 2400,
+          "hold_max_pwm": 2600,
+          "hold_ratio": 0.66,
+          "temporary_debug_note": "A4 was releasing early after strike; stronger hold keeps the key depressed",
+          "playback_velocity_override": 10,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "A4",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:44:01-0700"
+        },
+        "47": {
+          "strike_min_pwm": 3850,
+          "strike_max_pwm": 4095,
+          "strike_ms": 95,
+          "hold_min_pwm": 2700,
+          "hold_max_pwm": 2900,
+          "hold_ratio": 0.72,
+          "release_delay_ms": 20,
+          "minimum_rearm_gap_ms": 40,
+          "retrigger_gap_ms": 25,
+          "temporary_debug_note": "F#4 was silent during full sweep; stronger and slightly longer strike tests whether the key needs more pull power",
+          "playback_velocity_override": 85,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "F#4",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:43:24-0700"
+        },
+        "50": {
+          "hold_min_pwm": 2400,
+          "hold_max_pwm": 2600,
+          "hold_ratio": 0.66,
+          "temporary_debug_note": "C5 was releasing early after strike; stronger hold keeps the key depressed",
+          "playback_velocity_override": 10,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "C5",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:47:56-0700"
+        },
+        "54": {
+          "speed_test_note": "G5",
+          "speed_test_saved_status": "slower_blends",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:50:57-0700"
+        },
+        "55": {
+          "hold_min_pwm": 2400,
+          "hold_max_pwm": 2600,
+          "hold_ratio": 0.66,
+          "temporary_debug_note": "A5 was staccatoing during full sweep; stronger hold keeps the key depressed after strike",
+          "playback_velocity_override": 70,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "A5",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:52:02-0700"
+        },
+        "60": {
+          "hold_min_pwm": 2400,
+          "hold_max_pwm": 2600,
+          "hold_ratio": 0.66,
+          "temporary_debug_note": "C6 was releasing early after strike; stronger hold keeps the key depressed",
+          "playback_velocity_override": 85,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "C6",
+          "speed_test_saved_status": "manual_save",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:52:43-0700"
+        },
+        "1": {
+          "playback_velocity_override": 85,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "C1",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:08:16-0700"
+        },
+        "3": {
+          "playback_velocity_override": 85,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "C#1",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:08:27-0700"
+        },
+        "0": {
+          "playback_velocity_override": 20,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "D1",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:09:21-0700"
+        },
+        "10": {
+          "speed_test_note": "F1",
+          "speed_test_saved_status": "slower_blends",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:10:49-0700"
+        },
+        "7": {
+          "playback_velocity_override": 85,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "F#1",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:10:58-0700"
+        },
+        "9": {
+          "playback_velocity_override": 85,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "G1",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:11:05-0700"
+        },
+        "6": {
+          "playback_velocity_override": 30,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "G#1",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:11:48-0700"
+        },
+        "8": {
+          "playback_velocity_override": 40,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "A1",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:12:14-0700"
+        },
+        "5": {
+          "playback_velocity_override": 40,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "A#1",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:12:46-0700"
+        },
+        "4": {
+          "speed_test_note": "B1",
+          "speed_test_saved_status": "slower_blends",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:14:25-0700"
+        },
+        "15": {
+          "playback_velocity_override": 85,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "C#2",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:14:50-0700"
+        },
+        "12": {
+          "playback_velocity_override": 85,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "D2",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:15:08-0700"
+        },
+        "14": {
+          "playback_velocity_override": 85,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "D#2",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:15:14-0700"
+        },
+        "22": {
+          "speed_test_note": "F2",
+          "speed_test_saved_status": "slower_blends",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:16:26-0700"
+        },
+        "19": {
+          "playback_velocity_override": 85,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "F#2",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:16:33-0700"
+        },
+        "18": {
+          "playback_velocity_override": 85,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "G#2",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:17:17-0700"
+        },
+        "17": {
+          "playback_velocity_override": 40,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "A#2",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:18:13-0700"
+        },
+        "16": {
+          "speed_test_note": "B2",
+          "speed_test_saved_status": "slower_blends",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:18:32-0700"
+        },
+        "27": {
+          "playback_velocity_override": 85,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "C#3",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:37:18-0700"
+        },
+        "26": {
+          "playback_velocity_override": 85,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "D#3",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:38:34-0700"
+        },
+        "31": {
+          "speed_test_note": "F#3",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:39:36-0700"
+        },
+        "30": {
+          "speed_test_note": "G#3",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:40:02-0700"
+        },
+        "29": {
+          "playback_velocity_override": 40,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "A#3",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:40:24-0700"
+        },
+        "37": {
+          "speed_test_note": "C4",
+          "speed_test_saved_status": "slower_blends",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:41:06-0700"
+        },
+        "39": {
+          "playback_velocity_override": 85,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "C#4",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:41:13-0700"
+        },
+        "43": {
+          "playback_velocity_override": 20,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "E4",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:42:51-0700"
+        },
+        "42": {
+          "speed_test_note": "F4",
+          "speed_test_saved_status": "slower_blends",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:43:16-0700"
+        },
+        "41": {
+          "playback_velocity_override": 40,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "G4",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:43:43-0700"
+        },
+        "46": {
+          "playback_velocity_override": 85,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "G#4",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:43:49-0700"
+        },
+        "45": {
+          "speed_test_note": "A#4",
+          "speed_test_saved_status": "slower_blends",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:44:22-0700"
+        },
+        "44": {
+          "speed_test_note": "B4",
+          "speed_test_saved_status": "slower_blends",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:47:21-0700"
+        },
+        "48": {
+          "speed_test_note": "C#5",
+          "speed_test_saved_status": "slower_blends",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:48:22-0700"
+        },
+        "51": {
+          "speed_test_note": "D5",
+          "speed_test_saved_status": "slower_blends",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:48:35-0700"
+        },
+        "49": {
+          "speed_test_note": "D#5",
+          "speed_test_saved_status": "slower_blends",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:48:46-0700"
+        },
+        "52": {
+          "playback_velocity_override": 5,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "E5",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:49:41-0700"
+        },
+        "53": {
+          "playback_velocity_override": 1,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "F5",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:50:17-0700"
+        },
+        "59": {
+          "playback_velocity_override": 50,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "F#5",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:50:30-0700"
+        },
+        "58": {
+          "speed_test_note": "G#5",
+          "speed_test_saved_status": "slower_blends",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:51:21-0700"
+        },
+        "57": {
+          "strike_min_pwm": 4095,
+          "strike_max_pwm": 4095,
+          "strike_ms": 500,
+          "minimum_note_duration_ms": 900,
+          "hold_min_pwm": 3300,
+          "hold_max_pwm": 3500,
+          "hold_ratio": 0.85,
+          "release_delay_ms": 20,
+          "minimum_rearm_gap_ms": 40,
+          "retrigger_gap_ms": 25,
+          "temporary_debug_note": "A#5 buzzed lightly without pulling in; max local strike with a much longer full-power pull tests whether this solenoid needs more pull time",
+          "playback_velocity_override": 127,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "A#5",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:52:09-0700"
+        },
+        "56": {
+          "playback_velocity_override": 60,
+          "minimum_repeat_period_ms": 94,
+          "speed_test_note": "B5",
+          "speed_test_saved_status": "meets",
+          "speed_test_speed_label": "32nds",
+          "speed_test_bpm": 80.0,
+          "speed_test_period_ms": 93.75,
+          "speed_test_saved_at": "2026-05-13T17:52:22-0700"
+        }
+      }
+    },
+    "performance_feel": {
+      "enabled": true,
+      "rubato": {
+        "enabled": true,
+        "max_shift_ms": 14,
+        "phrase_beats": 16
+      },
+      "articulation": {
+        "enabled": true,
+        "staccato_enabled": true,
+        "staccato_max_beats": 0.5,
+        "staccato_duration_ratio": 0.55,
+        "staccato_min_duration_ms": 55,
+        "staccato_max_duration_ms": 120,
+        "staccato_min_gap_ms": 65,
+        "staccato_velocity_boost": 5,
+        "repeated_note_gap_beats": 1.25,
+        "repeated_duration_ratio": 0.78,
+        "lyrical_min_duration_beats": 0.75,
+        "lyrical_extension_ratio": 0.08,
+        "lyrical_extension_max_ms": 80,
+        "min_duration_ms": 80
+      },
+      "accent": {
+        "enabled": true,
+        "downbeat_boost": 8,
+        "melody_boost": 6,
+        "phrase_peak_boost": 4
+      },
+      "pedal": {
+        "enabled": true,
+        "down_lead_ms": 30,
+        "up_lag_ms": 70
+      },
+      "register_velocity": {
+        "enabled": true,
+        "bass_floor_note": 24,
+        "bass_note_max": 71,
+        "bass_boost": -12,
+        "bass_max_trim": 40,
+        "treble_note_min": 72,
+        "treble_trim": -2
+      }
+    },
+    "pedal": {
+      "enabled": true,
+      "servo_signal_pin": 2,
+      "servo_model": "9g microservo",
+      "horn_length_in": 0.5,
+      "up_angle_deg": 0,
+      "down_angle_deg": 180,
+      "arc_length_in": 1.5708,
+      "reaction_characterization": {
+        "test_date": "2026-04-15T16:42:56",
+        "serial_port": "COM3",
+        "down_travel_median_ms": 425.551,
+        "up_travel_median_ms": 441.623,
+        "overall_travel_median_ms": 433.587,
+        "overall_estimated_tip_speed_in_per_s": 3.5685,
+        "recommended_down_profile_ms": 426,
+        "recommended_up_profile_ms": 442,
+        "notes": "Reaction-based timings include human response delay. Use these as bench-tuning targets until video-based pedal contact and release timings are captured."
+      },
+      "channel": 61,
+      "down_pwm": 3500,
+      "hold_pwm": 3500,
+      "hold_refresh_ms": 750,
+      "strength_percent": 85,
+      "up_pwm": 0,
+      "lead_ms": 0,
+      "minimum_down_ms": 500,
+      "retrigger_release_ms": 140,
+      "merge_gap_ms": 0,
+      "failsafe_release_ms": 1000
+    },
+    "notes": {
+      "current_setup": "The runtime supports up to four PCA9685 boards sharing the Arduino I2C bus as one 64-channel global space. The current bench setup uses 62 actuators: channels 0 through 60 are piano keys and channel 61 is the sustain pedal, one position higher than the highest note.",
+      "wiring_assumption": "Global channels 0 through 15 live on the first configured PCA9685 address, 16 through 31 on the second, 32 through 47 on the third, and 48 through 63 on the fourth.",
+      "future_setup": "The committed default mapping now matches the current 62-actuator bench. If one machine needs local tweaks, it can still save a calibrated_mapping.json override without changing the repo default for everyone else.",
+      "calibrated_mapping_path": "config\\calibrated_mapping.json"
+    }
+  }
+}
